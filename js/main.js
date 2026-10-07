@@ -25,7 +25,8 @@
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (!$('game').classList.contains('hidden')) {
-      L.battle.update(dt);
+      const steps = (L.dev && L.dev.speed) || 1; // geliştirici menüsündeki oyun hızı
+      for (let i = 0; i < steps; i++) L.battle.update(dt);
       L.scene.draw($('battle').getContext('2d'), now / 1000);
       hudTimer += dt;
       if (hudTimer > 0.1) { hudTimer = 0; L.hud.update(); }
@@ -38,6 +39,7 @@
   function boot() {
     L.creator.bind();
     L.hud.bind();
+    L.devmenu.init();
 
     L.events.on('levelup', ({ level }) => {
       const B = L.battle;

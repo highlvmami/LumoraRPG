@@ -16,3 +16,7 @@ Web için pixel art idle RPG. Bağımlılık yok: `index.html`'i tarayıcıda a�
 - Yeni canavar: `sprites.js`'e çizim (veya mevcut çizimi başka renkle kullan) → `monsters.js` → `worlds.js` listesine ekle
 - Yeni dünya: `worlds.js`'e ekle, `backgrounds.js`'e arka plan çizimi ekle
 - Yeni saç/şapka: `sprites.js` → `appearance.js`
+
+## Geliştirici menüsü
+Adresin sonuna `?dev` ekle (örn. `https://lumora-rpg.onrender.com/?dev`). Sağ altta 🛠️ butonu çıkar, `` ` `` tuşu da menüyü açıp kapatır.
+Bu tarayıcıda hatırlanır; kapatmak için `?dev=0`.

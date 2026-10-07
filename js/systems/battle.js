@@ -126,7 +126,8 @@
     playerAttack(d) {
       const M = this.monster, P = this.player;
       const crit = Math.random() < d.crit;
-      const dmg = Math.max(1, Math.round(d.damage * U.rand(0.9, 1.1) * (crit ? d.critMult : 1)));
+      let dmg = Math.max(1, Math.round(d.damage * U.rand(0.9, 1.1) * (crit ? d.critMult : 1)));
+      if (L.dev && L.dev.oneShot) dmg = Math.max(dmg, M.hp);
       M.hp -= dmg;
       M.flash = 0.1;
       P.lunge = 1;
@@ -139,7 +140,7 @@
 
     monsterAttack(d) {
       const M = this.monster, P = this.player;
-      const dmg = Math.max(1, Math.round(M.dmg * U.rand(0.9, 1.1)));
+      const dmg = L.dev && L.dev.god ? 0 : Math.max(1, Math.round(M.dmg * U.rand(0.9, 1.1)));
       P.hp -= dmg;
       P.hurt = 0.15;
       M.lunge = 1;
