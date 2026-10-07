@@ -10,73 +10,111 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Ana menü + karakter ekranı arka planı: 2.5D pixel orman -->
+  <canvas id="forestBg" class="forest-bg hidden"></canvas>
+
   <div id="app">
+    <!-- Ana menü -->
+    <section id="title" class="screen hidden">
+      <div class="title-wrap">
+        <h1 class="logo">LUMORA<span>RPG</span></h1>
+        <div class="tagline">~ Pixel Idle Macera ~</div>
+        <div class="menu-buttons">
+          <button id="continueBtn" class="gbtn gbtn-gold">▶ Devam Et</button>
+          <button id="newGameBtn" class="gbtn">✦ Yeni Oyun</button>
+        </div>
+        <div id="continueInfo" class="continue-info"></div>
+      </div>
+      <div class="version">v0.3</div>
+    </section>
+
     <!-- Karakter tasarlama -->
     <section id="creator" class="screen hidden">
-      <h1 class="logo">LUMORA <span>RPG</span></h1>
-      <h2 id="creatorTitle" class="subtitle">Kahramanını Yarat</h2>
-      <div class="creator-box panel">
-        <div class="creator-preview">
-          <canvas id="previewCanvas" width="192" height="256"></canvas>
-          <input id="charName" maxlength="12" placeholder="Kahraman adı" autocomplete="off">
-          <button id="randomBtn" class="btn">🎲 Rastgele</button>
+      <div class="creator-layout">
+        <div class="frame creator-panel">
+          <div class="frame-title" id="creatorTitle">Kahramanını Yarat</div>
+          <div class="tabs" id="creatorTabs"></div>
+          <div id="creatorOptions" class="creator-options"></div>
         </div>
-        <div id="creatorOptions" class="creator-options"></div>
+        <div class="creator-stage">
+          <canvas id="previewCanvas" width="256" height="352"></canvas>
+          <div class="name-plate frame">
+            <input id="charName" maxlength="12" placeholder="Kahraman adı" autocomplete="off">
+            <button id="randomBtn" class="gbtn gbtn-sm" title="Rastgele">🎲</button>
+          </div>
+          <div class="creator-actions">
+            <button id="creatorBack" class="gbtn">◀ Geri</button>
+            <button id="startBtn" class="gbtn gbtn-gold">Maceraya Başla ▶</button>
+          </div>
+        </div>
       </div>
-      <button id="startBtn" class="btn btn-primary btn-big">Maceraya Başla ▶</button>
     </section>
 
     <!-- Oyun -->
     <section id="game" class="screen hidden">
-      <header class="topbar panel">
-        <canvas id="portrait" width="48" height="48"></canvas>
-        <div class="who">
-          <div id="hudName" class="name"></div>
-          <div class="lvl">Lv <span id="hudLevel">1</span></div>
+      <header class="hud-top">
+        <div class="frame hero-card">
+          <div class="portrait"><canvas id="portrait" width="72" height="72"></canvas></div>
+          <div class="hero-info">
+            <div class="hero-name"><span id="hudName"></span><span class="lv-badge">Lv <span id="hudLevel">1</span></span></div>
+            <div class="gbar hp"><div id="hpFill"></div><span id="hpText"></span></div>
+            <div class="gbar exp"><div id="expFill"></div><span id="expText"></span></div>
+          </div>
         </div>
-        <div class="expwrap">
-          <div class="bar exp"><div id="expFill"></div></div>
-          <div id="expText" class="small"></div>
-        </div>
-        <div class="gold">🪙 <span id="hudGold">0</span></div>
+        <div class="frame gold-card"><span class="coin"></span><span id="hudGold">0</span></div>
+        <button id="menuBtn" class="gbtn gbtn-icon" title="Menü">☰</button>
       </header>
 
-      <div class="layout">
-        <div class="stage-panel panel">
-          <div class="stage-bar">
-            <button id="prevStage" class="btn btn-sq" title="Önceki bölüm">◀</button>
-            <div class="stage-title">
+      <div class="game-layout">
+        <main class="frame stage-frame">
+          <div class="stage-banner">
+            <button id="prevStage" class="gbtn gbtn-sm" title="Önceki bölüm">◀</button>
+            <div class="ribbon">
               <div id="stageName" class="stage-name">1-1</div>
-              <div id="worldName" class="small"></div>
+              <div id="worldName" class="world-name"></div>
             </div>
-            <button id="nextStage" class="btn btn-sq" title="Sonraki bölüm">▶</button>
+            <button id="nextStage" class="gbtn gbtn-sm" title="Sonraki bölüm">▶</button>
           </div>
           <div class="canvas-wrap"><canvas id="battle" width="640" height="360"></canvas></div>
           <div class="boss-row">
             <div class="kills">
               <div id="killText" class="small"></div>
-              <div class="bar kill"><div id="killFill"></div></div>
+              <div class="gbar kill"><div id="killFill"></div></div>
             </div>
-            <button id="bossBtn" class="btn btn-boss">👹 BOSS ÇAĞIR</button>
+            <button id="bossBtn" class="gbtn gbtn-boss">👹 BOSS ÇAĞIR</button>
             <label class="auto" title="Mob sayısı dolunca boss'u otomatik çağır"><input type="checkbox" id="autoBoss"> Oto</label>
           </div>
-        </div>
+        </main>
 
-        <aside class="side">
-          <div class="panel">
-            <h3>Yetenek Puanı <span id="pointsBadge" class="badge">0</span></h3>
+        <aside class="frame side-frame">
+          <nav class="side-tabs">
+            <button class="side-tab active" data-tab="stats">⚔️ Stat <span id="statBadge" class="dot hidden"></span></button>
+            <button class="side-tab" data-tab="skills">🌳 Yetenek <span id="skillBadge" class="dot hidden"></span></button>
+            <button class="side-tab" data-tab="log">📜 Günlük</button>
+          </nav>
+          <div class="tab-body" id="tab-stats">
+            <div class="points-line">Stat Puanı <span id="pointsBadge" class="badge">0</span></div>
             <div id="statList"></div>
             <div id="derived" class="derived"></div>
           </div>
-          <div class="panel">
-            <h3>Günlük</h3>
-            <ul id="log"></ul>
+          <div class="tab-body hidden" id="tab-skills">
+            <div class="points-line">Yetenek Puanı <span id="skillPointsBadge" class="badge">0</span>
+              <button id="resetSkillsBtn" class="gbtn gbtn-sm" title="Puanları geri al">↺</button></div>
+            <div id="skillTree" class="skill-tree"></div>
+            <div id="skillInfo" class="skill-info"></div>
           </div>
-          <div class="panel actions">
-            <button id="editCharBtn" class="btn">Karakteri Düzenle</button>
-            <button id="resetBtn" class="btn btn-danger">Sıfırla</button>
-          </div>
+          <div class="tab-body hidden" id="tab-log"><ul id="log"></ul></div>
         </aside>
+      </div>
+
+      <div id="menuModal" class="modal hidden">
+        <div class="frame modal-box">
+          <div class="frame-title">Menü</div>
+          <button id="resumeBtn" class="gbtn gbtn-gold">▶ Devam</button>
+          <button id="editCharBtn" class="gbtn">👤 Karakteri Düzenle</button>
+          <button id="toTitleBtn" class="gbtn">🏠 Ana Menü</button>
+          <button id="resetBtn" class="gbtn gbtn-danger">🗑️ İlerlemeyi Sıfırla</button>
+        </div>
       </div>
     </section>
   </div>
@@ -88,13 +126,17 @@
   <script src="js/data/sprites.js"></script>
   <script src="js/data/monsters.js"></script>
   <script src="js/data/worlds.js"></script>
+  <script src="js/data/skills.js"></script>
   <script src="js/systems/save.js"></script>
   <script src="js/systems/player.js"></script>
   <script src="js/systems/battle.js"></script>
+  <script src="js/render/character.js"></script>
   <script src="js/render/pixel.js"></script>
   <script src="js/render/backgrounds.js"></script>
   <script src="js/render/scene.js"></script>
+  <script src="js/render/forest.js"></script>
   <script src="js/ui/creator.js"></script>
+  <script src="js/ui/skilltree.js"></script>
   <script src="js/ui/hud.js"></script>
   <script src="js/ui/devmenu.js"></script>
   <script src="js/main.js"></script>

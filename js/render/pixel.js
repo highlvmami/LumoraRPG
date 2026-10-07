@@ -75,29 +75,10 @@
   L.pixel = {
     shade,
 
-    characterLayers(app) {
-      const S = L.sprites.player;
-      const pal = {
-        O: OUTLINE, S: app.skin, E: app.eye, T: app.shirt, P: app.pants, B: app.shoes,
-        H: app.hairColor, W: '#dee2e6', G: '#c9a227', R: '#6b4226',
-      };
-      const layers = [{ rows: S.base, pal }];
-      const hair = S.hair[app.hairStyle];
-      if (hair) layers.push({ rows: hair.rows, y0: hair.y0, pal, outline: true });
-      const hat = S.hats[app.hat];
-      if (hat) {
-        layers.push({ rows: hat.rows, y0: hat.y0, outline: true,
-          pal: { C: app.hatColor, D: L.appearance.hatAccent[app.hat] || '#fff' } });
-      }
-      layers.push({ rows: S.weapon.rows, y0: S.weapon.y0, pal, outline: true });
-      return layers;
-    },
-
-    // Karakter sprite'ı (önbellekli). flash: beyaz/kırmızı parlama rengi
+    // Oyuncu sprite'ı (32x48, js/render/character.js), önbellekli. flash: vuruş anındaki düz renk
     character(app, scale, flash) {
-      const S = L.sprites.player;
       const key = 'char|' + JSON.stringify(app) + '|' + scale + '|' + (flash || '');
-      return cached(key, () => gridToCanvas(compose(this.characterLayers(app), S.width, S.height), scale, flash));
+      return cached(key, () => L.character.toCanvas(app, scale, flash));
     },
 
     monster(id, scale, flash) {

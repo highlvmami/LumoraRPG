@@ -5,12 +5,12 @@
 
   const PLAYER_X = 110;
   const MONSTER_X = 450;
-  const BOSS_X = 420;
+  const BOSS_X = 410;
 
   L.battle = {
-    player: { hp: 1, atkT: 0, lunge: 0, hurt: 0, dead: false, respawn: 0 },
+    player: { hp: 1, atkT: 0, lunge: 0, hurt: 0, dead: false, respawn: 0, hits: 0 },
     monster: null,
-    boss: { active: false, time: 0 },
+    boss: { active: false, time: 0, max: 30 },
     texts: [],      // uçan yazılar (hasar, +exp, +altın)
     particles: [],
     slashes: [],
@@ -53,9 +53,9 @@
     summonBoss() {
       if (!this.canSummonBoss()) return false;
       this.boss.active = true;
-      this.boss.time = L.balance.bossTime;
+      this.boss.time = this.boss.max = L.player.derived().bossTime;
       this.spawn(true);
-      this.log(`👹 ${this.monster.name} ortaya çıktı! ${L.balance.bossTime} saniyen var.`, 'boss');
+      this.log(`👹 ${this.monster.name} ortaya çıktı! ${this.boss.max} saniyen var.`, 'boss');
       return true;
     },
 
@@ -86,7 +86,7 @@
         return;
       }
 
-      P.hp = Math.min(d.maxHp, P.hp + d.maxHp * L.balance.player.regenPct * dt);
+      P.hp = Math.min(d.maxHp, P.hp + d.maxHp * d.regenPct * dt);
 
       const M = this.monster;
       M.flash = Math.max(0, M.flash - dt);
@@ -126,25 +126,27 @@
     playerAttack(d) {
       const M = this.monster, P = this.player;
       const crit = Math.random() < d.crit;
-      let dmg = Math.max(1, Math.round(d.damage * U.rand(0.9, 1.1) * (crit ? d.critMult : 1)));
+      P.hits++;
+      const heavy = d.heavyStrike && P.hits % 5 === 0;
+      let dmg = Math.max(1, Math.round(d.damage * U.rand(0.9, 1.1) * (crit ? d.critMult : 1) * (heavy ? 3 : 1)));
       if (L.dev && L.dev.oneShot) dmg = Math.max(dmg, M.hp);
       M.hp -= dmg;
       M.flash = 0.1;
       P.lunge = 1;
-      const cx = M.x + (M.isBoss ? 56 : 40);
+      const cx = M.x + (M.isBoss ? 64 : 40);
       this.slashes.push({ x: cx, y: 200, life: 0.18, max: 0.18 });
-      this.addText(crit ? `${U.fmt(dmg)}!` : U.fmt(dmg), cx + U.rand(-20, 20), 150,
-        crit ? '#ffd43b' : '#ffffff', crit ? 20 : 16);
+      this.addText(heavy ? `💥${U.fmt(dmg)}` : crit ? `${U.fmt(dmg)}!` : U.fmt(dmg), cx + U.rand(-20, 20), 150,
+        heavy ? '#ff922b' : crit ? '#ffd43b' : '#ffffff', heavy || crit ? 20 : 16);
       if (M.hp <= 0) { M.hp = 0; this.kill(d); }
     },
 
     monsterAttack(d) {
       const M = this.monster, P = this.player;
-      const dmg = L.dev && L.dev.god ? 0 : Math.max(1, Math.round(M.dmg * U.rand(0.9, 1.1)));
+      const dmg = L.dev && L.dev.god ? 0 : Math.max(1, Math.round(M.dmg * U.rand(0.9, 1.1) * d.damageTaken));
       P.hp -= dmg;
       P.hurt = 0.15;
       M.lunge = 1;
-      this.addText(`-${U.fmt(dmg)}`, PLAYER_X + 32 + U.rand(-10, 10), 140, '#ff6b6b', 14);
+      this.addText(`-${U.fmt(dmg)}`, PLAYER_X + 48 + U.rand(-10, 10), 110, '#ff6b6b', 14);
       if (P.hp <= 0) {
         P.hp = 0;
         P.dead = true;
@@ -163,11 +165,12 @@
       M.dying = 0.45;
       const gold = Math.max(1, Math.round(M.gold * d.goldMult));
       L.player.addGold(gold);
-      L.player.addExp(M.exp);
+      const exp = Math.max(1, Math.round(M.exp * d.expMult));
+      L.player.addExp(exp);
       s.records.totalKills++;
 
-      const cx = M.x + (M.isBoss ? 56 : 40);
-      this.addText(`+${U.fmt(M.exp)} EXP`, cx, 110, '#74c0fc', 12);
+      const cx = M.x + (M.isBoss ? 64 : 40);
+      this.addText(`+${U.fmt(exp)} EXP`, cx, 110, '#74c0fc', 12);
       this.addText(`+${U.fmt(gold)} 🪙`, cx, 130, '#ffd43b', 12);
       this.burst(cx, 220, M.def.pal.G || M.def.pal.S, M.isBoss ? 30 : 14);
 

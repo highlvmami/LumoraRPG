@@ -26,7 +26,10 @@
   }
 
   function btn(label, fn) {
-    return el('button', { className: 'btn dev-btn', textContent: label, onclick: () => { fn(); refresh(); } });
+    return el('button', { className: 'gbtn gbtn-sm dev-btn', textContent: label, onclick: () => {
+      if (!L.save.data || document.getElementById('game').classList.contains('hidden')) { alert('Önce oyuna gir.'); return; }
+      fn(); refresh();
+    } });
   }
 
   function toggle(label, key) {
@@ -43,6 +46,7 @@
 
   function refresh() {
     L.hud.buildStats();
+    L.skilltree.render();
     L.hud.update();
     L.save.write();
   }
@@ -67,7 +71,7 @@
     const speedSel = el('select', { className: 'dev-input', onchange: (e) => { L.dev.speed = +e.target.value; } },
       [1, 2, 5, 10].map((v) => el('option', { value: v, textContent: `${v}x`, selected: L.dev.speed === v })));
 
-    const panel = el('div', { id: 'devPanel', className: 'panel dev-panel hidden' }, [
+    const panel = el('div', { id: 'devPanel', className: 'frame dev-panel hidden' }, [
       el('h3', { textContent: '🛠️ Geliştirici Menüsü' }),
       section('Altın', [
         btn('+1K', () => L.player.addGold(1e3)),
@@ -78,6 +82,7 @@
         btn('+1 Level', () => addLevels(1)),
         btn('+10 Level', () => addLevels(10)),
         btn('+10 Puan', () => { data().player.points += 10; }),
+        btn('+5 Yetenek Puanı', () => { data().player.skillPoints += 5; }),
         btn('Puanları geri al', () => {
           const p = data().player;
           for (const k in p.stats) { p.points += p.stats[k] - 1; p.stats[k] = 1; }
@@ -99,7 +104,7 @@
       section('Bölüme git', [stageInput, btn('Git', () => jumpTo(stageInput.value))]),
     ]);
 
-    const fab = el('button', { className: 'btn dev-fab', textContent: '🛠️', title: 'Geliştirici menüsü (`)', onclick: togglePanel });
+    const fab = el('button', { className: 'gbtn dev-fab', textContent: '🛠️', title: 'Geliştirici menüsü (`)', onclick: togglePanel });
     document.body.append(panel, fab);
   }
 

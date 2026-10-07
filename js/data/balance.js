@@ -5,7 +5,8 @@
     killsForBoss: 10,       // boss çağırmak için gereken mob sayısı
     bossTime: 30,           // boss'u kesmek için saniye
     respawnTime: 2,         // ölünce yeniden doğma süresi (sn)
-    pointsPerLevel: 3,      // level başına yetenek puanı
+    pointsPerLevel: 3,      // level başına stat puanı
+    skillPointsPerLevel: 1, // level başına yetenek ağacı puanı
 
     expToNext: (level) => Math.floor(12 * Math.pow(level, 1.7)),
 

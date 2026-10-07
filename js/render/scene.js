@@ -57,11 +57,11 @@
       // --- oyuncu ---
       const app = L.save.data.character;
       const lunge = Math.sin(P.lunge * Math.PI) * 28;
-      const bob = Math.sin(t * 4) > 0 ? 0 : 4;
-      const px = B.PLAYER_X + Math.round(lunge / 4) * 4;
-      const py = groundY - 112 + (P.dead ? 0 : bob);
-      shadow(ctx, px + 32, 56);
-      const pSprite = L.pixel.character(app, 4, P.hurt > 0 ? '#ffffff' : null);
+      const bob = Math.sin(t * 4) > 0 ? 0 : 3;
+      const px = B.PLAYER_X + Math.round(lunge / 3) * 3;
+      const py = groundY - 144 + (P.dead ? 0 : bob);
+      shadow(ctx, px + 48, 72);
+      const pSprite = L.pixel.character(app, 3, P.hurt > 0 ? '#ffffff' : null);
       ctx.save();
       if (P.dead) ctx.globalAlpha = 0.35;
       ctx.drawImage(pSprite, px, py);
@@ -70,7 +70,7 @@
       // --- canavar ---
       let mScale = 0, mW = 0;
       if (M) {
-        mScale = M.isBoss ? 7 : 5;
+        mScale = M.isBoss ? 8 : 5;
         mW = 16 * mScale;
         const rows = L.sprites[M.def.sprite].length;
         const mh = rows * mScale;
@@ -95,8 +95,8 @@
 
       // oyuncu can barı
       const d = L.player.derived();
-      bar(ctx, B.PLAYER_X - 2, groundY - 140, 68, 8, P.hp / d.maxHp, '#51cf66', '#0b3d1a');
-      text(ctx, app.name || 'Kahraman', B.PLAYER_X + 32, groundY - 158, '#ffffff', 10);
+      bar(ctx, B.PLAYER_X + 8, groundY - 168, 80, 8, P.hp / d.maxHp, '#51cf66', '#0b3d1a');
+      text(ctx, app.name || 'Kahraman', B.PLAYER_X + 48, groundY - 186, '#ffffff', 10);
 
       // kılıç izi
       for (const s of B.slashes) {
@@ -123,7 +123,7 @@
 
       // boss sayacı
       if (B.boss.active) {
-        const ratio = B.boss.time / L.balance.bossTime;
+        const ratio = B.boss.time / B.boss.max;
         bar(ctx, 170, 20, 300, 14, ratio, ratio > 0.3 ? '#fab005' : '#fa5252', '#2b2b2b');
         text(ctx, `BOSS  ${B.boss.time.toFixed(1)}s`, 320, 52, '#ffffff', 12);
       }
