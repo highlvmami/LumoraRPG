@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumora RPG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Karakter tasarlama -->
+    <section id="creator" class="screen hidden">
+      <h1 class="logo">LUMORA <span>RPG</span></h1>
+      <h2 id="creatorTitle" class="subtitle">Kahramanını Yarat</h2>
+      <div class="creator-box panel">
+        <div class="creator-preview">
+          <canvas id="previewCanvas" width="192" height="256"></canvas>
+          <input id="charName" maxlength="12" placeholder="Kahraman adı" autocomplete="off">
+          <button id="randomBtn" class="btn">🎲 Rastgele</button>
+        </div>
+        <div id="creatorOptions" class="creator-options"></div>
+      </div>
+      <button id="startBtn" class="btn btn-primary btn-big">Maceraya Başla ▶</button>
+    </section>
+
+    <!-- Oyun -->
+    <section id="game" class="screen hidden">
+      <header class="topbar panel">
+        <canvas id="portrait" width="48" height="48"></canvas>
+        <div class="who">
+          <div id="hudName" class="name"></div>
+          <div class="lvl">Lv <span id="hudLevel">1</span></div>
+        </div>
+        <div class="expwrap">
+          <div class="bar exp"><div id="expFill"></div></div>
+          <div id="expText" class="small"></div>
+        </div>
+        <div class="gold">🪙 <span id="hudGold">0</span></div>
+      </header>
+
+      <div class="layout">
+        <div class="stage-panel panel">
+          <div class="stage-bar">
+            <button id="prevStage" class="btn btn-sq" title="Önceki bölüm">◀</button>
+            <div class="stage-title">
+              <div id="stageName" class="stage-name">1-1</div>
+              <div id="worldName" class="small"></div>
+            </div>
+            <button id="nextStage" class="btn btn-sq" title="Sonraki bölüm">▶</button>
+          </div>
+          <div class="canvas-wrap"><canvas id="battle" width="640" height="360"></canvas></div>
+          <div class="boss-row">
+            <div class="kills">
+              <div id="killText" class="small"></div>
+              <div class="bar kill"><div id="killFill"></div></div>
+            </div>
+            <button id="bossBtn" class="btn btn-boss">👹 BOSS ÇAĞIR</button>
+            <label class="auto" title="Mob sayısı dolunca boss'u otomatik çağır"><input type="checkbox" id="autoBoss"> Oto</label>
+          </div>
+        </div>
+
+        <aside class="side">
+          <div class="panel">
+            <h3>Yetenek Puanı <span id="pointsBadge" class="badge">0</span></h3>
+            <div id="statList"></div>
+            <div id="derived" class="derived"></div>
+          </div>
+          <div class="panel">
+            <h3>Günlük</h3>
+            <ul id="log"></ul>
+          </div>
+          <div class="panel actions">
+            <button id="editCharBtn" class="btn">Karakteri Düzenle</button>
+            <button id="resetBtn" class="btn btn-danger">Sıfırla</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <!-- Yükleme sırası önemli: çekirdek -> veri -> sistemler -> çizim -> arayüz -> main -->
+  <script src="js/core/utils.js"></script>
+  <script src="js/data/balance.js"></script>
+  <script src="js/data/appearance.js"></script>
+  <script src="js/data/sprites.js"></script>
+  <script src="js/data/monsters.js"></script>
+  <script src="js/data/worlds.js"></script>
+  <script src="js/systems/save.js"></script>
+  <script src="js/systems/player.js"></script>
+  <script src="js/systems/battle.js"></script>
+  <script src="js/render/pixel.js"></script>
+  <script src="js/render/backgrounds.js"></script>
+  <script src="js/render/scene.js"></script>
+  <script src="js/ui/creator.js"></script>
+  <script src="js/ui/hud.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
