@@ -23,6 +23,9 @@ func _run() -> void:
 	root.add_child(main)
 	await _frames(10)
 
+	var boot: GDScript = load("res://scripts/boot.gd")
+	_check(boot != null and boot.can_instantiate(), "the self-updating start-up script loads")
+	_check(str(ProjectSettings.get_setting("application/run/main_scene")) == "res://scenes/boot.tscn", "the game starts through the updater")
 	_check(main.get("login_screen") != null, "login screen is shown")
 	main.get("store").path = TEST_SAVE
 	main.get("login_screen").login("ci_test")

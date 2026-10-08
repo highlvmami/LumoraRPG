@@ -18,6 +18,7 @@ signal play_pressed
 signal chest_open_requested(uid: int)
 
 const MAX_FRIENDS := 50
+const DESKTOP_DOWNLOAD := "https://github.com/highlvmami/LumoraRPG/releases/download/latest/LumoraRPG-windows.zip"
 ## [section id, button text, pixel icon]
 const NAV := [
 	["characters", "Karakterler", "cls_warrior"],
@@ -319,6 +320,16 @@ func _build_nav() -> Control:
 		button.pressed.connect(open_section.bind(str(entry[0])))
 		_tab_buttons[entry[0]] = button
 		nav.add_child(button)
+	if OS.has_feature("web"):
+		var spacer := Control.new()
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		nav.add_child(spacer)
+		var download := Button.new()
+		download.text = "Masaüstü sürümünü indir"
+		download.tooltip_text = "Windows için: bir kere indir, anında açılır."
+		download.add_theme_font_size_override("font_size", 15)
+		download.pressed.connect(func() -> void: OS.shell_open(DESKTOP_DOWNLOAD))
+		nav.add_child(download)
 	return nav
 
 

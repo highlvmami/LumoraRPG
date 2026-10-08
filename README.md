@@ -8,6 +8,10 @@ Tasarım ve yol haritası: [docs/ROADMAP.md](docs/ROADMAP.md)
 
 https://highlvmami.github.io/LumoraRPG/ — `main` dalına her birleştirmede otomatik güncellenir.
 
+## Windows'ta oyna (daha hızlı)
+
+[LumoraRPG-windows.zip](https://github.com/highlvmami/LumoraRPG/releases/download/latest/LumoraRPG-windows.zip) — zip'i aç, `LumoraRPG.exe`'ye çift tıkla. Oyun her açılışta kendini otomatik günceller (sadece küçük oyun paketini indirir), zip'i bir kere indirmen yeterli. Windows "tanınmayan uygulama" uyarısı verirse **Daha fazla bilgi → Yine de çalıştır**. Masaüstü sürümünün kayıtları tarayıcıdakinden ayrıdır.
+
 ## Godot ile çalıştırma
 
 1. [Godot 4.5](https://godotengine.org/download) (standart sürüm, .NET gerekmez) indir.
