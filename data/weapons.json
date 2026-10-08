@@ -34,12 +34,14 @@
 		},
 		{
 			"id": "fireball", "name": "Ateş Topu", "desc": "Çarpınca patlayan ateş topu", "icon": "fire", "color": "#ff7a3c",
+			"class": "mage",
 			"maxLevel": 5, "damage": 12.0, "damagePerLevel": 0.3,
 			"cooldown": 1.8, "range": 16.0, "speed": 15.0, "blast": 2.4, "blastPerLevel": 0.35,
 			"upgrade": "+30% hasar, daha büyük patlama"
 		},
 		{
 			"id": "lightning", "name": "Yıldırım", "desc": "Rastgele düşmanlara yıldırım düşürür", "icon": "storm", "color": "#8fe3ff",
+			"class": "mage",
 			"maxLevel": 5, "damage": 10.0, "damagePerLevel": 0.25,
 			"cooldown": 2.2, "range": 14.0, "strikes": 2, "strikesPerLevel": 1,
 			"upgrade": "+1 yıldırım, +25% hasar"

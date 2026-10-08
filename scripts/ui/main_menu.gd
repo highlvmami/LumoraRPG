@@ -1,7 +1,8 @@
 ## Main menu after login: account level, Play, and the sections
 ## Characters (with their worn items), new character, Equipment, Backpack
 ## (shared items and chests), Skill Tree (permanent upgrades), Market
-## (chests), Profile and Friends.
+## (chests), Achievements, Profile, Friends, Logs (past runs), Versions
+## (what changed) and Settings (graphics, camera, interface, account).
 extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
@@ -13,10 +14,17 @@ const ItemArt := preload("res://scripts/ui/item_art.gd")
 const ItemSlot := preload("res://scripts/ui/item_slot.gd")
 const CharacterPreview := preload("res://scripts/ui/character_preview.gd")
 const TooltipCard := preload("res://scripts/ui/tooltip_card.gd")
+const Config := preload("res://scripts/core/config.gd")
 
 signal play_pressed
 ## The player wants to open this chest (the game shows the wheel).
 signal chest_open_requested(uid: int)
+signal quality_selected(quality: String)
+## A setting in profile.settings changed; the game applies it.
+signal settings_changed
+signal logout_requested
+## The player confirmed wiping the whole account.
+signal reset_requested
 
 const MAX_FRIENDS := 50
 const DESKTOP_DOWNLOAD := "https://github.com/highlvmami/LumoraRPG/releases/download/latest/LumoraRPG-windows.zip"
@@ -30,6 +38,9 @@ const NAV := [
 	["achievements", "Başarımlar", "skull"],
 	["profile", "Profil", "eye"],
 	["friends", "Arkadaşlar", "heart"],
+	["logs", "Kayıtlar", "double_arrow"],
+	["versions", "Sürümler", "staff"],
+	["settings", "Ayarlar", "shield"],
 ]
 const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü"}
 
@@ -43,6 +54,12 @@ var section := "characters"
 var selected_item := -1
 ## Class picked on the new character screen.
 var create_class := "warrior"
+## Graphics quality shown in the settings (low / medium / high).
+var quality := "medium"
+## Build number shown on the versions page.
+var version_text := ""
+## The open yes/no question, if any.
+var _confirm_layer: Control
 
 var _root: Control
 var _account_label: Label
@@ -156,6 +173,15 @@ func open_section(id: String) -> void:
 		"friends":
 			_section_title.text = "Arkadaşlar"
 			_build_friends()
+		"logs":
+			_section_title.text = "Kayıtlar"
+			_build_logs()
+		"versions":
+			_section_title.text = "Sürümler"
+			_build_versions()
+		"settings":
+			_section_title.text = "Ayarlar"
+			_build_settings()
 		_:
 			section = "characters"
 			_section_title.text = "Karakterler (%d / %d)" % [inventory.characters().size(), inventory.max_characters()]
@@ -211,6 +237,83 @@ func create_character(char_name: String, class_id: String) -> bool:
 	open_section("characters")
 	refresh()
 	return true
+
+
+## Deletes a character for good (its items stay in the backpack).
+func delete_character(id: int) -> bool:
+	var ok := inventory.delete_character(id)
+	if ok:
+		notify("Karakter silindi.")
+	refresh()
+	return ok
+
+
+## Asks first, then deletes.
+func ask_delete_character(id: int) -> void:
+	var c := inventory.character(id)
+	if c.is_empty():
+		return
+	confirm("%s silinsin mi?" % c.name, "Karakter kalıcı olarak silinir. Üzerindeki eşyalar ortak çantada kalır.", "Sil", delete_character.bind(id))
+
+
+## A yes/no question over the menu; `on_yes` runs only after "yes".
+func confirm(question: String, detail: String, yes_text: String, on_yes: Callable) -> void:
+	close_confirm()
+	_confirm_layer = ColorRect.new()
+	(_confirm_layer as ColorRect).color = Color(0, 0, 0, 0.6)
+	_confirm_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(_confirm_layer)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_confirm_layer.add_child(center)
+	var panel := PanelContainer.new()
+	var style := _card_style(Color("#ff5a5a"), 2)
+	style.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", style)
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	box.custom_minimum_size.x = 420
+	panel.add_child(box)
+	box.add_child(UiTheme.label(question, UiTheme.label_settings(24, UiTheme.TEXT, 3)))
+	var info := UiTheme.label(detail, UiTheme.label_settings(16, UiTheme.MUTED, 2))
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(info)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.alignment = BoxContainer.ALIGNMENT_END
+	box.add_child(row)
+	var no := Button.new()
+	no.text = "Vazgeç"
+	no.custom_minimum_size = Vector2(120, 40)
+	no.pressed.connect(close_confirm)
+	row.add_child(no)
+	var yes := Button.new()
+	yes.text = yes_text
+	yes.custom_minimum_size = Vector2(140, 40)
+	_danger(yes)
+	yes.pressed.connect(func() -> void:
+		close_confirm()
+		on_yes.call())
+	row.add_child(yes)
+
+
+func close_confirm() -> void:
+	if _confirm_layer:
+		_confirm_layer.queue_free()
+		_confirm_layer = null
+
+
+func is_confirm_open() -> bool:
+	return _confirm_layer != null
+
+
+## Red styling for buttons that delete something.
+func _danger(button: Button) -> void:
+	for state: String in ["normal", "hover", "pressed"]:
+		var st := UiTheme.box(Color("#7a2323") if state != "hover" else Color("#9a2d2d"), 8, 6)
+		button.add_theme_stylebox_override(state, st)
+	button.add_theme_color_override("font_color", Color("#ffe0e0"))
 
 
 func select_character(id: int) -> void:
@@ -304,15 +407,23 @@ func _build_top_bar() -> Control:
 	_notice = UiTheme.label("", UiTheme.label_settings(18, Color("#8fe3ff"), 4))
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	right.add_child(_notice)
+	if OS.has_feature("web"):
+		var download := Button.new()
+		download.text = "Masaüstü sürümünü indir"
+		download.tooltip_text = "Windows için: bir kere indir, anında açılır."
+		download.add_theme_font_size_override("font_size", 14)
+		download.size_flags_horizontal = Control.SIZE_SHRINK_END
+		download.pressed.connect(func() -> void: OS.shell_open(DESKTOP_DOWNLOAD))
+		right.add_child(download)
 	return bar
 
 
 func _build_nav() -> Control:
 	var nav := VBoxContainer.new()
 	nav.custom_minimum_size = Vector2(230, 0)
-	nav.add_theme_constant_override("separation", 8)
+	nav.add_theme_constant_override("separation", 4)
 	var play_button := UiTheme.primary_button("OYNA")
-	play_button.custom_minimum_size = Vector2(0, 70)
+	play_button.custom_minimum_size = Vector2(0, 58)
 	play_button.pressed.connect(play)
 	nav.add_child(play_button)
 	for entry: Array in NAV:
@@ -320,11 +431,11 @@ func _build_nav() -> Control:
 		button.text = "  " + str(entry[1])
 		button.toggle_mode = true
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(0, 46)
-		button.add_theme_font_size_override("font_size", 20)
+		button.custom_minimum_size = Vector2(0, 34)
+		button.add_theme_font_size_override("font_size", 17)
 		button.icon = PixelIcons.texture(str(entry[2]), UiTheme.ACCENT)
 		button.expand_icon = true
-		button.add_theme_constant_override("icon_max_width", 26)
+		button.add_theme_constant_override("icon_max_width", 22)
 		var normal := UiTheme.box(Color(0.12, 0.16, 0.21, 0.92), 8, 8)
 		normal.border_width_left = 4
 		normal.border_color = Color(0.12, 0.16, 0.21, 0.92)
@@ -341,16 +452,6 @@ func _build_nav() -> Control:
 		button.pressed.connect(open_section.bind(str(entry[0])))
 		_tab_buttons[entry[0]] = button
 		nav.add_child(button)
-	if OS.has_feature("web"):
-		var spacer := Control.new()
-		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		nav.add_child(spacer)
-		var download := Button.new()
-		download.text = "Masaüstü sürümünü indir"
-		download.tooltip_text = "Windows için: bir kere indir, anında açılır."
-		download.add_theme_font_size_override("font_size", 15)
-		download.pressed.connect(func() -> void: OS.shell_open(DESKTOP_DOWNLOAD))
-		nav.add_child(download)
 	return nav
 
 
@@ -384,12 +485,23 @@ func _build_characters() -> void:
 		for s: Dictionary in inventory.gear.slots:
 			worn.add_child(_slot_button(inventory.equipped(c, str(s.id)), str(s.id), 30))
 		col.add_child(worn)
+		var buttons := HBoxContainer.new()
+		buttons.add_theme_constant_override("separation", 6)
 		var pick := Button.new()
 		pick.text = "Aktif" if is_active else "Seç"
 		pick.disabled = is_active
+		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		pick.add_theme_font_size_override("font_size", 18)
 		pick.pressed.connect(select_character.bind(int(c.id)))
-		col.add_child(pick)
+		buttons.add_child(pick)
+		var remove := Button.new()
+		remove.text = "Sil"
+		remove.tooltip_text = "Karakteri sil (onay sorar)"
+		remove.add_theme_font_size_override("font_size", 16)
+		_danger(remove)
+		remove.pressed.connect(ask_delete_character.bind(int(c.id)))
+		buttons.add_child(remove)
+		col.add_child(buttons)
 		row.add_child(card)
 
 	if inventory.characters().size() < inventory.max_characters():
@@ -661,7 +773,7 @@ func _skill_branch(b: Dictionary) -> Control:
 	var canvas := Control.new()
 	canvas.custom_minimum_size = Vector2(SKILL_COL * 2.0 + SKILL_NODE + 16.0, SKILL_TOP + SKILL_ROW * 3.0 + SKILL_NODE + 30.0)
 	panel.add_child(canvas)
-	var title := UiTheme.label(str(b.name), UiTheme.label_settings(20, color.lightened(0.2), 4))
+	var title := UiTheme.label(UiTheme.upper(str(b.name)), UiTheme.label_settings(20, color.lightened(0.2), 4))
 	title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 4)
 	title.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	canvas.add_child(title)
@@ -935,6 +1047,182 @@ func friend_suggestions() -> Array:
 	var my_level := progression.account_level()
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.mutual) > int(b.mutual) or (int(a.mutual) == int(b.mutual) and absi(int(a.level) - my_level) < absi(int(b.level) - my_level)))
 	return out.slice(0, 6)
+
+
+## Past runs, newest first: when, map, character, level, kills, time, gold.
+func _build_logs() -> void:
+	var history: Array = progression.profile.get("history", [])
+	if history.is_empty():
+		_text("Henüz kayıt yok. Bir oyun oynayınca burada görünür.", 18, UiTheme.MUTED)
+		return
+	_text("Son %d oyun (en yenisi üstte)." % history.size(), 15, UiTheme.MUTED)
+	var grid := GridContainer.new()
+	grid.columns = 7
+	grid.add_theme_constant_override("h_separation", 22)
+	grid.add_theme_constant_override("v_separation", 6)
+	_content.add_child(grid)
+	for head: String in ["Tarih", "Harita", "Karakter", "Seviye", "Canavar", "Süre", "Altın"]:
+		grid.add_child(UiTheme.label(head, UiTheme.label_settings(15, UiTheme.ACCENT, 2)))
+	for h: Dictionary in history:
+		var t := int(h.get("time", 0))
+		var cls := str(CLASS_NAMES.get(str(h.get("class", "")), ""))
+		var cells := [str(h.get("at", "")).left(16), str(h.get("map", "")), "%s (%s)" % [h.get("character", ""), cls],
+			str(int(h.get("level", 0))), str(int(h.get("kills", 0))), "%d:%02d" % [t / 60, t % 60], str(int(h.get("gold", 0)))]
+		for n in cells.size():
+			var color := UiTheme.TEXT if n != 1 else Color("#8fe3ff")
+			grid.add_child(UiTheme.label(str(cells[n]), UiTheme.label_settings(14, color, 2)))
+
+
+## What changed in each version of the game (data/changelog.json).
+func _build_versions() -> void:
+	if version_text != "":
+		_text("Şu an oynadığın: %s" % version_text, 15, UiTheme.MUTED)
+	var data: Dictionary = Config.load_json("res://data/changelog.json")
+	for v: Dictionary in data.get("versions", []):
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", _card_style(Color(1, 1, 1, 0.12), 1))
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 3)
+		card.add_child(col)
+		var head := HBoxContainer.new()
+		var title := UiTheme.label("v%s  ·  %s" % [v.version, v.title], UiTheme.label_settings(19, UiTheme.ACCENT, 3))
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(title)
+		head.add_child(UiTheme.label(str(v.date), UiTheme.label_settings(13, UiTheme.MUTED, 2)))
+		col.add_child(head)
+		for note: String in v.notes:
+			var line := UiTheme.label("•  " + note, UiTheme.label_settings(14, UiTheme.TEXT, 2))
+			line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			col.add_child(line)
+		_content.add_child(card)
+
+
+func _settings() -> Dictionary:
+	if not progression.profile.has("settings"):
+		progression.profile.settings = {}
+	return progression.profile.settings
+
+
+## Changes one setting, saves and lets the game apply it.
+func set_setting(key: String, value: Variant) -> void:
+	_settings()[key] = value
+	progression.store.save_to_disk()
+	settings_changed.emit()
+
+
+## Settings in titled groups: graphics, camera, interface and account.
+func _build_settings() -> void:
+	_header("Grafik")
+	var q_row := HBoxContainer.new()
+	q_row.add_theme_constant_override("separation", 8)
+	q_row.add_child(_setting_label("Görüntü kalitesi"))
+	for entry: Array in [["low", "Düşük"], ["medium", "Orta"], ["high", "Yüksek"]]:
+		var b := Button.new()
+		b.text = str(entry[1])
+		b.toggle_mode = true
+		b.button_pressed = quality == entry[0]
+		b.custom_minimum_size.x = 90
+		b.pressed.connect(func() -> void:
+			quality = str(entry[0])
+			quality_selected.emit(quality)
+			refresh())
+		q_row.add_child(b)
+	_content.add_child(q_row)
+	_text("Düşük kalite daha hızlı çalışır (piksel daha iri).", 13, UiTheme.MUTED)
+
+	_header("Kamera")
+	_content.add_child(_slider_row("Kamera uzaklığı", "cameraZoom", 3.5, 16.0, 0.5, 7.0))
+	_content.add_child(_slider_row("Fare hassasiyeti", "mouseSpeed", 0.3, 2.5, 0.1, 1.0))
+	_text("Oyunda fare tekerleğiyle de yaklaşıp uzaklaşabilirsin.", 13, UiTheme.MUTED)
+
+	_header("Arayüz")
+	var dmg := CheckBox.new()
+	dmg.text = "Hasar sayılarını göster"
+	dmg.button_pressed = bool(_settings().get("damageNumbers", true))
+	dmg.add_theme_font_size_override("font_size", 17)
+	dmg.toggled.connect(func(on: bool) -> void: set_setting("damageNumbers", on))
+	_content.add_child(dmg)
+
+	_header("Hesap")
+	var store: RefCounted = progression.store
+	var acc_name := str(progression.profile.name)
+	var remember := CheckBox.new()
+	remember.text = "Bu bilgisayarda beni hatırla (girişte şifre sorma)"
+	remember.button_pressed = str(store.call("remembered")) == acc_name
+	remember.add_theme_font_size_override("font_size", 17)
+	remember.toggled.connect(func(on: bool) -> void: store.call("set_remember", acc_name if on else ""))
+	_content.add_child(remember)
+	var pass_row := HBoxContainer.new()
+	pass_row.add_theme_constant_override("separation", 8)
+	pass_row.add_child(_setting_label("Yeni şifre"))
+	var pass_edit := LineEdit.new()
+	pass_edit.secret = true
+	pass_edit.max_length = 32
+	pass_edit.placeholder_text = "en az 4 karakter"
+	pass_edit.custom_minimum_size.x = 220
+	pass_row.add_child(pass_edit)
+	var pass_button := Button.new()
+	pass_button.text = "Şifreyi değiştir"
+	pass_button.pressed.connect(func() -> void: change_password(pass_edit.text))
+	pass_row.add_child(pass_button)
+	_content.add_child(pass_row)
+	var acc_row := HBoxContainer.new()
+	acc_row.add_theme_constant_override("separation", 10)
+	var logout := Button.new()
+	logout.text = "Çıkış yap"
+	logout.custom_minimum_size = Vector2(150, 40)
+	logout.pressed.connect(func() -> void: logout_requested.emit())
+	acc_row.add_child(logout)
+	var reset := Button.new()
+	reset.text = "Hesabı sıfırla"
+	reset.custom_minimum_size = Vector2(170, 40)
+	_danger(reset)
+	reset.pressed.connect(ask_reset_account)
+	acc_row.add_child(reset)
+	_content.add_child(acc_row)
+	_text("Hesabı sıfırlamak karakterleri, eşyaları, kasaları, altını, seviyeleri, yetenekleri ve başarımları siler. Geri alınamaz.", 13, Color("#ff8a8a"))
+
+
+func change_password(password: String) -> bool:
+	if password.length() < 4:
+		notify("Şifre en az 4 karakter olmalı.")
+		return false
+	progression.store.call("set_password", str(progression.profile.name), password)
+	notify("Şifre değiştirildi.")
+	return true
+
+
+func ask_reset_account() -> void:
+	confirm("Hesap sıfırlansın mı?", "Tüm karakterler, eşyalar, kasalar, altın, seviyeler, yetenekler ve başarımlar kalıcı olarak silinir. Bu işlem geri alınamaz.",
+		"Evet, sıfırla", func() -> void: reset_requested.emit())
+
+
+func _setting_label(text: String) -> Label:
+	var l := UiTheme.label(text, UiTheme.label_settings(17, UiTheme.TEXT, 2))
+	l.custom_minimum_size.x = 190
+	return l
+
+
+func _slider_row(text: String, key: String, low: float, high: float, step: float, fallback: float) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.add_child(_setting_label(text))
+	var slider := HSlider.new()
+	slider.min_value = low
+	slider.max_value = high
+	slider.step = step
+	slider.value = float(_settings().get(key, fallback))
+	slider.custom_minimum_size = Vector2(260, 24)
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(slider)
+	var value := UiTheme.label("%.1f" % slider.value, UiTheme.label_settings(15, UiTheme.MUTED, 2))
+	row.add_child(value)
+	slider.value_changed.connect(func(v: float) -> void:
+		value.text = "%.1f" % v
+		_settings()[key] = v
+		settings_changed.emit())
+	slider.drag_ended.connect(func(_changed: bool) -> void: progression.store.save_to_disk())
+	return row
 
 
 # --- Small widgets -------------------------------------------------------------
