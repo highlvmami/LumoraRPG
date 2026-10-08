@@ -1,7 +1,9 @@
 ## Skill tree: permanent, account-wide stat bonuses learned level by level
 ## with skill points. Every account level gives POINTS_PER_LEVEL points.
-## Nodes sit in branches (data/skills.json); a node opens once the nodes it
-## needs reach the required level. Each level adds a small amount (e.g. +1%
+## The core node sits in the middle; the branches (data/skills.json) grow out
+## of it, and a node opens once the nodes it needs reach the required level.
+## The Hazine branch gives out-of-run bonuses (backpack size, chest and egg
+## luck, market discount, sell price, item drops) that the gear and pets read. Each level adds a small amount (e.g. +1%
 ## damage); deeper nodes cost more points per level (row 2: 2, row 3: 3).
 ## Levels are kept in profile.upgrades (the same ids the old gold upgrades
 ## used, so saves keep everything they bought) and the points spent in
@@ -17,6 +19,8 @@ const LEGACY_PRICES := {"sharp_arrows": 40, "leather_armor": 60, "swift_boots": 
 const POINTS_PER_LEVEL := 2
 
 var branches: Array
+## Id of the core node in the middle of the tree.
+var center := ""
 ## Node id -> node data (branch, row, col, name, icon, stat, per, ...).
 var nodes: Dictionary
 var profile: Dictionary
@@ -29,6 +33,7 @@ func _init(p_profile: Dictionary, p_store: RefCounted) -> void:
 	var cfg := Config.load_json("res://data/skills.json")
 	branches = cfg.branches
 	nodes = cfg.nodes
+	center = str(cfg.get("center", ""))
 	if not profile.has("upgrades"):
 		profile.upgrades = {}
 	var old: Array = profile.get("items", [])

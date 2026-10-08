@@ -17,6 +17,10 @@ var _model: Node3D
 var _time := 0.0
 ## Pets spin all the way round; characters sway.
 var _spin := false
+## A pet standing still at STILL_ANGLE.
+var _still := false
+## The pet's turn when it stands still: its face and one side show.
+const STILL_ANGLE := 0.6
 
 
 ## `full_body` frames the whole standing character (feet to helmet).
@@ -32,18 +36,21 @@ func setup(look: Dictionary, view_size: Vector2, pixel := 2, full_body := false)
 	_pivot.rotation.y = 0.35
 
 
-## A pet of `kind_id` turning round on the stage.
-func setup_pet(kind_id: String, view_size: Vector2, pixel := 2) -> void:
+## A pet of `kind_id` on the stage: turning round, or (`spin` false) standing
+## still, turned a little to the side (a three-quarter view).
+func setup_pet(kind_id: String, view_size: Vector2, pixel := 2, spin := true) -> void:
 	var pet := PetModel.new()
 	pet.build(kind_id)
 	var center := pet.center_height()
-	var distance := 4.6 if kind_id == "minotaur" else 3.8
+	var distance := pet.view_distance()
 	var viewport := _build_stage(view_size, pixel, Vector3(0, center + 1.0, distance), Vector3(0, center, 0))
 	_pivot = Node3D.new()
 	viewport.add_child(_pivot)
 	_model = pet
 	_pivot.add_child(_model)
-	_spin = true
+	_spin = spin
+	_still = not spin
+	_pivot.rotation.y = STILL_ANGLE if not spin else 0.0
 
 
 func _build_stage(view_size: Vector2, pixel: int, eye: Vector3, look_at: Vector3) -> SubViewport:
@@ -52,12 +59,18 @@ func _build_stage(view_size: Vector2, pixel: int, eye: Vector3, look_at: Vector3
 	stretch_shrink = pixel
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var viewport := make_stage(eye, look_at)
+	add_child(viewport)
+	return viewport
 
+
+## A transparent little world with soft light and a camera at `eye` looking
+## at `look_at` (no size set: a container stretches it, or set `size`).
+static func make_stage(eye: Vector3, look_at: Vector3) -> SubViewport:
 	var viewport := SubViewport.new()
 	viewport.own_world_3d = true
 	viewport.transparent_bg = true
 	viewport.msaa_3d = Viewport.MSAA_DISABLED
-	add_child(viewport)
 
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CLEAR_COLOR
@@ -92,6 +105,8 @@ func _process(delta: float) -> void:
 	_time += delta
 	if _spin:
 		_pivot.rotation.y += delta * 0.9
+	elif _still:
+		_pivot.rotation.y = STILL_ANGLE
 	else:
 		_pivot.rotation.y = 0.35 + sin(_time * 0.6) * 0.6
 	_model.call("animate", delta, 0.0, true)

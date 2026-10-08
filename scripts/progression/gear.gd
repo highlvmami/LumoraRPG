@@ -2,6 +2,8 @@
 ## An item is a plain dictionary saved in the profile:
 ##   {"uid": 12, "base": "sword", "rarity": 3, "stats": {"damage": 0.2, ...}}
 ## Higher rarities get a stronger main stat and more (and stronger) extra stats.
+## Account skills (the skill tree's Hazine branch) can widen the backpack,
+## make chests luckier, lower market prices and raise sell prices.
 extends RefCounted
 
 const Config := preload("res://scripts/core/config.gd")
@@ -13,6 +15,10 @@ var affixes: Array
 var chests: Array
 var drops: Dictionary
 var rng := RandomNumberGenerator.new()
+## stat -> account bonus (the game sets the skill tree's `total`); unset = none.
+var bonus := Callable()
+## Market prices can't drop below this share of the list price.
+const MIN_PRICE_SHARE := 0.5
 
 
 func _init() -> void:
@@ -50,6 +56,42 @@ func chest(index: int) -> Dictionary:
 	return chests[clampi(index, 0, chests.size() - 1)]
 
 
+## Account bonus for a stat (e.g. "stashSize"), 0 without one.
+func extra(stat: String) -> float:
+	return float(bonus.call(stat)) if bonus.is_valid() else 0.0
+
+
+## How many items the backpack holds.
+func stash_limit() -> int:
+	return int(drops.stashLimit) + int(extra("stashSize"))
+
+
+## A market price after the account's discount.
+func discounted(price: int) -> int:
+	return roundi(price * maxf(MIN_PRICE_SHARE, 1.0 - extra("shopDiscount")))
+
+
+func chest_price(index: int) -> int:
+	return discounted(int(chest(index).price))
+
+
+## Rarity weights moved towards the rarer end by `luck` (0.1 = each rarer
+## step weighs 10% more than the one before it would).
+static func lucky(weights: Array, luck: float) -> Array:
+	var out: Array = []
+	for i in weights.size():
+		out.append(float(weights[i]) * (1.0 + luck * i))
+	return out
+
+
+## A chest's odds per rarity in percent, with the account's chest luck.
+func chest_odds(index: int) -> Array:
+	var w := lucky(chest(index).odds, extra("chestLuck"))
+	var total := 0.0
+	for v in w:
+		total += float(v)
+	return w.map(func(v: float) -> float: return v / total * 100.0)
+
 func slot_name(slot_id: String) -> String:
 	for s: Dictionary in slots:
 		if s.id == slot_id:
@@ -76,7 +118,7 @@ func item_icon(item: Dictionary) -> String:
 
 
 func sell_price(item: Dictionary) -> int:
-	return int(rarity(int(item.rarity)).sell)
+	return roundi(int(rarity(int(item.rarity)).sell) * (1.0 + extra("sellBonus")))
 
 
 ## Picks a rarity index using weights (one per rarity, or per chest tier).
@@ -109,7 +151,7 @@ func roll_item(rarity_index: int, uid: int) -> Dictionary:
 
 
 func roll_chest_item(chest_index: int, uid: int) -> Dictionary:
-	return roll_item(roll_weighted(chest(chest_index).odds), uid)
+	return roll_item(roll_weighted(lucky(chest(chest_index).odds, extra("chestLuck"))), uid)
 
 
 ## "+12% Hasar" style lines for every stat on the item.

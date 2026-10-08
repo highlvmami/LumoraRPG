@@ -1,9 +1,10 @@
 ## Pets: account-wide companions that give stats while they sit in one of
 ## the 3 pet slots. Slots open at account levels 10, 25 and 50. Pets hatch
-## from eggs bought in the Market (random rarity: common bear, rare
-## minotaur, legendary phoenix); rarer pets give more stats and bigger
-## values (data/pets.json). Kept in profile.pets [{uid, kind}] and
-## profile.petSlots [uid or -1, ...].
+## from eggs bought in the Market (random rarity: common, rare, epic or
+## legendary, then a random kind of that rarity); rarer pets give more stats
+## and bigger values (data/pets.json). Kept in profile.pets [{uid, kind}] and
+## profile.petSlots [uid or -1, ...]. Kinds ever owned are remembered in
+## profile.petsSeen for the collection.
 extends RefCounted
 
 const Config := preload("res://scripts/core/config.gd")
@@ -12,6 +13,9 @@ var cfg: Dictionary
 var profile: Dictionary
 var store: RefCounted
 var _rng := RandomNumberGenerator.new()
+## stat -> account bonus (the game sets the skill tree's `total`): market
+## discount and egg luck.
+var bonus := Callable()
 
 
 func _init(p_profile: Dictionary, p_store: RefCounted) -> void:
@@ -23,6 +27,10 @@ func _init(p_profile: Dictionary, p_store: RefCounted) -> void:
 		profile.pets = []
 	if not profile.has("petSlots") or (profile.petSlots as Array).size() != slot_count():
 		profile.petSlots = [-1, -1, -1]
+	if not profile.has("petsSeen"):
+		profile.petsSeen = []
+	for p: Dictionary in profile.pets:
+		_see(str(p.kind))
 
 
 func slot_count() -> int:
@@ -60,6 +68,47 @@ func kinds() -> Array:
 	return cfg.kinds
 
 
+## Every kind, rarest first (the collection's order).
+func kinds_by_rarity() -> Array:
+	var out: Array = kinds().duplicate()
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.rarity) > int(b.rarity))
+	return out
+
+
+## The account has had a pet of this kind (it shows in color in the collection).
+func is_discovered(kind_id: String) -> bool:
+	if (profile.get("petsSeen", []) as Array).has(kind_id):
+		return true
+	return owned().any(func(p: Dictionary) -> bool: return str(p.kind) == kind_id)
+
+
+func discovered_count() -> int:
+	return kinds().filter(func(k: Dictionary) -> bool: return is_discovered(str(k.id))).size()
+
+
+func _see(kind_id: String) -> void:
+	if not profile.has("petsSeen"):
+		profile.petsSeen = []
+	if not (profile.petsSeen as Array).has(kind_id):
+		(profile.petsSeen as Array).append(kind_id)
+
+
+## Owned pets, rarest first (pets in a slot first among the same rarity).
+func owned_sorted() -> Array:
+	var out: Array = owned().duplicate()
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ra := int(info(a).rarity)
+		var rb := int(info(b).rarity)
+		if ra != rb:
+			return ra > rb
+		var sa := slot_of(int(a.uid)) >= 0
+		var sb := slot_of(int(b.uid)) >= 0
+		if sa != sb:
+			return sa
+		return int(a.uid) < int(b.uid))
+	return out
+
+
 func rarity(index: int) -> Dictionary:
 	return cfg.rarities[clampi(index, 0, (cfg.rarities as Array).size() - 1)]
 
@@ -86,12 +135,29 @@ func add(kind_id: String) -> Dictionary:
 	profile.nextUid = uid + 1
 	var p := {"uid": uid, "kind": kind_id}
 	owned().append(p)
+	_see(kind_id)
 	store.call("save_to_disk")
 	return p
 
 
+func _extra(stat: String) -> float:
+	return float(bonus.call(stat)) if bonus.is_valid() else 0.0
+
+
+## The egg's price after the account's market discount.
 func egg_price() -> int:
-	return int(cfg.egg.price)
+	return roundi(int(cfg.egg.price) * maxf(0.5, 1.0 - _extra("shopDiscount")))
+
+
+## Egg odds per rarity in percent, with the account's egg luck.
+func egg_odds() -> Array:
+	var w: Array = []
+	var total := 0.0
+	for i in (cfg.egg.odds as Array).size():
+		var v := float(cfg.egg.odds[i]) * (1.0 + _extra("eggLuck") * i)
+		w.append(v)
+		total += v
+	return w.map(func(v: float) -> float: return v / total * 100.0)
 
 
 ## Buys an egg and hatches it: a random pet by the egg's rarity odds.
@@ -99,7 +165,7 @@ func egg_price() -> int:
 func hatch() -> Dictionary:
 	if int(profile.gold) < egg_price() or owned().size() >= int(cfg.maxPets):
 		return {}
-	var odds: Array = cfg.egg.odds
+	var odds: Array = egg_odds()
 	var total := 0.0
 	for o in odds:
 		total += float(o)

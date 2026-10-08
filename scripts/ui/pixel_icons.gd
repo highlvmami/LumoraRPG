@@ -16,6 +16,20 @@ const PALETTE := {
 }
 
 const GRIDS := {
+	"trophy": [
+		"..kkkkkkkk..",
+		"kkkyywyyykkk",
+		"kykyywyyykyk",
+		"kykyyyyyykyk",
+		".kkyyyyyykk.",
+		"...kyyyyk...",
+		"....kyyk....",
+		".....kk.....",
+		"....kyyk....",
+		"...kyyyyk...",
+		"..kooooook..",
+		"..kkkkkkkk..",
+	],
 	"paw": [
 		"..kk....kk..",
 		".kook..kook.",

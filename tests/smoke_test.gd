@@ -72,16 +72,18 @@ func _run() -> void:
 	var profile0: Dictionary = main.get("progression").get("profile")
 	profile0.accountLevel = 1
 	_check(int(shop.call("points_left")) == 2, "a new account has skill points from its level")
+	_check(not bool(menu.call("learn_skill", "power")), "a branch stays closed until the core skill in the middle is learned")
+	_check(bool(menu.call("learn_skill", "heart")), "the core skill in the middle can be learned first")
 	_check(bool(menu.call("learn_skill", "power")), "learning a skill level with points works")
-	_check(int(shop.call("points_left")) == 1 and int(shop.call("level", "power")) == 1, "a point is spent and the skill gains a level")
+	_check(int(shop.call("points_left")) == 0 and int(shop.call("level", "power")) == 1, "a point is spent and the skill gains a level")
 	_check(is_equal_approx(float(shop.call("total", "damage")), 0.01), "one level gives a small bonus (+1% damage)")
-	_check((shop.get("nodes") as Dictionary).size() >= 15 and (shop.get("branches") as Array).size() == 3, "the skill tree has three branches with many skills")
-	menu.call("learn_skill", "power")
+	_check((shop.get("nodes") as Dictionary).size() >= 25 and (shop.get("branches") as Array).size() == 4, "the skill tree has four branches with many skills")
 	_check(not bool(menu.call("learn_skill", "power")), "cannot learn without skill points")
 	_check(int(shop.call("cost", "fury")) > int(shop.call("cost", "power")), "deeper skills cost more points")
 	profile0.accountLevel = 30
 	_check(int(shop.call("points_left")) == 58, "every account level gives more skill points")
 	_check(not bool(shop.call("is_unlocked", "haste")) and not bool(menu.call("learn_skill", "haste")), "a skill below stays locked until the one above levels up")
+	menu.call("learn_skill", "power")
 	menu.call("learn_skill", "power")
 	_check(bool(shop.call("is_unlocked", "haste")) and bool(menu.call("learn_skill", "haste")), "power level 3 opens the next skills")
 	menu.call("open_section", "skills")
@@ -93,6 +95,35 @@ func _run() -> void:
 		_check(skill_tip is Control, "hovering a skill shows what it gives")
 		if skill_tip:
 			skill_tip.free()
+	var tree_view: Node = menu.find_children("*", "", true, false).filter(func(n: Node) -> bool: return n.has_method("node_center")).front()
+	_check(tree_view != null and (tree_view.call("node_center", "heart") as Vector2).distance_to((tree_view as Control).size * 0.5) < 1.0, "the core skill sits in the middle of the tree")
+	if tree_view:
+		var up: Vector2 = tree_view.call("node_center", "fury")
+		var left: Vector2 = tree_view.call("node_center", "egg_whisper")
+		var middle: Vector2 = (tree_view as Control).size * 0.5
+		_check(up.y < middle.y - 150.0 and up.x < middle.x - 150.0 and left.x < middle.x - 200.0, "the branches grow outwards from the middle")
+		_check(tree_view.call("node_color", "power") != tree_view.call("node_color", "vitality"), "each kind of skill has its own color")
+
+	# Account skills (Hazine): backpack, chests, market, selling and eggs.
+	var gear_ref: RefCounted = main.get("inventory").get("gear")
+	var limit_before := int(gear_ref.call("stash_limit"))
+	var odds_before: Array = gear_ref.call("chest_odds", 1)
+	var price_before := int(gear_ref.call("chest_price", 1))
+	var egg_before := int(main.get("pets").call("egg_price"))
+	var egg_odds_before: Array = main.get("pets").call("egg_odds")
+	var sample := {"rarity": 3, "base": "ring", "stats": {}}
+	var sell_before := int(gear_ref.call("sell_price", sample))
+	for pair: Array in [["big_bag", 2], ["bargain", 5], ["chest_luck", 5], ["merchant", 4], ["egg_whisper", 2]]:
+		profile0.upgrades[pair[0]] = pair[1]
+	_check(int(gear_ref.call("stash_limit")) == limit_before + 10, "Geniş Çanta makes the backpack bigger")
+	_check(float((gear_ref.call("chest_odds", 1) as Array)[4]) > float(odds_before[4]) and float((gear_ref.call("chest_odds", 1) as Array)[0]) < float(odds_before[0]), "Kasa Şansı makes rare chest items likelier")
+	_check(int(gear_ref.call("chest_price", 1)) < price_before and int(main.get("pets").call("egg_price")) < egg_before, "Pazarlıkçı lowers market prices")
+	_check(int(gear_ref.call("sell_price", sample)) > sell_before, "Usta Tüccar raises sell prices")
+	_check(float((main.get("pets").call("egg_odds") as Array)[3]) > float(egg_odds_before[3]), "Yumurta Fısıltısı makes rare pets likelier")
+	menu.call("open_section", "market")
+	await _frames(1)
+	for pair: Array in [["big_bag", 2], ["bargain", 5], ["chest_luck", 5], ["merchant", 4], ["egg_whisper", 2]]:
+		(profile0.upgrades as Dictionary).erase(pair[0])
 	shop.call("reset")
 	_check(int(shop.call("points_left")) == 60 and int(shop.call("level", "power")) == 0, "resetting the skill tree gives every point back")
 	profile0.accountLevel = 1
@@ -118,13 +149,69 @@ func _run() -> void:
 	_check((pets.call("kind", "phoenix").stats as Dictionary).size() > (pets.call("kind", "bear").stats as Dictionary).size(), "rarer pets give more stats")
 	menu.call("open_section", "pets")
 	await _frames(2)
-	_check(menu.find_children("*", "SubViewportContainer", true, false).size() >= 3, "the pet page shows the pets in slots turning")
+	var slot_views := menu.find_children("*", "SubViewportContainer", true, false)
+	_check(slot_views.size() >= 3, "the pet page shows the pets in their slots")
+	_check(slot_views.all(func(v: Node) -> bool: return not bool(v.get("_spin"))), "pets in slots stand still, turned a little to the side")
+	_check((pets.call("kinds") as Array).size() >= 9, "there are many pets (%d)" % (pets.call("kinds") as Array).size())
+	var missing: Array = (pets.call("kinds") as Array).filter(func(k: Dictionary) -> bool: return not (pets.call("owned") as Array).any(func(p: Dictionary) -> bool: return str(p.kind) == str(k.id)))
+	_check(bool(pets.call("is_discovered", "phoenix")) and not missing.is_empty() and not bool(pets.call("is_discovered", str(missing[0].id))), "the collection knows which pets were found")
+	var gray_pictures := menu.find_children("*", "TextureRect", true, false).filter(func(r: TextureRect) -> bool: return r.material is ShaderMaterial)
+	_check(gray_pictures.size() == (pets.call("kinds") as Array).size() - int(pets.call("discovered_count")), "pets not found yet are gray in the collection (%d)" % gray_pictures.size())
+	var by_rarity: Array = pets.call("kinds_by_rarity")
+	_check(int(by_rarity[0].rarity) >= int(by_rarity[-1].rarity) and str(by_rarity[0].id) == "phoenix", "the collection is sorted by rarity")
+	var sorted_pets: Array = pets.call("owned_sorted")
+	_check(str(sorted_pets[0].kind) == "phoenix", "the account's pets are sorted by rarity")
+	var followers: Node = main.get("pet_followers")
+	followers.call("set_pets", ["bear", "owl"])
+	_check(followers.get_children().all(func(p: Node3D) -> bool: return p.scale.x < 0.5), "pets next to the player are small")
+	followers.call("set_pets", [])
 	var gold_before_release := int(profile0.gold)
 	_check(int(menu.call("release_pet", int(bear.uid))) > 0 and int(profile0.gold) > gold_before_release and int(pets.call("slot_of", int(bear.uid))) < 0, "a pet can be released for gold")
 	profile0.accountLevel = 1
 	profile0.gold = gold_keep
 	var migrated: RefCounted = load("res://scripts/progression/skill_tree.gd").new({"gold": 0, "upgrades": {"brutality": 4, "greed": 2}}, main.get("store"))
 	_check(int(migrated.call("level", "brutality")) == 4 and bool(migrated.call("is_unlocked", "brutality")) and is_equal_approx(float(migrated.call("total", "goldGain")), 0.04), "old market upgrades carry over into the skill tree")
+
+	# Leaderboards (offline: the accounts on this device) and friend levels.
+	menu.call("open_section", "leaderboard")
+	await _frames(1)
+	var local: Dictionary = menu.call("local_board", "level")
+	_check((local.rows as Array).size() >= 2 and str(local.rows[0].name) == "komsu_oyuncu" and int(local.me.rank) == 2, "the leaderboard ranks accounts by level")
+	_check(str(menu.call("board_value", "bestTime", 485.0)) == "8:05" and str(menu.call("board_value", "kills", 12345.0)) == "12.345", "leaderboard numbers are easy to read")
+	menu.call("on_leaderboard", "kills", [{"name": "uzak", "value": 900, "level": 40}], {"rank": 7, "value": 12})
+	_check((menu.get("_boards") as Dictionary).has("kills"), "leaderboards from the server are kept")
+	for entry: Array in menu.get("LEADERBOARDS"):
+		menu.call("show_board", str(entry[0]))
+	_check(int(menu.call("player_level", "komsu_oyuncu")) == 3, "a friend's account level is known")
+	menu.call("add_friend", "komsu_oyuncu")
+	menu.call("open_section", "friends")
+	await _frames(1)
+	var level_tags := menu.find_children("*", "Label", true, false).filter(func(l: Label) -> bool: return l.text == "Sv. 3")
+	_check(not level_tags.is_empty() and (level_tags[0] as Label).label_settings.font_color.a < 0.8, "the account level shows small and faint next to the name")
+
+	# The room's tavern: people sit at the table, newcomers walk in.
+	var tavern: Control = load("res://scripts/ui/tavern_view.gd").new()
+	root.add_child(tavern)
+	tavern.call("setup", Vector2(800, 300))
+	tavern.call("set_members", [{"id": 1, "name": "ev", "look": {"class": "mage"}, "host": true, "me": true}], false)
+	_check((tavern.call("seated") as Array) == [1] and not bool(tavern.call("is_busy")), "people already in the room sit at the table")
+	tavern.call("set_members", [{"id": 1, "name": "ev", "host": true}, {"id": 2, "name": "misafir", "look": {"class": "warrior"}}])
+	_check(bool(tavern.call("is_busy")), "someone joining walks in through the door")
+	for i in 60:
+		await create_timer(0.1).timeout
+		if not bool(tavern.call("is_busy")):
+			break
+	var guests: Dictionary = tavern.get("_guests")
+	_check(not bool(tavern.call("is_busy")) and bool(guests[2].model.sitting), "the newcomer sits down at a free chair")
+	tavern.call("set_members", [{"id": 1, "name": "ev"}, {"id": 2, "name": "misafir"}, {"id": 3, "name": "c"}, {"id": 4, "name": "d"}, {"id": 5, "name": "e"}], false)
+	_check((tavern.call("seated") as Array).size() == 4, "the table has 4 chairs")
+	tavern.call("set_members", [{"id": 1, "name": "ev"}])
+	for i in 80:
+		await create_timer(0.1).timeout
+		if (guests as Dictionary).size() == 1:
+			break
+	_check((tavern.call("seated") as Array) == [1] and guests.size() == 1, "people who leave walk out")
+	tavern.queue_free()
 
 	# Characters: play asks for one first; up to 3, each with a class.
 	var inv: RefCounted = main.get("inventory")
@@ -201,6 +288,34 @@ func _run() -> void:
 	var gold_before_sell := int(profile0.gold)
 	_check(int(menu.call("sell", int(wearable.uid))) > 0 and (inv.call("items") as Array).size() == stash_before - 1, "selling an item removes it")
 	_check(int(profile0.gold) > gold_before_sell, "selling gives gold")
+
+	# Backpack: always rarest first, other characters' items last, filters.
+	var warrior_item: Dictionary = {}
+	for it3: Dictionary in inv.call("items"):
+		if bool(inv.call("can_wear", warrior, it3)) and (inv.call("wearer", int(it3.uid)) as Dictionary).is_empty() and int(it3.rarity) == 5:
+			warrior_item = it3
+			break
+	if warrior_item.is_empty():
+		warrior_item = inv.call("add_random_item", 5)
+		while not bool(inv.call("can_wear", warrior, warrior_item)):
+			inv.call("sell", int(warrior_item.uid))
+			warrior_item = inv.call("add_random_item", 5)
+	inv.call("equip", int(warrior.id), int(warrior_item.uid))
+	var listed: Array = menu.call("backpack_items")
+	_check(int(listed[-1].uid) == int(warrior_item.uid), "items another character wears go to the end of the backpack")
+	var ranks := listed.slice(0, listed.size() - 1).map(func(it4: Dictionary) -> int: return int(it4.rarity))
+	var in_order := true
+	for k in range(1, ranks.size()):
+		in_order = in_order and ranks[k] <= ranks[k - 1]
+	_check(in_order, "the backpack is sorted by rarity")
+	menu.call("filter_backpack", "ring")
+	_check((menu.call("backpack_items") as Array).all(func(it5: Dictionary) -> bool: return str(inv.get("gear").call("item_slot", it5)) == "ring"), "the backpack can show one kind of item")
+	menu.call("filter_backpack", "", 5)
+	_check((menu.call("backpack_items") as Array).all(func(it6: Dictionary) -> bool: return int(it6.rarity) == 5) and not (menu.call("backpack_items") as Array).is_empty(), "the backpack can show one rarity")
+	menu.call("open_section", "backpack")
+	await _frames(1)
+	menu.call("filter_backpack", "")
+	inv.call("unequip", int(warrior.id), str(inv.get("gear").call("item_slot", warrior_item)))
 
 	# Chests: buying and opening with the wheel.
 	profile0.gold = int(profile0.gold) + 120
@@ -606,11 +721,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.19")) and not bool(menu.call("is_version_open", "0.18")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.20")) and not bool(menu.call("is_version_open", "0.19")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.18")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.19")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

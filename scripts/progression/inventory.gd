@@ -116,7 +116,7 @@ func item(uid: int) -> Dictionary:
 
 
 func stash_full() -> bool:
-	return items().size() >= int(gear.drops.stashLimit)
+	return items().size() >= gear.stash_limit()
 
 
 ## Adds a new random item of `rarity_index` to the backpack. Returns {} if full.
@@ -230,7 +230,7 @@ func open_chest(uid: int) -> Dictionary:
 
 
 func buy_chest(tier: int) -> bool:
-	var price := int(gear.chest(tier).price)
+	var price := gear.chest_price(tier)
 	if int(profile.gold) < price:
 		return false
 	profile.gold = int(profile.gold) - price

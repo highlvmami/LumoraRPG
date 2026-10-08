@@ -1,10 +1,15 @@
-## Blocky pet built from boxes, facing +Z: the bear (walks on four legs),
-## the minotaur (a bull-headed fighter with an axe) and the phoenix (a
-## glowing fire bird that flies with flapping wings and a trail of sparks).
+## Blocky pet built from boxes, facing +Z: the bear, fox and unicorn (walk on
+## four legs), the frog (hops), the turtle (plods under its shell), the
+## minotaur (a bull-headed fighter with an axe), the owl and the baby dragon
+## (fly with flapping wings) and the phoenix (a glowing fire bird with a
+## trail of sparks).
 ## `animate` moves legs or wings from the walking speed.
 extends Node3D
 
 const Toon := preload("res://scripts/core/toon.gd")
+
+## Pets that fly (the follower keeps them up in the air).
+const FLYERS := ["phoenix", "owl", "dragon"]
 
 ## True for pets that fly (the follower keeps them up in the air).
 var flies := false
@@ -25,7 +30,7 @@ func build(kind_id: String) -> void:
 	_wings.clear()
 	_arms.clear()
 	kind = kind_id
-	flies = kind_id == "phoenix"
+	flies = FLYERS.has(kind_id)
 	_visual = Node3D.new()
 	add_child(_visual)
 	match kind_id:
@@ -33,6 +38,18 @@ func build(kind_id: String) -> void:
 			_build_minotaur()
 		"phoenix":
 			_build_phoenix()
+		"fox":
+			_build_fox()
+		"frog":
+			_build_frog()
+		"owl":
+			_build_owl()
+		"turtle":
+			_build_turtle()
+		"unicorn":
+			_build_unicorn()
+		"dragon":
+			_build_dragon()
 		_:
 			_build_bear()
 
@@ -155,15 +172,194 @@ func _build_phoenix() -> void:
 	_visual.add_child(sparks)
 
 
+func _build_fox() -> void:
+	var fur := Color("#e8742a")
+	var white := Color("#f6efe4")
+	var dark := Color("#2a1d17")
+	_box(_visual, Vector3(0.6, 0.5, 1.0), Vector3(0, 0.62, 0), fur)
+	_box(_visual, Vector3(0.44, 0.22, 0.7), Vector3(0, 0.44, 0.08), white)
+	_box(_visual, Vector3(0.52, 0.46, 0.46), Vector3(0, 0.92, 0.62), fur)
+	_box(_visual, Vector3(0.26, 0.2, 0.26), Vector3(0, 0.84, 0.92), white)
+	_box(_visual, Vector3(0.1, 0.08, 0.06), Vector3(0, 0.88, 1.06), dark)
+	for x in [-0.13, 0.13]:
+		_box(_visual, Vector3(0.08, 0.08, 0.03), Vector3(x, 1.0, 0.86), dark)
+		var ear := _box(_visual, Vector3(0.16, 0.26, 0.08), Vector3(x * 1.4, 1.26, 0.56), fur)
+		_box(ear, Vector3(0.08, 0.14, 0.02), Vector3(0, -0.02, 0.05), dark)
+	# A big bushy tail with a white tip.
+	var tail := Node3D.new()
+	tail.position = Vector3(0, 0.75, -0.5)
+	tail.rotation.x = 0.7
+	_visual.add_child(tail)
+	_box(tail, Vector3(0.3, 0.3, 0.6), Vector3(0, 0, -0.3), fur)
+	_box(tail, Vector3(0.26, 0.26, 0.2), Vector3(0, 0, -0.68), white)
+	for at: Vector2 in [Vector2(-0.18, 0.32), Vector2(0.18, 0.32), Vector2(-0.18, -0.32), Vector2(0.18, -0.32)]:
+		var leg := _limb(Vector3(at.x, 0.42, at.y), Vector3(0.14, 0.42, 0.16), fur.darkened(0.1))
+		_box(leg, Vector3(0.15, 0.1, 0.17), Vector3(0, -0.38, 0), dark)
+		_legs.append(leg)
+
+
+func _build_frog() -> void:
+	var green := Color("#5cc85a")
+	var belly := Color("#d9f0a3")
+	_box(_visual, Vector3(0.8, 0.42, 0.8), Vector3(0, 0.38, 0), green)
+	_box(_visual, Vector3(0.6, 0.12, 0.6), Vector3(0, 0.2, 0.06), belly)
+	_box(_visual, Vector3(0.7, 0.08, 0.06), Vector3(0, 0.36, 0.41), Color("#2b6b2a"))
+	for x in [-0.22, 0.22]:
+		# Big round eyes on top.
+		_box(_visual, Vector3(0.24, 0.22, 0.24), Vector3(x, 0.66, 0.24), green)
+		_box(_visual, Vector3(0.2, 0.18, 0.04), Vector3(x, 0.68, 0.37), Color("#ffffff"))
+		_box(_visual, Vector3(0.1, 0.12, 0.03), Vector3(x, 0.68, 0.4), Color("#1a1a1a"))
+		_box(_visual, Vector3(0.08, 0.04, 0.04), Vector3(x * 1.2, 0.36, 0.42), Color("#ff8fa3"))
+	for at: Vector2 in [Vector2(-0.38, 0.25), Vector2(0.38, 0.25), Vector2(-0.4, -0.25), Vector2(0.4, -0.25)]:
+		var leg := _limb(Vector3(at.x, 0.28, at.y), Vector3(0.16, 0.28, 0.22), green.darkened(0.15))
+		_box(leg, Vector3(0.26, 0.06, 0.3), Vector3(0, -0.26, 0.04), green.darkened(0.25))
+		_legs.append(leg)
+
+
+func _build_owl() -> void:
+	var brown := Color("#8b6a4a")
+	var cream := Color("#f0dfbf")
+	var gold := Color("#ffc533")
+	_box(_visual, Vector3(0.6, 0.7, 0.5), Vector3(0, 0, 0), brown)
+	_box(_visual, Vector3(0.44, 0.44, 0.06), Vector3(0, -0.08, 0.25), cream)
+	_box(_visual, Vector3(0.58, 0.46, 0.5), Vector3(0, 0.52, 0.02), brown)
+	for x in [-0.14, 0.14]:
+		_box(_visual, Vector3(0.22, 0.22, 0.04), Vector3(x, 0.54, 0.28), cream)
+		_glow(_box(_visual, Vector3(0.12, 0.12, 0.03), Vector3(x, 0.54, 0.31), gold), gold, 0.6)
+		_box(_visual, Vector3(0.06, 0.06, 0.02), Vector3(x, 0.54, 0.33), Color("#1a1a1a"))
+		var tuft := _box(_visual, Vector3(0.1, 0.22, 0.1), Vector3(x * 1.8, 0.84, 0), brown.darkened(0.2))
+		tuft.rotation.z = -signf(x) * 0.35
+	_box(_visual, Vector3(0.1, 0.12, 0.08), Vector3(0, 0.42, 0.3), Color("#e0a030"))
+	for x in [-0.12, 0.12]:
+		_box(_visual, Vector3(0.12, 0.08, 0.16), Vector3(x, -0.38, 0.06), Color("#e0a030"))
+	for side in [-1.0, 1.0]:
+		var wing := Node3D.new()
+		wing.position = Vector3(side * 0.3, 0.12, 0)
+		_visual.add_child(wing)
+		_box(wing, Vector3(0.6, 0.06, 0.42), Vector3(side * 0.3, 0, -0.02), brown.darkened(0.15))
+		_box(wing, Vector3(0.36, 0.05, 0.3), Vector3(side * 0.7, 0, -0.06), cream.darkened(0.2))
+		wing.set_meta("side", side)
+		_wings.append(wing)
+
+
+func _build_turtle() -> void:
+	var skin := Color("#8bbf5a")
+	var shell := Color("#5a7a3a")
+	var rim := Color("#c9a86a")
+	_box(_visual, Vector3(1.0, 0.18, 1.2), Vector3(0, 0.42, 0), rim)
+	_box(_visual, Vector3(0.9, 0.36, 1.06), Vector3(0, 0.66, 0), shell)
+	_box(_visual, Vector3(0.6, 0.18, 0.7), Vector3(0, 0.9, 0), shell.lightened(0.12))
+	# Shell plates.
+	for at: Vector2 in [Vector2(-0.22, 0.25), Vector2(0.22, 0.25), Vector2(-0.22, -0.25), Vector2(0.22, -0.25), Vector2(0, 0)]:
+		_box(_visual, Vector3(0.2, 0.04, 0.2), Vector3(at.x, 1.0, at.y), shell.darkened(0.25))
+	_box(_visual, Vector3(0.22, 0.14, 0.12), Vector3(0.12, 1.02, -0.3), Color("#4fbf6a"))
+	_box(_visual, Vector3(0.38, 0.32, 0.42), Vector3(0, 0.58, 0.74), skin)
+	for x in [-0.12, 0.12]:
+		_box(_visual, Vector3(0.07, 0.07, 0.03), Vector3(x, 0.66, 0.96), Color("#1a1a1a"))
+	_box(_visual, Vector3(0.16, 0.03, 0.03), Vector3(0, 0.52, 0.96), Color("#3a5a2a"))
+	for at: Vector2 in [Vector2(-0.4, 0.4), Vector2(0.4, 0.4), Vector2(-0.4, -0.4), Vector2(0.4, -0.4)]:
+		_legs.append(_limb(Vector3(at.x, 0.36, at.y), Vector3(0.24, 0.3, 0.24), skin.darkened(0.1)))
+
+
+func _build_unicorn() -> void:
+	var white := Color("#f7f4ff")
+	var mane := [Color("#ff8fd0"), Color("#b98cff"), Color("#7fd8ff")]
+	_box(_visual, Vector3(0.62, 0.6, 1.1), Vector3(0, 0.95, 0), white)
+	var neck := _box(_visual, Vector3(0.36, 0.6, 0.36), Vector3(0, 1.35, 0.5), white)
+	neck.rotation.x = 0.35
+	_box(_visual, Vector3(0.4, 0.4, 0.6), Vector3(0, 1.62, 0.78), white)
+	_box(_visual, Vector3(0.34, 0.2, 0.2), Vector3(0, 1.52, 1.08), Color("#ffd9ec"))
+	for x in [-0.12, 0.12]:
+		_box(_visual, Vector3(0.07, 0.09, 0.03), Vector3(x, 1.7, 1.05), Color("#3a2a5a"))
+		_box(_visual, Vector3(0.1, 0.18, 0.08), Vector3(x, 1.9, 0.62), white.darkened(0.08))
+	var horn := _box(_visual, Vector3(0.09, 0.42, 0.09), Vector3(0, 2.0, 0.88), Color("#ffe066"))
+	horn.rotation.x = 0.45
+	_glow(horn, Color("#ffe066"), 0.9)
+	for n in 3:
+		_glow(_box(_visual, Vector3(0.1, 0.22, 0.16), Vector3(0, 1.82 - n * 0.2, 0.5 - n * 0.14), mane[n]), mane[n], 0.35)
+	var tail := Node3D.new()
+	tail.position = Vector3(0, 1.1, -0.56)
+	tail.rotation.x = -0.6
+	_visual.add_child(tail)
+	for n in 3:
+		_glow(_box(tail, Vector3(0.14, 0.14, 0.24), Vector3(0, 0, -0.12 - n * 0.2), mane[n]), mane[n], 0.35)
+	for at: Vector2 in [Vector2(-0.2, 0.38), Vector2(0.2, 0.38), Vector2(-0.2, -0.38), Vector2(0.2, -0.38)]:
+		var leg := _limb(Vector3(at.x, 0.7, at.y), Vector3(0.16, 0.7, 0.18), white.darkened(0.05))
+		_box(leg, Vector3(0.18, 0.1, 0.2), Vector3(0, -0.66, 0), Color("#d9b8ff"))
+		_legs.append(leg)
+	var light := OmniLight3D.new()
+	light.light_color = Color("#ffd9ff")
+	light.light_energy = 0.4
+	light.omni_range = 2.5
+	light.position = Vector3(0, 2.0, 0.8)
+	_visual.add_child(light)
+
+
+func _build_dragon() -> void:
+	var scale_color := Color("#3fae6a")
+	var belly := Color("#ffd27a")
+	var horn := Color("#f4f1e6")
+	_box(_visual, Vector3(0.5, 0.46, 0.8), Vector3(0, 0, 0), scale_color)
+	_box(_visual, Vector3(0.36, 0.3, 0.6), Vector3(0, -0.1, 0.06), belly)
+	_box(_visual, Vector3(0.44, 0.4, 0.44), Vector3(0, 0.3, 0.5), scale_color)
+	_box(_visual, Vector3(0.3, 0.2, 0.24), Vector3(0, 0.22, 0.8), scale_color.lightened(0.1))
+	for x in [-0.1, 0.1]:
+		_box(_visual, Vector3(0.05, 0.04, 0.03), Vector3(x, 0.26, 0.93), Color("#1a1a1a"))
+		_glow(_box(_visual, Vector3(0.08, 0.08, 0.03), Vector3(x * 1.4, 0.4, 0.72), Color("#ffe14d")), Color("#ffe14d"), 0.6)
+		var h := _box(_visual, Vector3(0.07, 0.24, 0.07), Vector3(x * 1.6, 0.56, 0.38), horn)
+		h.rotation.x = -0.5
+	# Spikes down the back and a tail ending in a spade.
+	for n in 3:
+		_box(_visual, Vector3(0.06, 0.12, 0.1), Vector3(0, 0.28, 0.2 - n * 0.24), Color("#2a7a4a"))
+	var tail := Node3D.new()
+	tail.position = Vector3(0, -0.05, -0.38)
+	tail.rotation.x = 0.3
+	_visual.add_child(tail)
+	_box(tail, Vector3(0.18, 0.16, 0.6), Vector3(0, 0, -0.3), scale_color)
+	var spade := _box(tail, Vector3(0.26, 0.06, 0.2), Vector3(0, 0, -0.66), Color("#2a7a4a"))
+	spade.rotation.y = 0.78
+	for side in [-1.0, 1.0]:
+		var wing := Node3D.new()
+		wing.position = Vector3(side * 0.22, 0.18, 0)
+		_visual.add_child(wing)
+		_box(wing, Vector3(0.5, 0.05, 0.4), Vector3(side * 0.26, 0, 0), Color("#2a7a4a"))
+		_box(wing, Vector3(0.4, 0.04, 0.32), Vector3(side * 0.66, 0, -0.08), Color("#8fe3a0"))
+		wing.set_meta("side", side)
+		_wings.append(wing)
+	for at: Vector2 in [Vector2(-0.18, 0.22), Vector2(0.18, 0.22), Vector2(-0.18, -0.22), Vector2(0.18, -0.22)]:
+		_legs.append(_limb(Vector3(at.x, -0.18, at.y), Vector3(0.12, 0.2, 0.14), scale_color.darkened(0.15)))
+
+
 ## Height of the middle of the pet (for menu framing).
 func center_height() -> float:
 	match kind:
 		"minotaur":
 			return 1.3
-		"phoenix":
+		"phoenix", "owl", "dragon":
 			return 0.1
+		"unicorn":
+			return 1.2
+		"frog":
+			return 0.4
+		"fox", "turtle":
+			return 0.65
 		_:
 			return 0.8
+
+
+## How far a camera stands to frame the whole pet.
+func view_distance() -> float:
+	match kind:
+		"minotaur", "unicorn", "dragon":
+			return 4.6
+		"phoenix":
+			return 5.2
+		"owl":
+			return 3.6
+		"frog":
+			return 3.0
+		_:
+			return 3.8
 
 
 func animate(delta: float, speed: float, _grounded := true) -> void:
@@ -179,6 +375,8 @@ func animate(delta: float, speed: float, _grounded := true) -> void:
 		wing.rotation.z = side * (0.15 + sin(_time * 7.0) * 0.55)
 	if flies:
 		_visual.position.y = sin(_time * 2.2) * 0.12
+	elif kind == "frog":
+		_visual.position.y = absf(sin(_phase * 0.5)) * 0.35 * clampf(speed / 4.0, 0.0, 1.0)
 	else:
 		_visual.position.y = absf(sin(_phase)) * 0.06 * clampf(speed / 4.0, 0.0, 1.0)
 
