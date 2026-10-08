@@ -8,6 +8,9 @@
 ## the ground, then hits whatever is still inside it. Bosses get angry below
 ## 2/3 health and enraged below 1/3: each phase (and each later boss in a run)
 ## unlocks new attack styles, mixes them up and makes them come faster.
+## Co-op: the room's host runs everything and enemies chase whichever player
+## is closest (`targets`). Partners' games run as a mirror: they show the
+## host's enemies from snapshots and send their hits to the host.
 extends Node3D
 
 const Config := preload("res://scripts/core/config.gd")
@@ -23,6 +26,8 @@ signal boss_spawned(boss_name: String)
 signal boss_defeated(boss_name: String)
 ## The boss got angrier: phase 2 (angry) or 3 (enraged).
 signal boss_phase_changed(boss_name: String, phase: int)
+## Mirror only: a hit to send to the host (enemy uid, damage, push direction).
+signal remote_hit(uid: int, amount: float, push_dir: Vector3)
 
 const GRID_CELL := 2.0
 const HIT_FLASH_TIME := 0.12
@@ -33,6 +38,11 @@ const FLASH_COLOR := Color(2.6, 2.6, 2.6)
 
 var terrain: Terrain
 var player: CharacterBody3D
+## Players enemies chase and hurt (this player and co-op partners). Each
+## needs `dead`, `visible`, a global position and `take_damage(amount)`.
+var targets: Array = []
+## Shows the host's enemies instead of running them (co-op partner).
+var mirror := false
 ## Seconds since the run started; drives spawn rate, new kinds and toughness.
 var run_time := 0.0
 var kills := 0
@@ -66,6 +76,9 @@ var _yaw := PackedFloat32Array()
 ## Ranged enemies: seconds until the next throw.
 var _cool := PackedFloat32Array()
 var _mms: Array[MultiMesh] = []
+## Mirror: where each enemy is heading (the last snapshot).
+var _goal := PackedVector3Array()
+var _goal_yaw := PackedFloat32Array()
 
 ## Boss fight state (one boss at a time): seconds until its next attack, how
 ## long it stands still winding up, which attack comes next, a dash or leap
@@ -93,6 +106,7 @@ var _shot_mm: MultiMesh
 func setup(p_terrain: Terrain, p_player: CharacterBody3D, bounds: float) -> void:
 	terrain = p_terrain
 	player = p_player
+	targets = [p_player]
 	_bounds = bounds
 	var cfg := Config.load_json("res://data/enemies.json")
 	_kinds = cfg.kinds
@@ -155,6 +169,8 @@ func count_kind(id: String) -> int:
 func clear() -> void:
 	_kind.clear()
 	_uid.clear()
+	_goal.clear()
+	_goal_yaw.clear()
 	_max_hp.clear()
 	_next_boss = 0
 	_bosses_spawned = 0
@@ -204,6 +220,9 @@ func kill_all_silently() -> void:
 func _physics_process(delta: float) -> void:
 	if not active or player == null:
 		return
+	if mirror:
+		_update_mirror(delta)
+		return
 	run_time += delta
 	_update_spawning(delta)
 	_update_movement(delta)
@@ -213,6 +232,32 @@ func _physics_process(delta: float) -> void:
 
 func _process(_delta: float) -> void:
 	_update_render()
+
+
+## Players that can be chased right now.
+func alive_targets() -> Array:
+	var out: Array = []
+	for t: Node3D in targets:
+		if is_instance_valid(t) and t.visible and not bool(t.get("dead")):
+			out.append(t)
+	return out
+
+
+func _closest(alive: Array, at: Vector3) -> Node3D:
+	var best: Node3D = null
+	var best_d := INF
+	for t: Node3D in alive:
+		var d := Vector2(t.global_position.x - at.x, t.global_position.z - at.z).length_squared()
+		if d < best_d:
+			best_d = d
+			best = t
+	return best
+
+
+## The player closest to `at` (this player when nobody is alive).
+func target_near(at: Vector3) -> Node3D:
+	var who := _closest(alive_targets(), at)
+	return who if who else player
 
 
 ## Multiplier that grows with run time; `per_minute` comes from the spawn config.
@@ -240,7 +285,7 @@ func _update_spawning(delta: float) -> void:
 	if _next_boss < boss_times.size() and run_time >= float(boss_times[_next_boss]):
 		var order: Array = _spawn.bossOrder
 		var a := _rng.randf() * TAU
-		spawn_boss(str(order[_next_boss % order.size()]), player.global_position + Vector3(cos(a), 0.0, sin(a)) * 16.0)
+		spawn_boss(str(order[_next_boss % order.size()]), _spawn_anchor() + Vector3(cos(a), 0.0, sin(a)) * 16.0)
 		_next_boss += 1
 
 	# Nothing else spawns during a boss fight.
@@ -250,14 +295,27 @@ func _update_spawning(delta: float) -> void:
 	if _spawn_timer > 0.0:
 		return
 	var ramp := clampf(run_time / float(_spawn.rampSeconds), 0.0, 1.0)
-	_spawn_timer = lerpf(_spawn.startInterval, _spawn.minInterval, ramp)
+	# More players, more enemies.
+	_spawn_timer = lerpf(_spawn.startInterval, _spawn.minInterval, ramp) / party_scale()
 	if _pos.size() >= int(_spawn.maxAlive):
 		return
-	# Spawn on a ring around the player, outside the view of the action.
+	# Spawn on a ring around a player, outside the view of the action.
 	var angle := _rng.randf() * TAU
 	var dist := _rng.randf_range(_spawn.ringMin, _spawn.ringMax)
-	var at := Vector3(player.global_position.x + cos(angle) * dist, 0.0, player.global_position.z + sin(angle) * dist)
+	var anchor := _spawn_anchor()
+	var at := Vector3(anchor.x + cos(angle) * dist, 0.0, anchor.z + sin(angle) * dist)
 	spawn(str(_kinds[_pick_kind()].id), at)
+
+
+## A random living player's position to spawn around.
+func _spawn_anchor() -> Vector3:
+	var alive := alive_targets()
+	return (alive[_rng.randi() % alive.size()] as Node3D).global_position if not alive.is_empty() else player.global_position
+
+
+## 1 alone, +0.5 for every other living player (more spawns, tougher bosses).
+func party_scale() -> float:
+	return 1.0 + 0.5 * maxi(0, alive_targets().size() - 1)
 
 
 ## Weighted random choice among the kinds unlocked so far.
@@ -289,6 +347,8 @@ func spawn(id: String, at: Vector3, force := false) -> bool:
 	var x := clampf(at.x, -_bounds, _bounds)
 	var z := clampf(at.z, -_bounds, _bounds)
 	var hp := float(_kinds[k].hp) * growth("hpGrowthPerMinute")
+	if _kinds[k].get("boss", false):
+		hp *= party_scale()
 	_kind.append(k)
 	_uid.append(_next_uid)
 	_next_uid += 1
@@ -344,7 +404,9 @@ func _kind_index(id: String) -> int:
 
 
 func _update_movement(delta: float) -> void:
-	var target := player.global_position
+	var alive := alive_targets()
+	if alive.is_empty():
+		return
 	var speed_scale := _speed_growth()
 	var damage_scale := growth("damageGrowthPerMinute")
 
@@ -360,10 +422,12 @@ func _update_movement(delta: float) -> void:
 	for i in _pos.size():
 		var kd: Dictionary = _kinds[_kind[i]]
 		if kd.get("boss", false):
-			_update_boss(i, kd, delta, speed_scale, damage_scale)
+			_update_boss(i, kd, delta, speed_scale, damage_scale, _closest(alive, _pos[i]))
 			continue
 		var radius := float(kd.radius)
 		var p := _pos[i]
+		var who: Node3D = _closest(alive, p) if alive.size() > 1 else alive[0]
+		var target := who.global_position
 		var to_player := Vector2(target.x - p.x, target.z - p.z)
 		var dist := to_player.length()
 		var dir: Vector2 = to_player / dist if dist > 0.01 else Vector2.ZERO
@@ -382,7 +446,7 @@ func _update_movement(delta: float) -> void:
 			if _cool[i] <= 0.0 and dist < float(r.range):
 				var from := p + Vector3.UP * float(r.get("height", 1.3))
 				var dmg := float(r.damage) * damage_scale
-				var aim := (player.global_position + Vector3.UP * 0.9 - from).normalized()
+				var aim := (target + Vector3.UP * 0.9 - from).normalized()
 				_throw(from, aim, float(r.projectileSpeed), dmg)
 				# Bosses also send a ring of shots in every direction.
 				var ring := int(r.get("ring", 0))
@@ -419,14 +483,14 @@ func _update_movement(delta: float) -> void:
 			_yaw[i] = lerp_angle(_yaw[i], atan2(dir.x, dir.y), minf(1.0, delta * 10.0))
 
 		if dist < radius + 0.45 and absf(target.y - p.y) < 1.5:
-			player.call("take_damage", float(kd.damage) * damage_scale)
+			who.call("take_damage", float(kd.damage) * damage_scale)
 
 
 ## Boss: walks to the player, and every few seconds winds up one of its
 ## attacks (in turn), standing still while the warning zone fills.
-func _update_boss(i: int, kd: Dictionary, delta: float, speed_scale: float, damage_scale: float) -> void:
+func _update_boss(i: int, kd: Dictionary, delta: float, speed_scale: float, damage_scale: float, who: Node3D) -> void:
 	var p := _pos[i]
-	var target := player.global_position
+	var target := who.global_position
 	var to_player := Vector2(target.x - p.x, target.z - p.z)
 	var dist := to_player.length()
 	var dir: Vector2 = to_player / dist if dist > 0.01 else Vector2.ZERO
@@ -442,10 +506,11 @@ func _update_boss(i: int, kd: Dictionary, delta: float, speed_scale: float, dama
 		p = Vector3(flat.x, terrain.height_at(flat.x, flat.y) + sin(f * PI) * float(_dash.arc), flat.y)
 		_pos[i] = p
 		_phase[i] += delta * 14.0
-		var touching := Vector2(target.x - p.x, target.z - p.z).length() < radius + 0.6
-		if float(_dash.arc) == 0.0 and touching and not bool(_dash.hit):
-			_dash.hit = true
-			player.call("take_damage", float(_dash.damage))
+		if float(_dash.arc) == 0.0 and not bool(_dash.hit):
+			for t: Node3D in alive_targets():
+				if Vector2(t.global_position.x - p.x, t.global_position.z - p.z).length() < radius + 0.6:
+					_dash.hit = true
+					t.call("take_damage", float(_dash.damage))
 		if f >= 1.0:
 			if _dash.has("land"):
 				# The leap lands: everything in the warning circle is hit.
@@ -478,7 +543,7 @@ func _update_boss(i: int, kd: Dictionary, delta: float, speed_scale: float, dama
 	if dist > 0.01:
 		_yaw[i] = lerp_angle(_yaw[i], atan2(dir.x, dir.y), minf(1.0, delta * 6.0))
 	if dist < radius + 0.45 and absf(target.y - p.y) < 2.0:
-		player.call("take_damage", float(kd.damage) * damage_scale)
+		who.call("take_damage", float(kd.damage) * damage_scale)
 
 
 ## 1 calm, 2 angry (below 2/3 health), 3 enraged (below 1/3).
@@ -555,7 +620,8 @@ func start_boss_attack(i: int, only := "") -> void:
 	var color := Color(str(a.get("color", "#ff2b2b")))
 	var p := _pos[i]
 	var me := Vector2(p.x, p.z)
-	var target := Vector2(player.global_position.x, player.global_position.z)
+	var aim := target_near(p).global_position
+	var target := Vector2(aim.x, aim.z)
 	var dir := (target - me).normalized() if me.distance_to(target) > 0.1 else Vector2(0, 1)
 	match str(a.type):
 		"charge":
@@ -635,7 +701,8 @@ func start_boss_attack(i: int, only := "") -> void:
 func _start_charge(i: int, a: Dictionary, warn: float, dmg: float, chain: int) -> void:
 	var p := _pos[i]
 	var me := Vector2(p.x, p.z)
-	var target := Vector2(player.global_position.x, player.global_position.z)
+	var aim := target_near(p).global_position
+	var target := Vector2(aim.x, aim.z)
 	var dir := (target - me).normalized() if me.distance_to(target) > 0.1 else Vector2(0, 1)
 	var end := _clamp_flat(me + dir * float(a.length))
 	attacks.line(_ground(me), _ground(end), float(a.width), warn, Color(str(a.get("color", "#ff2b2b"))))
@@ -657,9 +724,17 @@ func _update_strikes(delta: float) -> void:
 			i += 1
 
 
-## Hits the player once if they stand in any of the shapes.
+## Hits every player standing in any of the shapes (once each).
 func _damage_if_inside(shapes: Array, amount: float) -> bool:
-	var at := Vector2(player.global_position.x, player.global_position.z)
+	var any := false
+	for t: Node3D in alive_targets():
+		if _hit_if_inside(t, shapes, amount):
+			any = true
+	return any
+
+
+func _hit_if_inside(t: Node3D, shapes: Array, amount: float) -> bool:
+	var at := Vector2(t.global_position.x, t.global_position.z)
 	for shape: Dictionary in shapes:
 		var inside := false
 		if shape.type == "circle":
@@ -674,7 +749,7 @@ func _damage_if_inside(shapes: Array, amount: float) -> bool:
 			inside = at.distance_to(closest) <= float(shape.width) * 0.5 + 0.3
 		if inside:
 			boss_attack_hits += 1
-			player.call("take_damage", amount)
+			t.call("take_damage", amount)
 			return true
 	return false
 
@@ -698,14 +773,17 @@ func _throw(from: Vector3, dir: Vector3, speed: float, dmg: float) -> void:
 
 
 func _update_shots(delta: float) -> void:
-	var chest := player.global_position + Vector3.UP * 0.9
+	var alive := alive_targets()
 	var i := 0
 	while i < _shot_pos.size():
 		_shot_pos[i] += _shot_vel[i] * delta
 		_shot_life[i] -= delta
-		var hit := _shot_pos[i].distance_squared_to(chest) < 0.75 * 0.75
-		if hit:
-			player.call("take_damage", _shot_damage[i])
+		var hit := false
+		for t: Node3D in alive:
+			if _shot_pos[i].distance_squared_to(t.global_position + Vector3.UP * 0.9) < 0.75 * 0.75:
+				hit = true
+				t.call("take_damage", _shot_damage[i])
+				break
 		if hit or _shot_life[i] <= 0.0:
 			var last := _shot_pos.size() - 1
 			_shot_pos[i] = _shot_pos[last]
@@ -824,6 +902,11 @@ func hit_test(point: Vector3, hit_radius: float) -> int:
 
 
 func damage(index: int, amount: float, push_dir := Vector3.ZERO) -> void:
+	if mirror:
+		# The host decides; only flash here.
+		_flash[index] = HIT_FLASH_TIME
+		remote_hit.emit(_uid[index], amount, push_dir)
+		return
 	_hp[index] -= amount
 	_flash[index] = HIT_FLASH_TIME
 	# Small knockback so hits feel punchy (big enemies barely move).
@@ -864,3 +947,106 @@ func _remove(index: int) -> void:
 	_phase.resize(last)
 	_yaw.resize(last)
 	_cool.resize(last)
+
+
+# --- Co-op ------------------------------------------------------------------
+
+## Values per enemy in a snapshot: uid, kind, x, y, z (cm/5), yaw, health ‰, flash.
+const SNAP_STRIDE := 8
+const SNAP_SCALE := 20.0
+
+## What partners need to show the host's enemies (sent about 10 times a second).
+func snapshot() -> Dictionary:
+	var e := PackedInt32Array()
+	for i in _pos.size():
+		e.append_array([_uid[i], _kind[i], roundi(_pos[i].x * SNAP_SCALE), roundi(_pos[i].y * SNAP_SCALE),
+			roundi(_pos[i].z * SNAP_SCALE), roundi(wrapf(_yaw[i], -PI, PI) * 100.0),
+			roundi(clampf(_hp[i] / _max_hp[i], 0.0, 1.0) * 1000.0), 1 if _flash[i] > 0.0 else 0])
+	var shots := PackedInt32Array()
+	for i in _shot_pos.size():
+		shots.append_array([roundi(_shot_pos[i].x * SNAP_SCALE), roundi(_shot_pos[i].y * SNAP_SCALE), roundi(_shot_pos[i].z * SNAP_SCALE),
+			roundi(_shot_vel[i].x * SNAP_SCALE), roundi(_shot_vel[i].y * SNAP_SCALE), roundi(_shot_vel[i].z * SNAP_SCALE)])
+	return {"e": Array(e), "s": Array(shots), "t": snappedf(run_time, 0.01), "k": kills, "bp": _boss_phase}
+
+
+## Mirror: takes the host's latest snapshot. Enemies glide to their new spots.
+func apply_snapshot(d: Dictionary) -> void:
+	var known := {}
+	for i in _uid.size():
+		known[_uid[i]] = i
+	var e: Array = d.get("e", [])
+	var n := e.size() / SNAP_STRIDE
+	var kind := PackedInt32Array()
+	var uid := PackedInt32Array()
+	var pos := PackedVector3Array()
+	var goal := PackedVector3Array()
+	var hp := PackedFloat32Array()
+	var flash := PackedFloat32Array()
+	var phase := PackedFloat32Array()
+	var yaw := PackedFloat32Array()
+	var goal_yaw := PackedFloat32Array()
+	for j in n:
+		var o := j * SNAP_STRIDE
+		var k := int(e[o + 1])
+		if k < 0 or k >= _kinds.size():
+			continue
+		var id := int(e[o])
+		var at := Vector3(float(e[o + 2]), float(e[o + 3]), float(e[o + 4])) / SNAP_SCALE
+		var old: int = known.get(id, -1)
+		kind.append(k)
+		uid.append(id)
+		goal.append(at)
+		goal_yaw.append(float(e[o + 5]) / 100.0)
+		hp.append(float(e[o + 6]) / 1000.0)
+		if old >= 0:
+			pos.append(_pos[old])
+			yaw.append(_yaw[old])
+			phase.append(_phase[old])
+			flash.append(maxf(_flash[old], HIT_FLASH_TIME if int(e[o + 7]) == 1 else 0.0))
+		else:
+			pos.append(at)
+			yaw.append(float(e[o + 5]) / 100.0)
+			phase.append(_rng.randf() * TAU)
+			flash.append(0.0)
+	_kind = kind
+	_uid = uid
+	_pos = pos
+	_goal = goal
+	_hp = hp
+	_max_hp = PackedFloat32Array()
+	_max_hp.resize(hp.size())
+	_max_hp.fill(1.0)
+	_flash = flash
+	_phase = phase
+	_yaw = yaw
+	_goal_yaw = goal_yaw
+	_cool = PackedFloat32Array()
+	_cool.resize(hp.size())
+
+	var s: Array = d.get("s", [])
+	_shot_pos.clear()
+	_shot_vel.clear()
+	_shot_life.clear()
+	_shot_damage.clear()
+	for j in mini(s.size() / 6, MAX_SHOTS):
+		var o := j * 6
+		_shot_pos.append(Vector3(float(s[o]), float(s[o + 1]), float(s[o + 2])) / SNAP_SCALE)
+		_shot_vel.append(Vector3(float(s[o + 3]), float(s[o + 4]), float(s[o + 5])) / SNAP_SCALE)
+		_shot_life.append(1.0)
+		_shot_damage.append(0.0)
+	run_time = float(d.get("t", run_time))
+	kills = int(d.get("k", kills))
+	_boss_phase = int(d.get("bp", 1))
+
+
+func _update_mirror(delta: float) -> void:
+	run_time += delta
+	var follow := minf(1.0, delta * 12.0)
+	for i in _pos.size():
+		var before := _pos[i]
+		_pos[i] = before.lerp(_goal[i], follow)
+		_yaw[i] = lerp_angle(_yaw[i], _goal_yaw[i], follow)
+		_flash[i] = maxf(0.0, _flash[i] - delta)
+		_phase[i] += delta * 6.0 + before.distance_to(_pos[i]) * 1.5
+	for i in _shot_pos.size():
+		_shot_pos[i] += _shot_vel[i] * delta

@@ -37,6 +37,13 @@ jobs:
           timeout 120 "$RUNNER_TEMP/godot" --headless --path . -s res://tests/smoke_test.gd 2>&1 | tee test.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" test.log
 
+      - name: Test the online server and live co-op
+        run: |
+          (cd server && npm ci --omit=dev && node test.js)
+          timeout 120 "$RUNNER_TEMP/godot" --headless --path . -s res://tests/coop_test.gd 2>&1 | tee coop.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" coop.log
+          grep -q "all checks passed" coop.log
+
       - name: Install web and Windows export templates
         env:
           GH_TOKEN: ${{ github.token }}

@@ -34,6 +34,8 @@ const LevelUpScreen := preload("res://scripts/ui/level_up_screen.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 const CheatMenu := preload("res://scripts/ui/cheat_menu.gd")
 const UiTheme := preload("res://scripts/ui/theme.gd")
+const NetClient := preload("res://scripts/net/net_client.gd")
+const Coop := preload("res://scripts/net/coop.gd")
 
 ## How many screen pixels each 3D pixel covers, per graphics quality.
 const PIXEL_SCALES := {"low": 3, "medium": 2, "high": 1}
@@ -62,6 +64,9 @@ var cheat_menu: CheatMenu
 var login_screen: LoginScreen
 var main_menu: MainMenu
 var store := ProfileStore.new()
+## Online server connection (rooms, invites) and the live co-op run.
+var net: NetClient
+var coop: Coop
 var in_run := false
 
 var _world_cfg: Dictionary
@@ -226,7 +231,7 @@ func login(username: String, remember := false) -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.setup(player, progression, enemies, camera_rig.camera, _world_view.stretch_shrink)
-	hud.restart_requested.connect(start_run)
+	hud.restart_requested.connect(_on_restart)
 	hud.menu_requested.connect(show_menu)
 	bow.hit_landed.connect(hud.show_hit)
 	weapons.hit_landed.connect(hud.show_hit)
@@ -272,6 +277,21 @@ func login(username: String, remember := false) -> void:
 	add_child(chest_wheel)
 	chest_wheel.setup(inventory.gear)
 	chest_wheel.closed.connect(main_menu.refresh)
+
+	net = NetClient.new()
+	net.name = "Net"
+	add_child(net)
+	coop = Coop.new()
+	coop.name = "Coop"
+	add_child(coop)
+	coop.setup(self, net)
+	main_menu.net = net
+	net.notice.connect(_on_net_notice)
+	net.invited.connect(_on_invited)
+	net.status_changed.connect(func(_s: String) -> void: main_menu.refresh_online())
+	net.room_changed.connect(main_menu.refresh_online)
+	net.who_updated.connect(main_menu.update_friend_status)
+	net.start(username)
 
 	apply_settings()
 	show_menu()
@@ -322,6 +342,8 @@ func leave_run() -> void:
 
 
 func show_menu() -> void:
+	if coop:
+		coop.leave()
 	in_run = false
 	_was_captured = false
 	pause_menu.close()
@@ -344,10 +366,16 @@ func show_menu() -> void:
 	main_menu.show_menu()
 
 
-func start_run() -> void:
+## Starts a run. In a room only the host starts, and the room starts with it;
+## `guest_map` is set when the host started one and this game joins it.
+func start_run(guest_map := "") -> void:
+	var guest := guest_map != ""
+	if net and net.in_room() and not net.is_host() and not guest:
+		main_menu.notify("Oyunu oda sahibi başlatır. Başlayınca otomatik katılırsın.")
+		return
 	# Every run picks a random map and shows its name.
 	var ids := maps.keys()
-	var next := forced_map if forced_map != "" else str(ids[_rng.randi() % ids.size()])
+	var next := guest_map if guest else (forced_map if forced_map != "" else str(ids[_rng.randi() % ids.size()]))
 	if next != map_id:
 		load_map(next)
 	var played: Dictionary = achievements.profile.stats.get("maps", {})
@@ -365,6 +393,8 @@ func start_run() -> void:
 	enemies.clear()
 	bow.clear()
 	loot_orbs.clear()
+	enemies.mirror = guest
+	enemies.targets = [player]
 	_run_gold = 0
 	_run_loot.clear()
 	_bosses_killed = 0
@@ -395,8 +425,63 @@ func start_run() -> void:
 	camera_rig.camera.current = true
 	hud.visible = true
 	hud.hide_death()
-	hud.show_title(UiTheme.upper(map_name()), str(maps[map_id].get("subtitle", "")))
+	var subtitle := str(maps[map_id].get("subtitle", ""))
+	if net and net.in_room() and net.members().size() > 1:
+		subtitle = "Birlikte: " + ", ".join(net.members().map(func(m: Dictionary) -> String: return str(m.name)))
+	hud.show_title(UiTheme.upper(map_name()), subtitle)
 	_last_step_pos = player.global_position
+	# In a room the run is shared live (see Coop); the pause menu can't stop it.
+	pause_menu.freezes = not (net and net.in_room())
+	if net and net.in_room():
+		if guest:
+			coop.start_as_guest()
+		else:
+			coop.start_as_host(next)
+
+
+## The room's host started a run: join it on the same map.
+func join_coop_run(map: String) -> void:
+	if not maps.has(map):
+		map = "forest"
+	chest_wheel.visible = false
+	main_menu.close_confirm()
+	if in_run and not player.dead:
+		_end_run()
+	start_run(map)
+
+
+## The host left the run or the room closed: back to the menu.
+func coop_host_ended() -> void:
+	if not in_run:
+		coop.stop()
+		return
+	if not player.dead:
+		_end_run()
+	coop.stop()
+	show_menu()
+	main_menu.notify("Ev sahibi oyunu bitirdi.")
+
+
+func _on_restart() -> void:
+	if net.in_room() and not net.is_host():
+		show_menu()
+	else:
+		start_run()
+
+
+func _on_net_notice(text: String) -> void:
+	if in_run:
+		hud.toast(UiTheme.upper(text))
+	else:
+		main_menu.notify(text)
+
+
+## A friend invites this player to their room: ask now (menu) or later (run).
+func _on_invited(from_name: String, code: String) -> void:
+	if in_run:
+		hud.toast(UiTheme.upper("%s seni odasına çağırıyor (Arkadaşlar'dan katıl)" % from_name))
+		return
+	main_menu.ask_invite(from_name, code)
 
 
 ## The active character, creating a default archer if the account has none
@@ -696,7 +781,8 @@ func _on_level_up(level: int) -> void:
 
 func _on_player_died() -> void:
 	level_up_screen.close()
-	enemies.active = false
+	# In co-op the others play on (the host keeps running the enemies).
+	enemies.active = coop.running
 	bow.active = false
 	weapons.active = false
 	_end_run()
@@ -731,6 +817,8 @@ func _build_world_viewport() -> void:
 	viewport.name = "WorldViewport"
 	viewport.msaa_3d = Viewport.MSAA_DISABLED
 	viewport.audio_listener_enable_3d = true
+	# Its own 3D (and physics) world, so two games can share a process (co-op test).
+	viewport.own_world_3d = true
 	container.add_child(viewport)
 
 	world = Node3D.new()

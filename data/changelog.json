@@ -1,5 +1,11 @@
 {
 	"versions": [
+		{ "version": "0.17", "date": "2026-10-08", "title": "Birlikte oyna", "notes": [
+			"Çevrimiçi sunucu: arkadaşlarının çevrimiçi olup olmadığını gör",
+			"Oda kur, arkadaşını davet et ya da 5 harfli oda koduyla katıl (en fazla 4 kişi)",
+			"Ev sahibi OYNA'ya basınca odadaki herkes aynı haritada canlı birlikte oynar",
+			"Düşmanlar en yakın oyuncuya saldırır; kesilen her canavarın EXP ve altını herkese",
+			"Kalabalık odada daha çok düşman ve daha dayanıklı boss'lar" ] },
 		{ "version": "0.16", "date": "2026-10-08", "title": "Hesaplar, haritalar ve ayarlar", "notes": [
 			"Kayıt ol / giriş yap ekranı, şifreli hesaplar ve \"Beni hatırla\"",
 			"Rastgele seçilen yeni haritalar: Sakin Orman, Sahil Kasabası, Ölümcül Zindan",
