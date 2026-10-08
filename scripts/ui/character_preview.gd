@@ -38,9 +38,9 @@ func setup(look: Dictionary, view_size: Vector2, pixel := 2) -> void:
 
 	var camera := Camera3D.new()
 	camera.fov = 30.0
-	camera.position = Vector3(0, 1.35, 6.2)
+	var eye := Vector3(0, 1.35, 6.2)
+	camera.transform = Transform3D(Basis.looking_at(Vector3(0, 1.15, 0) - eye), eye)
 	viewport.add_child(camera)
-	camera.look_at(Vector3(0, 1.15, 0))
 
 	_pivot = Node3D.new()
 	viewport.add_child(_pivot)
