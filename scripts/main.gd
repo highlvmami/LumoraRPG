@@ -196,6 +196,9 @@ func login(username: String, remember := false) -> void:
 	skill_tree = SkillTree.new(profile, store)
 	inventory = Inventory.new(profile, store)
 	pets = Pets.new(profile, store)
+	# Account skills (Hazine branch) change the backpack, chests, prices and eggs.
+	inventory.gear.bonus = skill_tree.total
+	pets.bonus = skill_tree.total
 	achievements = Achievements.new(profile, store)
 	achievements.reward_gold = progression.add_gold
 	achievements.unlocked.connect(_on_achievement)
@@ -323,6 +326,7 @@ func login(username: String, remember := false) -> void:
 	net.room_changed.connect(main_menu.refresh_online)
 	net.who_updated.connect(main_menu.update_friend_status)
 	net.online_list_updated.connect(main_menu.update_online_list)
+	net.leaderboard_received.connect(main_menu.on_leaderboard)
 	net.signed_in.connect(_on_signed_in)
 	net.sign_in_failed.connect(_on_sign_in_failed)
 	net.password_changed.connect(_on_password_changed)
@@ -803,7 +807,7 @@ func _on_enemy_killed(at: Vector3, exp_amount: int, gold_amount: int) -> void:
 	_run_gold += gold_gain
 	achievements.add("goldEarned", gold_gain)
 	_check_achievements()
-	if in_run and _rng.randf() < float(inventory.gear.drops.enemyItemChance):
+	if in_run and _rng.randf() < float(inventory.gear.drops.enemyItemChance) * (1.0 + skill_tree.total("dropChance")):
 		_drop_item(inventory.gear.roll_weighted(inventory.gear.drops.enemyOdds))
 
 

@@ -1,48 +1,87 @@
+<div align="center">
+
 # LumoraRPG
 
-Megabonk tarzı, **3D pixel-art roguelike survivor** masaüstü oyunu. Godot 4 ile yapılıyor.
+**Megabonk tarzı 3D pixel-art roguelike survivor: dalga dalga gelen canavarlar, kendiliğinden saldıran silahlar, boss'lar, petler, yetenek ağacı ve arkadaşlarınla canlı co-op.**
 
-Tasarım ve yol haritası: [docs/ROADMAP.md](docs/ROADMAP.md)
+**[Tarayıcıda oyna →](https://highlvmami.github.io/LumoraRPG/)** · **[Windows için indir](https://github.com/highlvmami/LumoraRPG/releases/download/latest/LumoraRPG-windows.zip)**
 
-## Tarayıcıda oyna
+Türkçe · [English](README.en.md)
 
-https://highlvmami.github.io/LumoraRPG/ — `main` dalına her birleştirmede otomatik güncellenir.
+<p>
+  <img src="https://img.shields.io/badge/Godot-4.5-478CBF?logo=godotengine&logoColor=white" alt="Godot 4.5">
+  <img src="https://img.shields.io/badge/GDScript-355570?logo=godotengine&logoColor=white" alt="GDScript">
+  <img src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/WebSocket-010101?logo=socketdotio&logoColor=white" alt="WebSocket">
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/Render-46E3B7?logo=render&logoColor=black" alt="Render">
+  <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions">
+</p>
 
-## Windows'ta oyna (daha hızlı)
+</div>
 
-[LumoraRPG-windows.zip](https://github.com/highlvmami/LumoraRPG/releases/download/latest/LumoraRPG-windows.zip) — zip'i aç, `LumoraRPG.exe`'ye çift tıkla. Oyun her açılışta kendini otomatik günceller (sadece küçük oyun paketini indirir), zip'i bir kere indirmen yeterli. Windows "tanınmayan uygulama" uyarısı verirse **Daha fazla bilgi → Yine de çalıştır**. Masaüstü sürümünün kayıtları tarayıcıdakinden ayrıdır.
+Bir karakter seçip açık bir haritaya iniyorsun; canavarlar her yönden gelir, silahların menzile gireni kendiliğinden vurur, sen de hareket edip hayatta kalmaya çalışırsın. Her seviyede üç karttan birini seçip o oyunluk güçlenirsin, her beş dakikada bir boss gelir. Oyun bitince kazandığın EXP, altın, eşya ve kasalar hesabında kalır: ekipman, petler ve yetenek ağacıyla bir sonraki oyuna daha güçlü başlarsın. Oyun Godot 4.5 ile yazıldı; tarayıcıda ve Windows'ta çalışır, çevrimiçi hesaplar ve co-op küçük bir Node.js sunucusundan geçer.
 
-## Godot ile çalıştırma
+> Çevrimiçi sunucu Render'ın ücretsiz planında çalışıyor. Bir süre kimse bağlanmazsa uykuya geçer; sonraki ilk bağlantı bir dakika kadar sürebilir. Sunucuya ulaşılamazsa oyun bu cihazdaki hesapla çevrimdışı açılır.
 
-1. [Godot 4.5](https://godotengine.org/download) (standart sürüm, .NET gerekmez) indir.
-2. Godot'u aç → **Import** → bu klasördeki `project.godot` dosyasını seç.
-3. **F5** (veya sağ üstteki ▶) ile oyunu başlat.
+## Ekran görüntüleri
 
-## Oynanış
+<p align="center">
+  <img src="docs/screenshots/oyun.jpg" alt="Oyun içi: büyücü, petler ve seviye kartları" width="100%">
+</p>
 
-Girişte **Kayıt Ol** ile kullanıcı adı ve şifreyle hesap aç, sonra **Giriş Yap** ile gir. Hesaplar çevrimiçidir: hesabın ve oyunun (karakterler, eşyalar, altın, seviyeler) sunucuda saklanır, aynı hesapla her bilgisayardan girebilirsin; şifre hiçbir yerde açık hâlde kaydedilmez. Bu bilgisayarda daha önce açılmış bir hesap ilk girişte kendiliğinden çevrimiçi olur. Sunucuya ulaşılamazsa bu bilgisayardaki hesabınla çevrimdışı oynarsın, bağlantı gelince oyunun sunucuya gönderilir. "Beni hatırla" seçiliyse oyun bu bilgisayarda bir daha şifre sormadan açılır; Ayarlar → Hesap'tan çıkış yapabilir, şifreni değiştirebilir ya da hesabı tamamen sıfırlayabilirsin. Her oyun rastgele bir haritada başlar ve haritanın adı ekranda yazar: **Sakin Orman**, **Sahil Kasabası** ya da **Ölümcül Zindan**. Fare tekerleğiyle kamerayı yaklaştırıp uzaklaştırabilirsin. Ana menüde hesap seviyeni görürsün; **Oyna**, **Karakterler**, **Ekipman**, **Çanta**, **Petler**, **Yetenek Ağacı**, **Market**, **Başarımlar**, **Profil**, **Arkadaşlar**, **Kayıtlar** (geçmiş oyunlar), **Sürümler** (yenilikler) ve **Ayarlar** bölümleri vardır.
+<p align="center">
+  <img src="docs/screenshots/yetenek-agaci.jpg" alt="Ortadan dallanan yetenek ağacı" width="49%">
+  <img src="docs/screenshots/taverna.jpg" alt="Oda: tavernada oturan oyuncular" width="49%">
+</p>
 
-Hesapta en fazla 3 karakter açılır, her biri bir sınıftır: **Savaşçı** (kılıçla önündeki düşmanları biçer, canı yüksek), **Okçu** (uzaktan ok atar) ve **Büyücü** (büyü küresi fırlatır, kritikleri güçlü). Karakterler ekranında her karakterin üstündeki eşyalar görünür.
+<p align="center">
+  <img src="docs/screenshots/petler.jpg" alt="Pet slotları" width="49%">
+  <img src="docs/screenshots/pet-listesi.jpg" alt="Pet listesi" width="49%">
+</p>
 
-**Çanta tüm karakterlerin ortak çantasıdır.** Canavarlar bazen eşya düşürür, her boss bir **kasa** bırakır. Eşyaların 6 nadirliği vardır: Sıradan, Nadir, Çok Nadir, Epik, Efsanevi, Tanrısal. Nadirlik arttıkça eşyanın bonusları güçlenir ve çoğalır, silahlar daha detaylı görünür (karakterin elindeki silah da değişir). Her karakterin 6 ekipman yuvası vardır: silah, kask, zırh, eldiven, çizme, yüzük; silahlar sınıfa özeldir. Kasalar (Sıradan, Nadir, Epik, Efsanevi) Çanta'dan açılır: çark döner, yavaşlar ve kazandığın eşyada durur. Market'ten kasa da alınabilir. Kasa nadirliği arttıkça kasanın şekli de değişir: sade sandık, demir kuşaklı kasa, mücevher kilitli süslü sandık ve kanatlı, taçlı altın hazine kasası. Bir eşyanın üstüne gelince özellikleri hemen görünür ve aktif karakterin o yuvada taktığı eşyayla karşılaştırılır: daha iyi olan değerler yeşil ▲, daha kötü olanlar kırmızı ▼ gösterilir.
+<p align="center">
+  <img src="docs/screenshots/siralama.jpg" alt="Sıralama" width="32%">
+  <img src="docs/screenshots/karakterler.jpg" alt="Karakterler" width="32%">
+  <img src="docs/screenshots/canta.jpg" alt="Çanta" width="32%">
+</p>
 
-Oyunda canavarlar etrafında doğar, karakterin menzil çemberine giren en yakın canavara otomatik ok atar. Her ölen canavar EXP ve altın verir: **karakter seviyesi** her oyunda 1'den başlar ve seni güçlendirir, **hesap seviyesi** kalıcıdır. Altınla Market'ten kasa ve pet yumurtası alırsın. **Yetenek Ağacı**'nda kalıcı yetenekler **yetenek puanıyla** öğrenilir: her hesap seviyesi 2 puan verir. Saldırı, Savunma ve Talih dallarında 18 yetenek (hasar, can, saldırı hızı, hareket hızı, kritik, menzil, can yenileme, EXP ve altın kazancı) seviye seviye öğrenilir, her seviye küçük bir bonus verir (ör. +%1 hasar); alttaki sıralar seviye başına daha çok puan ister ve üstündekiler yeterli seviyeye gelince açılır. "Puanları sıfırla" ile tüm puanlar geri alınır. Eski altınla alınmış seviyeler korunur.
+<p align="center"><sub>Oyun içi · Yetenek ağacı · Taverna (oda) · Pet slotları ve pet listesi · Sıralama · Karakterler · Çanta. Görüntüler örnek verilerle çekildi.</sub></p>
 
-**Petler:** Market'ten ya da Petler sayfasından **Pet Yumurtası** al: içinden rastgele **Ayı** (Sıradan: can, savunma), **Minotor** (Nadir: saldırı gücü, savunma, can) ya da **Anka Kuşu** (Efsanevi: saldırı gücü, saldırı hızı, can, can yenileme) çıkar. Petler sayfasının üstünde 3 pet slotu vardır (hesap seviyesi 10, 25 ve 50'de açılır); slottaki petler dönerek sergilenir, statlarını verir ve oyunda seni takip eder (Anka Kuşu üstünde uçar). Fazla petleri altın karşılığı serbest bırakabilirsin.
+## Özellikler
 
-**Ulti (R ya da Q):** her sınıfın iki ultisi vardır, her basışta rastgele biri çıkar ve haritadaki tüm düşmanlara vurur (sonra 45 saniye dolar; panelin sağındaki düğme dolunca parlar). Büyücü: dev **Göktaşı** ya da **Şimşek Fırtınası**; Savaşçı: **Yer Sarsıntısı** (şok dalgaları ve kaya sivrileri) ya da **Kılıç Yağmuru**; Okçu: **Ok Fırtınası** ya da **Yıldız Yağmuru**. Birlikte oynarken arkadaşların da ultini görür.
+### Oynanış
+- **Rastgele haritalar:** Sakin Orman, Sahil Kasabası ve Ölümcül Zindan; her oyun birinde başlar.
+- **Kendiliğinden saldırı:** menzil çemberine giren en yakın canavar vurulur. Sınıf silahının yanında 5 silaha kadar taşınır (Dönen Kılıçlar, Ateş Topu, Yıldırım, Kutsal Alan ve sınıfa özel skill), her biri 5 seviye.
+- **Seviye kartları:** her seviyede oyun durmadan 3 kart açılır (1 · 2 · 3 ya da tıklayarak); güçlendirmeler o oyun boyunca geçerlidir.
+- **Canavarlar zamanla değişir:** balçık, hızlı kurt, taş atan goblin ve dev örümcek; sayıları ve güçleri artar.
+- **Boss'lar:** her 5 dakikada Orman Devi ya da Örümcek Kraliçe. Saldırılarını yerde kırmızı alanla gösterirler, canları azaldıkça öfkelenip yeni saldırılar açarlar.
+- **Ulti (R / Q):** her sınıfın iki ultisi var, haritadaki tüm düşmanlara vurur.
 
-Boss'lar canları 2/3'ün altına inince **öfkelenir**, 1/3'ün altında **çıldırır**: her evrede yeni saldırılar (yer yarığı, şok dalgası halkaları, ışın yıldızı, ağ çemberi) açılır, saldırılar karışık sırayla ve daha hızlı gelir. Aynı oyunda sonraki boss'lar daha baştan daha sert başlar. Sakin Orman'da yıkık bir taş ev ve çökmüş bir gözetleme kulesi vardır. Haritada çalılar, çimenler, çiçek tarhları, mantar halkaları, devrilmiş kütükler, nilüferli göletler, kamp ateşli taş çemberler ve ateş böcekleri vardır.
+### Karakterler, eşyalar ve kasalar
+- Hesapta 3 karaktere kadar: **Savaşçı**, **Okçu**, **Büyücü**.
+- 6 nadirlik (Sıradan → Tanrısal) ve 6 ekipman yuvası; takılan eşyalar karakterin üstünde görünür.
+- **Ortak çanta:** slota ve nadirliğe göre filtre, her zaman nadirliğe göre sıralı; başka karakterin taktığı eşyalar en sonda. Üstüne gelince özellikler, takılı eşyayla karşılaştırmalı görünür.
+- **Kasalar:** boss'lar kasa bırakır, Market'ten de alınır; çark dönüp kazandığın eşyada durur.
 
-Her seviye atlayışta oyun **durmaz**: ekranın altında 3 kart açılır, oynamaya devam ederken istediğin an tıklayarak ya da 1 · 2 · 3 tuşlarıyla seçersin (art arda seviye atlarsan seçimler sıraya girer). Kartlarda güçlendirmeler (hasar, saldırı hızı, saldırı alanı, kritik şansı, kritik hasarı, can, hız, can yenileme) ve sınıfına özel bir güçlendirme vardır: Okçu **Çift Ok** (şansla aynı anda 2 ok), Savaşçı **Çifte Savuruş**, Büyücü **Büyü Yankısı**. Boostlar o oyun boyunca geçerlidir. Alt ortadaki panel canını, EXP'ni, altınını ve tüm istatistiklerini gösterir.
+### Petler
+- Yumurtadan çıkan **9 pet**, 4 nadirlikte: Ayı, Tilki, Kurbağa (Sıradan); Minotor, Baykuş, Kaplumbağa (Nadir); Tekboynuz, Yavru Ejder (Epik); Anka Kuşu (Efsanevi).
+- Hesap seviyesi 10, 25 ve 50'de açılan 3 slot; slottaki petler statlarını verir ve oyunda küçük hâlleriyle seni takip eder (uçanlar üstünde süzülür).
+- **Pet Koleksiyonu:** tüm petler nadirliğe göre; bulunanlar renkli, bulunmayanlar gri.
 
-Düşmanlar zamanla çoğalır (gittikçe daha büyük gruplar halinde gelir, 7. dakikadan sonra sayı sabitlenir), çeşitlenir ve hızla güçlenir: balçık (başta), hızlı **kurt** (30 sn), uzaktan taş atan **goblin** (1 dk) ve canı/hasarı yüksek **dev örümcek** (1.5 dk). Ölen düşmanlar mavi EXP ve sarı altın topları saçar.
+### Yetenek ağacı
+- Ortada **Lumora Kalbi**, etrafına dört dal açılır; her dalın kendi rengi var: **Saldırı**, **Savunma**, **Talih** ve oyun dışı **Hazine** (çanta yeri, kasa şansı, market indirimi, satış fiyatı, eşya düşme şansı, yumurta şansı).
+- Her hesap seviyesi 2 yetenek puanı verir; dışa doğru yetenekler daha çok puan ister. İstediğin zaman sıfırlanır.
 
-Seviye kartlarında yeni **silahlar** da çıkar (sınıf silahının yanında 5 silaha kadar, yani tüm silahlar alınabilir; her biri 5 seviye): **Dönen Kılıçlar**, **Ateş Topu**, **Yıldırım**, **Kutsal Alan** ve sınıfa özel skill: Okçu **Ok Yağmuru** (gökten ok yağar), Büyücü **Meteor** (gökten dev ateş topu), Savaşçı **Kalkan Darbesi** (etraftaki düşmanları vurup uzağa iter). Her 5 dakikada bir boss gelir: önce dev **Orman Devi**, sonra **Örümcek Kraliçe** (sırayla). Boss gelince diğer canavarlar çekilir ve boss tek başına savaşır; ekranın üstünde can barı görünür. Boss'lar saldırmadan önce vuracakları yeri yerde **kırmızı alanla** gösterir, alan dolunca vurur: Orman Devi yere vurur, ileri atılır ve gökten kaya yağdırır; Örümcek Kraliçe üstüne sıçrar, ağ fırlatır, gökten yumurta yağdırır ve atılır. Alandan zamanında çıkan hasar almaz.
+### Çevrimiçi
+- **Hesaplar:** kullanıcı adı ve şifreyle; oyunun sunucuda saklanır, her bilgisayardan aynı hesapla girersin. "Beni hatırla" ile şifre sorulmaz.
+- **Taverna odası:** oda kur, arkadaşını davet et ya da 5 harfli kodu ver (en fazla 4 kişi). Odadakiler tavernada masaya oturur; biri katılınca karakteri kapıdan girip boş sandalyeye oturur. Ev sahibi OYNA'ya basınca herkes aynı haritada canlı oynar.
+- **Sıralamalar:** hesap seviyesi, canavar kesme, boss yenme, karakter seviyesi, hayatta kalma süresi, verilen hasar ve kazanılan altın.
+- **Arkadaşlar:** çevrimiçi durumu ve adının yanında hesap seviyesi; şu an çevrimiçi olanlar listesi.
 
-**Başarımlar** menüsünde 17 hedef vardır (canavar kesme, boss yenme, seviye, hayatta kalma süresi, altın, eşya, kasa, geliştirme, arkadaş); her biri tamamlanınca altın ödülü verir. **Arkadaşlar** bölümünde bu cihazda oynayan diğer oyuncular (ortak arkadaşı olanlar önce) arkadaş olarak önerilir.
-
-**Birlikte oyna:** Arkadaşlar bölümündeki **Birlikte Oyna** kutusunda oda kur, çevrimiçi arkadaşına **Odaya davet et** de ya da ona 5 harfli oda kodunu ver (en fazla 4 kişi). Davet gelen oyuncuya "Katıl" diye sorulur. Arkadaşlar sayfasındaki **Şu an çevrimiçi** listesinden oyuncuları ekleyebilir ya da davet edebilirsin. Ev sahibi **OYNA**'ya basınca odadaki herkes aynı haritada canlı birlikte oynar (sol ortada partinin karakter adları ve can barları görünür): düşmanlar en yakın oyuncuya saldırır, kesilen canavarların EXP ve altını herkese gider, kalabalık odada daha çok düşman gelir. Oyunu ev sahibinin bilgisayarı yönetir; ev sahibi çıkarsa oyun herkes için biter. Bağlantı `server/` klasöründeki küçük Node.js sunucusundan geçer (Render'da `lumora-online` servisi; hesaplar `DATABASE_URL` ile bağlanan `lumora-accounts` Postgres veritabanında, o yoksa sunucu hafızasında tutulur). Ücretsiz sunucu kimse oynamazken uyur; ilk bağlantı bir dakika kadar sürebilir. Yerelde denemek için: `cd server && npm install && node index.js`, oyunu `-- --server=ws://localhost:8080` ile aç.
+### Diğer
+- 24 başarım (altın ödüllü), son 50 oyunun kayıtları, sürüm notları, grafik/kamera/arayüz ayarları.
+- Windows sürümü her açılışta kendini günceller (sadece küçük oyun paketini indirir).
 
 ## Kontroller
 
@@ -51,18 +90,60 @@ Seviye kartlarında yeni **silahlar** da çıkar (sınıf silahının yanında 5
 | WASD / ok tuşları | Yürü |
 | Boşluk | Zıpla |
 | Fare | Kamerayı döndür (önce oyun penceresine tıkla) |
-| Esc / P | Oyunu duraklat (devam, kalite, ana menü, boostlar) |
-| F1 | Geliştirici hile menüsü (sağ kenardaki HİLE düğmesi de açar): istatistikler, EXP/altın çarpanı, boss çağırma, eşya ve kasa |
-| Boşluk / Enter | Kasa çarkını hızlıca durdur |
+| Fare tekerleği | Yaklaş / uzaklaş |
+| 1 · 2 · 3 | Seviye kartı seç |
+| R / Q | Ulti |
+| Esc / P | Duraklat (devam, kalite, ana menü, boostlar) |
+| F1 | Geliştirici menüsü |
 
-## Klasörler
+## Nasıl çalışır
 
-- `scripts/` oyun kodu (GDScript)
-- `data/` ayar ve denge değerleri (JSON) — sayıları değiştirmek için kodu açmaya gerek yok
-- `tests/` otomatik testler; her PR'da GitHub Actions üzerinde Godot ile çalışır
+- **Veri ile denge:** canavarlar, silahlar, eşyalar, petler, yetenekler ve başarımlar `data/` altındaki JSON dosyalarında; sayıları değiştirmek için koda dokunmaya gerek yok.
+- **Pixel görünüm:** dünya düşük çözünürlüklü bir SubViewport'ta çizilip büyütülür, arayüz ise tam çözünürlükte keskin kalır. Modeller kutulardan kod ile kurulur, görsel dosya yoktur.
+- **Co-op:** oyunu odayı kuran oyuncunun bilgisayarı yönetir (düşmanlar, hasar, ödüller). Sunucu sadece mesajları iletir; ev sahibi saniyede 10 kez durum gönderir, diğerleri kendi hareketlerini ve vuruşlarını yollar.
+- **Hesaplar:** sunucu şifreleri yalnızca scrypt özeti, oturum anahtarlarını sha256 özeti olarak tutar. Oyun kaydı JSONB olarak saklanır ve en yeni kayıt kazanır; sıralamalar da bu kayıtlardan hesaplanır.
+- **Sürekli teslim:** her PR'da GitHub Actions Godot testlerini, sunucu testini ve iki oyunlu co-op testini çalıştırır, web sürümünün Chrome'da açıldığını kontrol eder. `main`'e birleşince web sürümü GitHub Pages'e, Windows sürümü Releases'e yüklenir.
 
-Testi yerelde çalıştırmak için:
+## Teknolojiler
 
+| Parça | Teknoloji |
+|---|---|
+| Oyun | Godot 4.5 (GDScript) |
+| Sunucu | Node.js, `ws`, `pg` |
+| Veritabanı | PostgreSQL (yoksa sunucu hafızası) |
+| Yayın | GitHub Pages (web), GitHub Releases (Windows), Render (sunucu) |
+| Testler | Godot headless testleri, Node sunucu testi, headless Chrome |
+
+## Proje yapısı
+
+| Klasör | İçerik |
+|---|---|
+| `scripts/` | Oyun kodu: oyuncu, düşmanlar, silahlar, ilerleme, arayüz, ağ |
+| `data/` | Denge ve içerik (JSON) |
+| `scenes/` | Açılış (güncelleyici) ve ana sahne |
+| `server/` | Çevrimiçi sunucu: hesaplar, odalar, davetler, sıralamalar, co-op aktarımı |
+| `tests/` | Otomatik testler |
+| `docs/` | Yol haritası ve ekran görüntüleri |
+
+## Çalıştırma
+
+1. [Godot 4.5](https://godotengine.org/download) (standart sürüm) indir, **Import** ile `project.godot` dosyasını aç, **F5** ile başlat.
+2. Sunucuyu yerelde denemek için:
+
+```bash
+cd server
+npm install
+node index.js                  # ws://localhost:8080
 ```
+
+Oyunu `-- --server=ws://localhost:8080` ile açınca bu sunucuya bağlanır. `DATABASE_URL` verilirse hesaplar PostgreSQL'de tutulur.
+
+Testler:
+
+```bash
 godot --headless --path . -s res://tests/smoke_test.gd
+godot --headless --path . -s res://tests/coop_test.gd    # node gerekir
+(cd server && node test.js)
 ```
+
+Tasarım ve yol haritası: [docs/ROADMAP.md](docs/ROADMAP.md)

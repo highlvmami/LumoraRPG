@@ -22,6 +22,8 @@ var _phase := 0.0
 var _flash_time := 0.0
 var _attack_time := 0.0
 var _class := "archer"
+## Seated (the tavern): legs forward, hands resting on the table.
+var sitting := false
 
 
 func _ready() -> void:
@@ -184,6 +186,16 @@ func _build_staff(tier: int, glow: Color) -> void:
 
 ## Called every frame by the player with its current movement state.
 func animate(delta: float, speed: float, on_floor: bool) -> void:
+	if sitting:
+		_phase += delta
+		_leg_l.rotation.x = -1.5
+		_leg_r.rotation.x = -1.5
+		_arm_l.rotation.x = -0.75 + sin(_phase * 1.3) * 0.05
+		_arm_r.rotation.x = -0.75 - sin(_phase * 1.1 + 1.0) * 0.08
+		_arm_r.rotation.z = 0.0
+		_arm_r.position.z = 0.0
+		_visual.rotation.x = sin(_phase * 0.8) * 0.03
+		return
 	var amount := clampf(speed / 9.0, 0.0, 1.0)
 	_phase += delta * (4.0 + speed * 0.9)
 	var swing := sin(_phase) * 0.9 * amount

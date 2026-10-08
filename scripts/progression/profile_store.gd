@@ -206,6 +206,7 @@ static func _fill_defaults(profile: Dictionary) -> void:
 		"settings": {},
 		"pets": [],
 		"petSlots": [-1, -1, -1],
+		"petsSeen": [],
 	}
 	for key: String in defaults:
 		if not profile.has(key):

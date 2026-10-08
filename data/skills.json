@@ -1,29 +1,40 @@
 {
+	"center": "heart",
 	"branches": [
-		{ "id": "offense", "name": "Saldırı", "color": "#ff7a5c" },
-		{ "id": "defense", "name": "Savunma", "color": "#62d6a0" },
-		{ "id": "fortune", "name": "Talih", "color": "#ffd23f" }
+		{ "id": "offense", "name": "Saldırı", "color": "#ff7a5c", "angle": -135, "desc": "Hasar, saldırı hızı ve kritik" },
+		{ "id": "defense", "name": "Savunma", "color": "#62d6a0", "angle": -45, "desc": "Can, hız ve yenilenme" },
+		{ "id": "fortune", "name": "Talih", "color": "#ffd23f", "angle": 45, "desc": "EXP, altın ve şans" },
+		{ "id": "account", "name": "Hazine", "color": "#b98cff", "angle": 135, "desc": "Oyun dışı: çanta, kasa, market ve pet" }
 	],
 	"nodes": {
-		"power": { "branch": "offense", "row": 0, "col": 1, "name": "Güç", "icon": "sword", "stat": "damage", "per": 0.01, "format": "percent", "label": "hasar", "maxLevel": 20, "requires": {} },
+		"heart": { "branch": "", "row": 0, "col": 1, "name": "Lumora Kalbi", "icon": "heart", "stat": "maxHp", "per": 4.0, "format": "flat", "label": "maks. can", "maxLevel": 5, "requires": {} },
+
+		"power": { "branch": "offense", "row": 0, "col": 1, "name": "Güç", "icon": "sword", "stat": "damage", "per": 0.01, "format": "percent", "label": "hasar", "maxLevel": 20, "requires": { "heart": 1 } },
 		"haste": { "branch": "offense", "row": 1, "col": 0, "name": "Seri El", "icon": "bolt", "stat": "attackSpeed", "per": 0.01, "format": "percent", "label": "saldırı hızı", "maxLevel": 15, "requires": { "power": 3 } },
 		"precision": { "branch": "offense", "row": 1, "col": 2, "name": "Keskin Göz", "icon": "clover", "stat": "critChance", "per": 0.005, "format": "percent", "label": "kritik şansı", "maxLevel": 10, "requires": { "power": 3 } },
 		"reach": { "branch": "offense", "row": 2, "col": 0, "name": "Uzak Atış", "icon": "eye", "stat": "range", "per": 0.1, "format": "flat", "label": "saldırı alanı", "maxLevel": 10, "requires": { "haste": 3 } },
 		"brutality": { "branch": "offense", "row": 2, "col": 2, "name": "Vahşet", "icon": "skull", "stat": "critDamage", "per": 0.02, "format": "percent", "label": "kritik hasarı", "maxLevel": 10, "requires": { "precision": 3 } },
 		"fury": { "branch": "offense", "row": 3, "col": 1, "name": "Savaş Hırsı", "icon": "fire", "stat": "damage", "per": 0.03, "format": "percent", "label": "hasar", "maxLevel": 5, "requires": { "reach": 3, "brutality": 5 } },
 
-		"vitality": { "branch": "defense", "row": 0, "col": 1, "name": "Dayanıklılık", "icon": "heart", "stat": "maxHp", "per": 3.0, "format": "flat", "label": "maks. can", "maxLevel": 20, "requires": {} },
+		"vitality": { "branch": "defense", "row": 0, "col": 1, "name": "Dayanıklılık", "icon": "heart", "stat": "maxHp", "per": 3.0, "format": "flat", "label": "maks. can", "maxLevel": 20, "requires": { "heart": 1 } },
 		"recovery": { "branch": "defense", "row": 1, "col": 0, "name": "Yenilenme", "icon": "regen", "stat": "regen", "per": 0.05, "format": "perSecond", "label": "can yenileme", "maxLevel": 10, "requires": { "vitality": 3 } },
 		"swiftness": { "branch": "defense", "row": 1, "col": 2, "name": "Çeviklik", "icon": "boot", "stat": "moveSpeed", "per": 0.01, "format": "percent", "label": "hareket hızı", "maxLevel": 15, "requires": { "vitality": 3 } },
 		"ironskin": { "branch": "defense", "row": 2, "col": 0, "name": "Demir Deri", "icon": "shield", "stat": "maxHp", "per": 6.0, "format": "flat", "label": "maks. can", "maxLevel": 5, "requires": { "recovery": 3 } },
 		"windwalker": { "branch": "defense", "row": 2, "col": 2, "name": "Rüzgâr Adımı", "icon": "double_arrow", "stat": "moveSpeed", "per": 0.02, "format": "percent", "label": "hareket hızı", "maxLevel": 5, "requires": { "swiftness": 5 } },
 		"second_wind": { "branch": "defense", "row": 3, "col": 1, "name": "İkinci Nefes", "icon": "aura", "stat": "regen", "per": 0.15, "format": "perSecond", "label": "can yenileme", "maxLevel": 5, "requires": { "ironskin": 3, "windwalker": 3 } },
 
-		"wisdom": { "branch": "fortune", "row": 0, "col": 1, "name": "Bilgelik", "icon": "storm", "stat": "expGain", "per": 0.02, "format": "percent", "label": "EXP kazancı", "maxLevel": 10, "requires": {} },
+		"wisdom": { "branch": "fortune", "row": 0, "col": 1, "name": "Bilgelik", "icon": "storm", "stat": "expGain", "per": 0.02, "format": "percent", "label": "EXP kazancı", "maxLevel": 10, "requires": { "heart": 1 } },
 		"greed": { "branch": "fortune", "row": 1, "col": 0, "name": "Açgözlülük", "icon": "chest", "stat": "goldGain", "per": 0.02, "format": "percent", "label": "altın kazancı", "maxLevel": 10, "requires": { "wisdom": 2 } },
 		"scholar": { "branch": "fortune", "row": 1, "col": 2, "name": "Kadim Bilgi", "icon": "staff", "stat": "expGain", "per": 0.03, "format": "percent", "label": "EXP kazancı", "maxLevel": 5, "requires": { "wisdom": 5 } },
 		"treasure": { "branch": "fortune", "row": 2, "col": 0, "name": "Hazine Avcısı", "icon": "ring", "stat": "goldGain", "per": 0.04, "format": "percent", "label": "altın kazancı", "maxLevel": 5, "requires": { "greed": 5 } },
 		"lucky": { "branch": "fortune", "row": 2, "col": 2, "name": "Şans Yıldızı", "icon": "meteor", "stat": "critChance", "per": 0.01, "format": "percent", "label": "kritik şansı", "maxLevel": 5, "requires": { "scholar": 3 } },
-		"midas": { "branch": "fortune", "row": 3, "col": 1, "name": "Kral Midas", "icon": "helmet", "stat": "goldGain", "per": 0.08, "format": "percent", "label": "altın kazancı", "maxLevel": 3, "requires": { "treasure": 3, "lucky": 3 } }
+		"midas": { "branch": "fortune", "row": 3, "col": 1, "name": "Kral Midas", "icon": "helmet", "stat": "goldGain", "per": 0.08, "format": "percent", "label": "altın kazancı", "maxLevel": 3, "requires": { "treasure": 3, "lucky": 3 } },
+
+		"big_bag": { "branch": "account", "row": 0, "col": 1, "name": "Geniş Çanta", "icon": "chest", "stat": "stashSize", "per": 5.0, "format": "flat", "label": "çanta yeri", "maxLevel": 8, "requires": { "heart": 1 } },
+		"bargain": { "branch": "account", "row": 1, "col": 0, "name": "Pazarlıkçı", "icon": "clover", "stat": "shopDiscount", "per": 0.02, "format": "percent", "label": "market indirimi", "maxLevel": 10, "requires": { "big_bag": 2 } },
+		"chest_luck": { "branch": "account", "row": 1, "col": 2, "name": "Kasa Şansı", "icon": "chest", "stat": "chestLuck", "per": 0.05, "format": "percent", "label": "kasada nadir eşya şansı", "maxLevel": 10, "requires": { "big_bag": 2 } },
+		"merchant": { "branch": "account", "row": 2, "col": 0, "name": "Usta Tüccar", "icon": "ring", "stat": "sellBonus", "per": 0.05, "format": "percent", "label": "eşya satış fiyatı", "maxLevel": 10, "requires": { "bargain": 3 } },
+		"scavenger": { "branch": "account", "row": 2, "col": 2, "name": "Ganimet Kokusu", "icon": "eye", "stat": "dropChance", "per": 0.08, "format": "percent", "label": "eşya düşme şansı", "maxLevel": 10, "requires": { "chest_luck": 3 } },
+		"egg_whisper": { "branch": "account", "row": 3, "col": 1, "name": "Yumurta Fısıltısı", "icon": "egg", "stat": "eggLuck", "per": 0.1, "format": "percent", "label": "yumurtadan nadir pet şansı", "maxLevel": 5, "requires": { "merchant": 3, "scavenger": 3 } }
 	}
 }

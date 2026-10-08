@@ -19,11 +19,42 @@ function key(name) {
   return String(name).trim().toLocaleLowerCase("tr").replace(/ı/g, "i");
 }
 
+// A number at `path` (["stats", "bossKills"]) in a saved game, 0 if missing.
+function numberAt(profile, path) {
+  let v = profile;
+  for (const k of path) v = v && typeof v === "object" ? v[k] : undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 class MemoryStore {
   constructor() {
     this.rows = new Map();
   }
   async init() {}
+  async top(path, limit) {
+    return [...this.rows.values()]
+      .filter((r) => r.profile)
+      .map((r) => ({ name: r.name, value: numberAt(r.profile, path), level: numberAt(r.profile, ["accountLevel"]) }))
+      .sort((a, b) => b.value - a.value || b.level - a.level || a.name.localeCompare(b.name))
+      .slice(0, limit);
+  }
+  async rank(path, name) {
+    const me = this.rows.get(key(name));
+    if (!me || !me.profile) return null;
+    const value = numberAt(me.profile, path);
+    let above = 0;
+    for (const r of this.rows.values()) if (r.profile && numberAt(r.profile, path) > value) above++;
+    return { rank: above + 1, value };
+  }
+  async levels(names) {
+    const out = {};
+    for (const n of names) {
+      const r = this.rows.get(key(n));
+      if (r && r.profile) out[r.name] = numberAt(r.profile, ["accountLevel"]) || 1;
+    }
+    return out;
+  }
   async get(name) {
     return this.rows.get(key(name)) || null;
   }
@@ -67,6 +98,36 @@ class PgStore {
       [row.key, row.name, row.salt, row.hash, JSON.stringify(row.tokens), row.profile ? JSON.stringify(row.profile) : null, row.savedAt]
     );
     return res.rowCount === 1;
+  }
+  // A number at a JSON path of the saved game; anything that isn't a number counts as 0.
+  static _num(param) {
+    return `(CASE WHEN (profile #>> ${param}::text[]) ~ '^-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?$' THEN (profile #>> ${param}::text[])::float8 ELSE 0 END)`;
+  }
+  async top(path, limit) {
+    const v = PgStore._num("$1");
+    const lv = PgStore._num("'{accountLevel}'");
+    const res = await this.pool.query(
+      `SELECT name, ${v} AS value, ${lv} AS level FROM accounts WHERE profile IS NOT NULL ORDER BY value DESC, level DESC, name ASC LIMIT $2`,
+      [path, limit]
+    );
+    return res.rows.map((r) => ({ name: r.name, value: Number(r.value), level: Number(r.level) }));
+  }
+  async rank(path, name) {
+    const v = PgStore._num("$1");
+    const res = await this.pool.query(
+      `SELECT ${v} AS value, (SELECT count(*) FROM accounts o WHERE o.profile IS NOT NULL AND ${v.replace(/profile/g, "o.profile")} > ${v.replace(/profile/g, "a.profile")}) AS above
+       FROM accounts a WHERE a.key = $2 AND a.profile IS NOT NULL`,
+      [path, key(name)]
+    );
+    const r = res.rows[0];
+    return r ? { rank: Number(r.above) + 1, value: Number(r.value) } : null;
+  }
+  async levels(names) {
+    const lv = PgStore._num("'{accountLevel}'");
+    const res = await this.pool.query(`SELECT name, ${lv} AS level FROM accounts WHERE key = ANY($1) AND profile IS NOT NULL`, [names.map(key)]);
+    const out = {};
+    for (const r of res.rows) out[r.name] = Number(r.level) || 1;
+    return out;
   }
   async update(row) {
     await this.pool.query("UPDATE accounts SET salt=$2, hash=$3, tokens=$4, profile=$5, saved_at=$6 WHERE key=$1", [
@@ -137,6 +198,18 @@ class Accounts {
   async exists(name) {
     return Boolean(await this.store.get(name));
   }
+  // The best accounts for a number in their saved game: [{name, value, level}].
+  top(path, limit = 20) {
+    return this.store.top(path, limit);
+  }
+  // {rank, value} of one account for that number (null without a saved game).
+  rank(path, name) {
+    return this.store.rank(path, name);
+  }
+  // Account levels by name for the accounts that exist: {Name: level}.
+  levels(names) {
+    return names.length ? this.store.levels(names) : Promise.resolve({});
+  }
 }
 
-module.exports = { Accounts, key };
+module.exports = { Accounts, key, numberAt };

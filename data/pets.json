@@ -4,22 +4,40 @@
 	"rarities": [
 		{ "id": "common", "name": "Sıradan", "color": "#b8c2cc", "release": 60 },
 		{ "id": "rare", "name": "Nadir", "color": "#4fb8ff", "release": 250 },
+		{ "id": "epic", "name": "Epik", "color": "#b65cff", "release": 500 },
 		{ "id": "legendary", "name": "Efsanevi", "color": "#ff9a3c", "release": 1000 }
 	],
 	"kinds": [
 		{ "id": "bear", "name": "Ayı", "rarity": 0, "desc": "Kocaman ve sadık. Canını ve savunmanı artırır.",
 			"stats": { "maxHp": 20.0, "defense": 0.04 } },
+		{ "id": "fox", "name": "Tilki", "rarity": 0, "desc": "Kuyruğu kabarık, ayağı çabuk. Hareket hızı ve can verir.",
+			"stats": { "moveSpeed": 0.04, "maxHp": 12.0 } },
+		{ "id": "frog", "name": "Kurbağa", "rarity": 0, "desc": "Göletlerin neşeli zıplayanı. Can yenilemesi ve savunma verir.",
+			"stats": { "regen": 0.3, "defense": 0.03 } },
 		{ "id": "minotaur", "name": "Minotor", "rarity": 1, "desc": "Baltalı boğa savaşçı. Saldırı, savunma ve can verir.",
 			"stats": { "damage": 0.06, "defense": 0.06, "maxHp": 35.0 } },
-		{ "id": "phoenix", "name": "Anka Kuşu", "rarity": 2, "desc": "Alevlerden doğan efsanevi kuş. Saldırı gücü, saldırı hızı, can ve yenilenme verir.",
+		{ "id": "owl", "name": "Baykuş", "rarity": 1, "desc": "Gecenin bilge gözcüsü, üstünde süzülür. EXP kazancı, kritik şansı ve saldırı hızı verir.",
+			"stats": { "expGain": 0.08, "critChance": 0.03, "attackSpeed": 0.04 } },
+		{ "id": "turtle", "name": "Kaplumbağa", "rarity": 1, "desc": "Yosunlu kabuğuyla yavaş ama sağlam. Bol savunma, can ve yenilenme verir.",
+			"stats": { "defense": 0.09, "maxHp": 40.0, "regen": 0.3 } },
+		{ "id": "unicorn", "name": "Tekboynuz", "rarity": 2, "desc": "Parıldayan boynuzlu masal atı. Can yenilemesi, hız, altın kazancı ve can verir.",
+			"stats": { "regen": 0.6, "moveSpeed": 0.06, "goldGain": 0.1, "maxHp": 40.0 } },
+		{ "id": "dragon", "name": "Yavru Ejder", "rarity": 2, "desc": "Minik kanatlı ejderha, üstünde uçar. Saldırı gücü, kritik hasarı, savunma ve can verir.",
+			"stats": { "damage": 0.08, "critDamage": 0.15, "defense": 0.05, "maxHp": 35.0 } },
+		{ "id": "phoenix", "name": "Anka Kuşu", "rarity": 3, "desc": "Alevlerden doğan efsanevi kuş. Saldırı gücü, saldırı hızı, can ve yenilenme verir.",
 			"stats": { "damage": 0.1, "attackSpeed": 0.1, "maxHp": 50.0, "regen": 0.6 } }
 	],
-	"egg": { "name": "Pet Yumurtası", "price": 500, "odds": [75, 21, 4] },
+	"egg": { "name": "Pet Yumurtası", "price": 500, "odds": [62, 26, 10, 2] },
 	"stats": {
 		"maxHp": { "label": "Can", "format": "flat" },
 		"defense": { "label": "Savunma", "format": "percent" },
 		"damage": { "label": "Saldırı Gücü", "format": "percent" },
 		"attackSpeed": { "label": "Saldırı Hızı", "format": "percent" },
+		"moveSpeed": { "label": "Hareket Hızı", "format": "percent" },
+		"critChance": { "label": "Kritik Şansı", "format": "percent" },
+		"critDamage": { "label": "Kritik Hasarı", "format": "percent" },
+		"expGain": { "label": "EXP Kazancı", "format": "percent" },
+		"goldGain": { "label": "Altın Kazancı", "format": "percent" },
 		"regen": { "label": "Can Yenileme", "format": "perSecond" }
 	}
 }

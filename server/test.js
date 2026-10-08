@@ -77,8 +77,30 @@ function client() {
   a.send({ t: "who", names: ["ece", "nobody"] });
   assert.deepStrictEqual((await a.next("who")).online, ["ece"]);
 
-  a.send({ t: "create" });
+  // Leaderboards and levels come from the saved games.
+  a.send({ t: "save", profile: { accountLevel: 7, totalKills: 50, stats: { bossKills: 3 } }, at: 30 });
+  await a.next("saved");
+  b.send({ t: "save", profile: { accountLevel: 3, totalKills: 120, stats: { bossKills: "çok" } }, at: 5 });
+  await b.next("saved");
+  a.send({ t: "who", names: ["ece", "MAMİ", "nobody"] });
+  assert.deepStrictEqual((await a.next("who")).levels, { Ece: 3, mami: 7 });
+  a.send({ t: "leaderboard", cat: "level" });
+  const lvBoard = await a.next("leaderboard");
+  assert.deepStrictEqual(lvBoard.rows.map((r) => [r.name, r.value]), [["mami", 7], ["Ece", 3]]);
+  assert.deepStrictEqual(lvBoard.me, { rank: 1, value: 7 });
+  b.send({ t: "leaderboard", cat: "kills" });
+  const killBoard = await b.next("leaderboard");
+  assert.strictEqual(killBoard.rows[0].name, "Ece");
+  assert.strictEqual(killBoard.rows[0].level, 3);
+  b.send({ t: "leaderboard", cat: "bosses" });
+  const bossBoard = await b.next("leaderboard");
+  assert.deepStrictEqual(bossBoard.me, { rank: 2, value: 0 }, "a value that isn't a number counts as 0");
+  b.send({ t: "leaderboard", cat: "nope" });
+  assert.match((await b.next("error")).msg, /sıralama/);
+
+  a.send({ t: "create", look: { class: "mage", tunic: "#123456" } });
   const room = await a.next("room");
+  assert.strictEqual(room.members[0].look.class, "mage");
   assert.strictEqual(room.host, wa.id);
   assert.strictEqual(room.code.length, 5);
 
@@ -90,12 +112,16 @@ function client() {
   a.send({ t: "invite", to: "nobody" });
   assert.match((await a.next("error")).msg, /çevrimiçi değil/);
 
-  b.send({ t: "join", code: inv.code.toLowerCase() });
+  b.send({ t: "join", code: inv.code.toLowerCase(), look: { class: "warrior", junk: "x".repeat(5000) } });
   assert.strictEqual((await b.next("exists")).found, true);
   const joined = await b.next("room");
   assert.strictEqual(joined.members.length, 2);
+  assert.strictEqual(joined.members[1].look, null, "a too big look is ignored");
   assert.strictEqual(joined.you, wb.id);
   await a.next("room");
+  b.send({ t: "look", look: { class: "archer" } });
+  assert.strictEqual((await a.next("room")).members[1].look.class, "archer");
+  await b.next("room");
 
   a.send({ t: "game", d: { k: "snap", n: 1 } });
   const g = await b.next("game");

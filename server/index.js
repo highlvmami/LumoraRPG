@@ -14,16 +14,20 @@
 //   {t:"password", new}          change the password (other devices sign out)
 //   {t:"online_list"}            up to 50 accounts online now
 //   {t:"exists", name}           is there an account with this name
-//   {t:"who", names:[...]}       which of these accounts are online
-//   {t:"create"}                 open a room (you become its host)
-//   {t:"join", code}             join a room by its code
+//   {t:"who", names:[...]}       which of these accounts are online (and their levels)
+//   {t:"levels", names:[...]}    account levels of these accounts
+//   {t:"leaderboard", cat}       the best 20 accounts of a category and your rank
+//   {t:"create", look?}          open a room (you become its host)
+//   {t:"join", code, look?}      join a room by its code
+//   {t:"look", look}             how your character looks (shown in the room's tavern)
 //   {t:"leave"}                  leave the room (a leaving host closes it)
 //   {t:"invite", to}             invite an online account to your room
 //   {t:"game", d, to?}           co-op data for the room (or one member)
 //   {t:"ping"}
 // To a client:
-//   {t:"welcome", id}  {t:"auth", ...}  {t:"saved", at}  {t:"who", online}
-//   {t:"online_list", names}  {t:"exists", name, found}  {t:"password", ok, msg, token}  {t:"room", code, host, members, you}
+//   {t:"welcome", id}  {t:"auth", ...}  {t:"saved", at}  {t:"who", online, levels}
+//   {t:"levels", levels}  {t:"leaderboard", cat, rows:[{name, value, level}], me:{rank, value}|null}
+//   {t:"online_list", names, levels}  {t:"exists", name, found}  {t:"password", ok, msg, token}  {t:"room", code, host, members, you}
 //   {t:"room_closed", reason}  {t:"invited", from, code}  {t:"invite_sent", to}
 //   {t:"game", from, d}  {t:"error", msg}  {t:"pong"}
 
@@ -35,6 +39,21 @@ const PORT = Number(process.env.PORT) || 8080;
 const MAX_MEMBERS = 4;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_FAILS = 8;
+const MAX_LOOK = 1500;
+const BOARD_SIZE = 20;
+const BOARD_CACHE_MS = 15000;
+
+// Leaderboard categories: where the number is in the saved game.
+const BOARDS = {
+  level: ["accountLevel"],
+  kills: ["totalKills"],
+  bosses: ["stats", "bossKills"],
+  bestLevel: ["bestLevel"],
+  bestTime: ["stats", "bestTime"],
+  damage: ["stats", "damageDealt"],
+  gold: ["stats", "goldEarned"],
+};
+const boardCache = new Map(); // cat -> {at, rows}
 
 const accounts = new Accounts(process.env.DATABASE_URL);
 
@@ -65,7 +84,7 @@ function roomInfo(room, you) {
     t: "room",
     code: room.code,
     host: room.host,
-    members: room.members.map((id) => ({ id, name: clients.get(id)?.name || "?" })),
+    members: room.members.map((id) => ({ id, name: clients.get(id)?.name || "?", look: clients.get(id)?.look || null })),
     you,
   };
 }
@@ -106,6 +125,22 @@ function joinRoom(c, code) {
   broadcastRoom(room);
 }
 
+// A small look dictionary for the tavern (anything else is ignored).
+function setLook(c, look) {
+  if (!look || typeof look !== "object" || Array.isArray(look)) return false;
+  if (JSON.stringify(look).length > MAX_LOOK) return false;
+  c.look = look;
+  return true;
+}
+
+async function topRows(cat) {
+  const hit = boardCache.get(cat);
+  if (hit && Date.now() - hit.at < BOARD_CACHE_MS) return hit.rows;
+  const rows = await accounts.top(BOARDS[cat], BOARD_SIZE);
+  boardCache.set(cat, { at: Date.now(), rows });
+  return rows;
+}
+
 async function authenticate(c, msg) {
   if (c.fails >= MAX_FAILS) return send(c, { t: "auth", ok: false, code: "too_many", msg: "Çok fazla deneme. Biraz sonra tekrar dene." });
   let res;
@@ -136,14 +171,30 @@ async function handle(c, msg) {
       return send(c, { t: "password", ok: res.ok, msg: res.ok ? "Şifre değişti." : res.msg, token: res.token });
     }
     case "online_list": {
-      const names = [...new Set([...clients.values()].filter((o) => o.name && o !== c).map((o) => o.name))];
-      return send(c, { t: "online_list", names: names.slice(0, 50) });
+      const names = [...new Set([...clients.values()].filter((o) => o.name && o !== c).map((o) => o.name))].slice(0, 50);
+      return send(c, { t: "online_list", names, levels: await accounts.levels(names) });
     }
     case "who": {
-      const names = Array.isArray(msg.names) ? msg.names.slice(0, 200) : [];
-      return send(c, { t: "who", online: names.filter((n) => online(n)) });
+      const names = Array.isArray(msg.names) ? msg.names.slice(0, 200).map(String) : [];
+      return send(c, { t: "who", online: names.filter((n) => online(n)), levels: await accounts.levels(names) });
+    }
+    case "levels": {
+      const names = Array.isArray(msg.names) ? msg.names.slice(0, 200).map(String) : [];
+      return send(c, { t: "levels", levels: await accounts.levels(names) });
+    }
+    case "leaderboard": {
+      const cat = String(msg.cat);
+      if (!Object.prototype.hasOwnProperty.call(BOARDS, cat)) return send(c, { t: "error", msg: "Böyle bir sıralama yok." });
+      const rows = await topRows(cat);
+      const me = await accounts.rank(BOARDS[cat], c.name);
+      return send(c, { t: "leaderboard", cat, rows, me });
+    }
+    case "look": {
+      if (setLook(c, msg.look) && c.room && rooms.has(c.room)) broadcastRoom(rooms.get(c.room));
+      return;
     }
     case "create": {
+      setLook(c, msg.look);
       if (c.room) leaveRoom(c);
       const room = { code: newCode(), host: c.id, members: [c.id] };
       rooms.set(room.code, room);
@@ -151,6 +202,7 @@ async function handle(c, msg) {
       return broadcastRoom(room);
     }
     case "join":
+      setLook(c, msg.look);
       return joinRoom(c, msg.code);
     case "leave":
       return leaveRoom(c);
@@ -184,7 +236,7 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server, maxPayload: 2 * 1024 * 1024 });
 
 wss.on("connection", (ws) => {
-  const c = { id: nextId++, ws, name: "", room: null, alive: true, fails: 0 };
+  const c = { id: nextId++, ws, name: "", room: null, alive: true, fails: 0, look: null };
   clients.set(c.id, c);
   send(c, { t: "welcome", id: c.id });
   ws.on("pong", () => (c.alive = true));
@@ -233,4 +285,4 @@ const ready = accounts
       )
   );
 
-module.exports = { server, wss, ready };
+module.exports = { server, wss, ready, boardCache };

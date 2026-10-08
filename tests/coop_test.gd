@@ -53,6 +53,24 @@ func _run() -> void:
 	_check(host.net.is_host() and not guest.net.is_host(), "the one who opened the room is the host")
 	guest.main_menu.close_confirm()
 
+	# The room is a tavern: both characters sit at the table.
+	guest.main_menu.refresh()
+	host.main_menu.open_section("friends")
+	_check(await _until(func() -> bool: return host.main_menu.get("_tavern") != null and (host.main_menu.get("_tavern").seated() as Array).size() == 2),
+		"the room shows as a tavern with both players at the table")
+	_check(await _until(func() -> bool: return not (host.net.members()[1].get("look", {}) as Dictionary).is_empty()), "the friend's character look reaches the room")
+
+	# Levels and leaderboards come from the saved games on the server (sent up a moment after a change).
+	await create_timer(2.5).timeout
+	host.main_menu.open_section("leaderboard")
+	_check(await _until(func() -> bool:
+		var board: Dictionary = (host.main_menu.get("_boards") as Dictionary).get("level", {})
+		var names: Array = (board.get("rows", []) as Array).map(func(r: Dictionary) -> String: return str(r.name))
+		return names.has("Misafir") and names.has("EvSahibi") and not (board.get("me", {}) as Dictionary).is_empty()), "the online leaderboard lists the players")
+	host.net.ask_who(["Misafir"])
+	_check(await _until(func() -> bool: return host.net.level_of("Misafir") >= 1), "a friend's account level comes from the server")
+	host.main_menu.open_section("friends")
+
 	# Only the host starts; the friend's game follows on the same map.
 	guest.start_run()
 	_check(not guest.in_run, "the friend can't start the run alone")

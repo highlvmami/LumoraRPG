@@ -29,6 +29,9 @@ signal game_message(from: int, data: Dictionary)
 signal notice(text: String)
 signal who_updated
 signal online_list_updated
+## A leaderboard arrived: its category, the best rows [{name, value, level}]
+## and this account's place ({rank, value}, or empty).
+signal leaderboard_received(category: String, rows: Array, me: Dictionary)
 
 var url := DEFAULT_URL
 var status := "offline"
@@ -42,6 +45,10 @@ var invites: Array = []
 var online_names: PackedStringArray = []
 ## Everybody online right now (last `ask_online_list`), not this account.
 var online_list: PackedStringArray = []
+## Account levels the server told us about, by lower-case name.
+var levels := {}
+## How this player's character looks (PlayerModel look), shown to the room.
+var my_look: Dictionary = {}
 ## False stops reconnecting (tests, offline play).
 var enabled := true
 
@@ -151,7 +158,25 @@ func member_name(id: int) -> String:
 
 
 func create_room() -> void:
-	_send({"t": "create"})
+	_send({"t": "create", "look": my_look})
+
+
+## The character this player shows in the room changed.
+func set_look(look: Dictionary) -> void:
+	my_look = look
+	if in_room():
+		_send({"t": "look", "look": look})
+
+
+## Asks for a leaderboard (answer: leaderboard_received).
+func ask_leaderboard(category: String) -> void:
+	if is_online():
+		_send({"t": "leaderboard", "cat": category})
+
+
+## Account level of a player the server told us about (0 if unknown).
+func level_of(player_name: String) -> int:
+	return int(levels.get(player_name.to_lower(), 0))
 
 
 func join_room(code: String) -> void:
@@ -160,7 +185,7 @@ func join_room(code: String) -> void:
 		notice.emit("Oda kodu 5 harf olmalı.")
 		return
 	_drop_invite(code)
-	_send({"t": "join", "code": code})
+	_send({"t": "join", "code": code, "look": my_look})
 
 
 func leave_room() -> void:
@@ -210,7 +235,7 @@ func send_game(data: Dictionary, to := -1) -> void:
 
 func _send(msg: Dictionary) -> void:
 	if _ws == null or _ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
-		if not msg.t in ["game", "who", "online_list", "save"]:
+		if not msg.t in ["game", "who", "online_list", "save", "leaderboard", "look"]:
 			notice.emit("Sunucuya bağlı değilsin. Bağlanmayı bekle.")
 		return
 	_ws.send_text(JSON.stringify(msg))
@@ -303,11 +328,19 @@ func _handle(msg: Dictionary) -> void:
 			password_changed.emit(bool(msg.get("ok", false)), str(msg.get("msg", "")), str(msg.get("token", "")))
 		"online_list":
 			online_list = PackedStringArray(msg.get("names", []))
+			_take_levels(msg.get("levels"))
 			online_list_updated.emit()
+		"levels":
+			_take_levels(msg.get("levels"))
+			who_updated.emit()
+		"leaderboard":
+			var me: Variant = msg.get("me")
+			leaderboard_received.emit(str(msg.get("cat", "")), msg.get("rows", []) if msg.get("rows") is Array else [], me if me is Dictionary else {})
 		"room":
 			room = {"code": str(msg.code), "host": int(msg.host), "members": []}
 			for m: Dictionary in msg.members:
-				(room.members as Array).append({"id": int(m.id), "name": str(m.name)})
+				var look: Variant = m.get("look")
+				(room.members as Array).append({"id": int(m.id), "name": str(m.name), "look": look if look is Dictionary else {}})
 			room_changed.emit()
 			if _invite_after_room != "":
 				var to := _invite_after_room
@@ -325,6 +358,7 @@ func _handle(msg: Dictionary) -> void:
 			notice.emit("%s davet edildi." % msg.to)
 		"who":
 			online_names = PackedStringArray(msg.online)
+			_take_levels(msg.get("levels"))
 			who_updated.emit()
 		"game":
 			if msg.d is Dictionary:
@@ -350,6 +384,12 @@ func _on_auth(msg: Dictionary) -> void:
 		return
 	_creds = {}
 	sign_in_failed.emit(code, str(msg.get("msg", "Giriş yapılamadı.")))
+
+
+func _take_levels(data: Variant) -> void:
+	if data is Dictionary:
+		for n: String in data:
+			levels[n.to_lower()] = int(data[n])
 
 
 func _drop_invite(code: String) -> void:

@@ -10,11 +10,14 @@ const UiTheme := preload("res://scripts/ui/theme.gd")
 const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const SkillTree := preload("res://scripts/progression/skill_tree.gd")
+const SkillTreeView := preload("res://scripts/ui/skill_tree_view.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const ItemArt := preload("res://scripts/ui/item_art.gd")
 const ItemSlot := preload("res://scripts/ui/item_slot.gd")
 const CharacterPreview := preload("res://scripts/ui/character_preview.gd")
 const TooltipCard := preload("res://scripts/ui/tooltip_card.gd")
+const PetIcons := preload("res://scripts/ui/pet_icons.gd")
+const TavernView := preload("res://scripts/ui/tavern_view.gd")
 const Config := preload("res://scripts/core/config.gd")
 
 signal play_pressed
@@ -38,6 +41,7 @@ const NAV := [
 	["skills", "Yetenek Ağacı", "storm"],
 	["market", "Market", "clover"],
 	["achievements", "Başarımlar", "skull"],
+	["leaderboard", "Sıralama", "trophy"],
 	["profile", "Profil", "eye"],
 	["friends", "Arkadaşlar", "heart"],
 	["logs", "Kayıtlar", "double_arrow"],
@@ -45,6 +49,17 @@ const NAV := [
 	["settings", "Ayarlar", "shield"],
 ]
 const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü"}
+## Leaderboards: [id, title, where the number is in a saved game, format].
+## The server (server/index.js BOARDS) uses the same ids and paths.
+const LEADERBOARDS := [
+	["level", "Hesap Seviyesi", ["accountLevel"], "level"],
+	["kills", "Canavar Kesme", ["totalKills"], "number"],
+	["bosses", "Boss Yenme", ["stats", "bossKills"], "number"],
+	["bestLevel", "Karakter Seviyesi", ["bestLevel"], "level"],
+	["bestTime", "Hayatta Kalma", ["stats", "bestTime"], "time"],
+	["damage", "Verilen Hasar", ["stats", "damageDealt"], "number"],
+	["gold", "Kazanılan Altın", ["stats", "goldEarned"], "number"],
+]
 
 var progression: Progression
 var skill_tree: SkillTree
@@ -56,6 +71,9 @@ var pets: RefCounted
 var section := "characters"
 ## Item selected in the backpack (uid, -1 = none).
 var selected_item := -1
+## Backpack filters: an equipment slot ("" = all) and a rarity (-1 = all).
+var bag_slot_filter := ""
+var bag_rarity_filter := -1
 ## Class picked on the new character screen.
 var create_class := "warrior"
 ## Graphics quality shown in the settings (low / medium / high).
@@ -80,8 +98,17 @@ var _content: VBoxContainer
 var _section_title: Label
 var _tab_buttons := {}
 var _name_edit: LineEdit
+var _pet_pictures: Node
+## The room's tavern (kept while in a room so seated characters stay put).
+var _tavern: Control
 ## Versions whose notes are open on the versions page.
 var _open_versions := {}
+## Leaderboard shown on the Sıralama page.
+var board := "level"
+## Leaderboards from the server: id -> {rows, me}.
+var _boards := {}
+## When each leaderboard was last asked for (ticks), so answers don't ask again.
+var _board_asked := {}
 
 
 func setup(p_progression: Progression, p_skill_tree: SkillTree, p_inventory: Inventory) -> void:
@@ -139,6 +166,11 @@ func setup(p_progression: Progression, p_skill_tree: SkillTree, p_inventory: Inv
 	open_section("characters")
 
 
+func _exit_tree() -> void:
+	if _tavern and not _tavern.is_inside_tree():
+		_tavern.queue_free()
+
+
 func show_menu() -> void:
 	visible = true
 	refresh()
@@ -152,6 +184,7 @@ func refresh() -> void:
 	_account_bar.value = progression.account_exp()
 	_account_bar.tooltip_text = "%d / %d EXP" % [progression.account_exp(), progression.exp_to_next_account_level()]
 	_gold_label.text = "Altın: %d" % progression.gold()
+	_sync_look()
 	open_section(section)
 
 
@@ -161,7 +194,8 @@ func open_section(id: String) -> void:
 		(_tab_buttons[key] as Button).button_pressed = key == id or (key == "characters" and id == "create")
 	for child in _content.get_children():
 		_content.remove_child(child)
-		child.queue_free()
+		if child != _tavern:
+			child.queue_free()
 	match id:
 		"create":
 			_section_title.text = "Yeni Karakter"
@@ -184,6 +218,9 @@ func open_section(id: String) -> void:
 		"achievements":
 			_section_title.text = "Başarımlar"
 			_build_achievements()
+		"leaderboard":
+			_section_title.text = "Sıralama"
+			_build_leaderboard()
 		"profile":
 			_section_title.text = "Profil"
 			_build_profile()
@@ -727,18 +764,100 @@ func _build_backpack() -> void:
 			flow.add_child(card)
 
 	var items := inventory.items()
-	_header("Eşyalar (%d / %d)" % [items.size(), int(inventory.gear.drops.stashLimit)])
+	_header("Eşyalar (%d / %d)" % [items.size(), inventory.gear.stash_limit()])
 	if items.is_empty():
 		_text("Çantan boş. Canavarlar bazen eşya düşürür.", 15, UiTheme.MUTED)
 		return
-	var sorted := items.duplicate()
-	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.rarity) > int(b.rarity))
+	_content.add_child(_bag_filters())
+	var shown := backpack_items()
+	if shown.is_empty():
+		_text("Bu filtreye uyan eşya yok.", 15, UiTheme.MUTED)
+		return
 	var grid := HFlowContainer.new()
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 10)
 	_content.add_child(grid)
-	for it: Dictionary in sorted:
+	for it: Dictionary in shown:
 		grid.add_child(_item_card(it, false))
+
+
+## Backpack items after the filters, rarest first; items another character
+## wears go to the end.
+func backpack_items() -> Array:
+	var gear := inventory.gear
+	var active := inventory.active_character()
+	var slot_order := {}
+	for i in gear.slots.size():
+		slot_order[str(gear.slots[i].id)] = i
+	var out: Array = inventory.items().filter(func(it: Dictionary) -> bool:
+		return (bag_slot_filter == "" or gear.item_slot(it) == bag_slot_filter) and (bag_rarity_filter < 0 or int(it.rarity) == bag_rarity_filter))
+	var elsewhere := func(it: Dictionary) -> bool:
+		var w := inventory.wearer(int(it.uid))
+		return not w.is_empty() and (active.is_empty() or int(w.id) != int(active.id))
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ea: bool = elsewhere.call(a)
+		var eb: bool = elsewhere.call(b)
+		if ea != eb:
+			return eb
+		if int(a.rarity) != int(b.rarity):
+			return int(a.rarity) > int(b.rarity)
+		var sa := int(slot_order.get(gear.item_slot(a), 0))
+		var sb := int(slot_order.get(gear.item_slot(b), 0))
+		if sa != sb:
+			return sa < sb
+		return int(a.uid) < int(b.uid))
+	return out
+
+
+## Sets the backpack filters ("" / -1 = all) and redraws.
+func filter_backpack(slot_id: String, rarity := -1) -> void:
+	bag_slot_filter = slot_id
+	bag_rarity_filter = rarity
+	refresh()
+
+
+## Slot buttons (with each slot's item count) and a rarity picker.
+func _bag_filters() -> Control:
+	var gear := inventory.gear
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 6)
+	row.add_theme_constant_override("v_separation", 6)
+	var counts := {}
+	for it: Dictionary in inventory.items():
+		var slot := gear.item_slot(it)
+		counts[slot] = int(counts.get(slot, 0)) + 1
+	var entries: Array = [["", "Tümü (%d)" % inventory.items().size()]]
+	for sl: Dictionary in gear.slots:
+		entries.append([str(sl.id), "%s (%d)" % [sl.name, int(counts.get(str(sl.id), 0))]])
+	for entry: Array in entries:
+		var b := Button.new()
+		b.text = str(entry[1])
+		b.toggle_mode = true
+		b.button_pressed = bag_slot_filter == str(entry[0])
+		b.add_theme_font_size_override("font_size", 14)
+		if str(entry[0]) != "":
+			b.icon = PixelIcons.texture(gear.item_icon({"base": "sword" if entry[0] == "weapon" else str(entry[0])}), UiTheme.ACCENT)
+			b.expand_icon = true
+			b.add_theme_constant_override("icon_max_width", 16)
+		b.pressed.connect(filter_backpack.bind(str(entry[0]), bag_rarity_filter))
+		row.add_child(b)
+	var rarity := OptionButton.new()
+	rarity.add_theme_font_size_override("font_size", 14)
+	rarity.add_item("Tüm nadirlikler", 0)
+	for r in gear.rarities.size():
+		rarity.add_item(str(gear.rarity(r).name), r + 1)
+		rarity.set_item_icon(r + 1, _swatch(gear.rarity_color(r)))
+	rarity.select(bag_rarity_filter + 1)
+	rarity.item_selected.connect(func(index: int) -> void: filter_backpack(bag_slot_filter, index - 1))
+	row.add_child(rarity)
+	return row
+
+
+## A small square of one color (rarity marks in lists).
+static func _swatch(color: Color) -> ImageTexture:
+	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
+	img.fill(color)
+	return ImageTexture.create_from_image(img)
 
 
 func _build_market() -> void:
@@ -753,9 +872,10 @@ func _build_market() -> void:
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_child(UiTheme.label(str(cd.name), UiTheme.label_settings(21, color, 0)))
 		var odds := PackedStringArray()
-		for r in (cd.odds as Array).size():
-			if float(cd.odds[r]) > 0.0:
-				odds.append("%s %%%d" % [inventory.gear.rarity(r).name, int(cd.odds[r])])
+		var chances := inventory.gear.chest_odds(tier)
+		for r in chances.size():
+			if float(chances[r]) > 0.0:
+				odds.append("%s %%%s" % [inventory.gear.rarity(r).name, _percent(float(chances[r]))])
 		var odds_label := UiTheme.label("  ·  ".join(odds), UiTheme.label_settings(13, UiTheme.MUTED, 0))
 		odds_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(odds_label)
@@ -763,8 +883,11 @@ func _build_market() -> void:
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(140, 0)
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		button.text = "%d altın" % int(cd.price)
-		button.disabled = progression.gold() < int(cd.price)
+		var price := inventory.gear.chest_price(tier)
+		button.text = "%d altın" % price
+		if price < int(cd.price):
+			button.tooltip_text = "Pazarlıkçı indirimi: %d yerine %d altın" % [int(cd.price), price]
+		button.disabled = progression.gold() < price
 		button.pressed.connect(buy_chest.bind(tier))
 		row.add_child(button)
 		_content.add_child(row)
@@ -805,9 +928,11 @@ func release_pet(uid: int) -> int:
 	return gold
 
 
-## Pets: the 3 slots on top (each pet turning on its stage, locked slots
-## show the account level they open at), what they give, then every pet
-## the account has and the egg shop.
+## Pets: the 3 slots on top (each pet standing on its stage, turned a little
+## to the side; locked slots show the account level they open at), what they
+## give, the account's pets (rarest first, each with a small picture), the
+## collection of every pet kind (found ones in color, the rest gray, rarest
+## first) and the egg shop.
 func _build_pets() -> void:
 	var slots := HBoxContainer.new()
 	slots.add_theme_constant_override("separation", 14)
@@ -830,12 +955,59 @@ func _build_pets() -> void:
 		flow.add_theme_constant_override("h_separation", 10)
 		flow.add_theme_constant_override("v_separation", 10)
 		_content.add_child(flow)
-		var sorted: Array = pets.owned().duplicate()
-		sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(pets.info(a).rarity) > int(pets.info(b).rarity))
-		for p: Dictionary in sorted:
+		for p: Dictionary in pets.owned_sorted():
 			flow.add_child(_pet_card(p))
+
+	_header("Pet Koleksiyonu (%d / %d keşfedildi)" % [pets.discovered_count(), pets.kinds().size()])
+	var shelf := HFlowContainer.new()
+	shelf.add_theme_constant_override("h_separation", 8)
+	shelf.add_theme_constant_override("v_separation", 8)
+	_content.add_child(shelf)
+	for k: Dictionary in pets.kinds_by_rarity():
+		shelf.add_child(_collection_card(k))
 	_header("Yumurta")
 	_content.add_child(_egg_row())
+
+
+## One kind in the collection: in color with its stats once found, gray
+## with "Henüz bulunmadı" before.
+func _collection_card(k: Dictionary) -> Control:
+	var found: bool = pets.is_discovered(str(k.id))
+	var rarity: Dictionary = pets.rarity(int(k.rarity))
+	var color := Color(str(rarity.color)) if found else Color(0.45, 0.47, 0.5)
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(112, 0)
+	var style := _card_style(color.darkened(0.15) if found else Color(1, 1, 1, 0.1), 2 if found else 1)
+	style.bg_color = color.darkened(0.82) if found else Color(0.08, 0.09, 0.11, 0.9)
+	style.set_content_margin_all(6)
+	card.add_theme_stylebox_override("panel", style)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+	card.add_child(col)
+	var pic: TextureRect = _pet_icons().call("rect", str(k.id), 72, not found)
+	pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(pic)
+	var name_label := _centered(str(k.name), UiTheme.label_settings(14, color.lightened(0.25) if found else UiTheme.MUTED, 3))
+	name_label.custom_minimum_size.x = 100
+	col.add_child(name_label)
+	var sub := _centered(str(rarity.name) if found else "Henüz bulunmadı", UiTheme.label_settings(11, color if found else Color(UiTheme.MUTED, 0.6), 2))
+	sub.custom_minimum_size.x = 100
+	col.add_child(sub)
+	var tips := PackedStringArray([str(k.name) + " (" + str(rarity.name) + ")", str(k.desc)])
+	for stat: String in k.stats:
+		tips.append(pets.stat_text(stat, float(k.stats[stat])))
+	card.tooltip_text = "\n".join(tips)
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	return card
+
+
+## Shared small pet pictures (made on first use).
+func _pet_icons() -> Node:
+	if _pet_pictures == null:
+		_pet_pictures = PetIcons.new()
+		_pet_pictures.name = "PetPictures"
+		add_child(_pet_pictures)
+	return _pet_pictures
 
 
 const PET_SLOT := Vector2(210, 300)
@@ -878,7 +1050,7 @@ func _pet_slot(slot: int) -> Control:
 	var info: Dictionary = pets.info(p)
 	var stage := _stage(color)
 	var preview: SubViewportContainer = CharacterPreview.new()
-	preview.call("setup_pet", str(p.kind), Vector2(PET_SLOT.x - 24, 150), 2)
+	preview.call("setup_pet", str(p.kind), Vector2(PET_SLOT.x - 24, 150), 2, false)
 	stage.add_child(preview)
 	col.add_child(stage)
 	col.add_child(_centered(str(info.name), UiTheme.label_settings(20, color.lightened(0.2), 4)))
@@ -905,8 +1077,12 @@ func _pet_card(p: Dictionary) -> Control:
 	card.add_child(col)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 8)
-	head.add_child(PixelIcons.rect("paw", 34))
+	var pic_bg := PanelContainer.new()
+	pic_bg.add_theme_stylebox_override("panel", UiTheme.box(color.darkened(0.75), 8, 2))
+	pic_bg.add_child(_pet_icons().rect(str(p.kind), 56))
+	head.add_child(pic_bg)
 	var names := VBoxContainer.new()
+	names.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	names.add_child(UiTheme.label(str(info.name), UiTheme.label_settings(17, color.lightened(0.2), 3)))
 	names.add_child(UiTheme.label(str(rarity.name), UiTheme.label_settings(12, color, 2)))
 	head.add_child(names)
@@ -944,12 +1120,13 @@ func _egg_row() -> Control:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_child(UiTheme.label(str(pets.cfg.egg.name), UiTheme.label_settings(21, UiTheme.ACCENT, 0)))
 	var odds := PackedStringArray()
-	for r in (pets.cfg.egg.odds as Array).size():
+	var chances: Array = pets.egg_odds()
+	for r in chances.size():
 		var names := PackedStringArray()
 		for k: Dictionary in pets.kinds():
 			if int(k.rarity) == r:
 				names.append(str(k.name))
-		odds.append("%s (%s) %%%d" % [pets.rarity(r).name, ", ".join(names), int(pets.cfg.egg.odds[r])])
+		odds.append("%s (%s) %%%s" % [pets.rarity(r).name, ", ".join(names), _percent(float(chances[r]))])
 	var odds_label := UiTheme.label("  ·  ".join(odds), UiTheme.label_settings(13, UiTheme.MUTED, 0))
 	odds_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(odds_label)
@@ -1020,22 +1197,15 @@ func _reveal_pet(p: Dictionary) -> void:
 	panel.create_tween().tween_property(panel, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-const SKILL_NODE := 58.0
-const SKILL_COL := 92.0
-const SKILL_ROW := 84.0
-const SKILL_TOP := 40.0
-
-
-## The skill tree: three branches side by side. Each node is a round button
-## (click to learn the next level, hover for details); lines join a node to
-## the nodes it needs and light up once those reach the required level.
+## The skill tree: points and a reset button on top, a color key for the
+## branches, then the tree growing out from the core skill in the middle.
 func _build_skills() -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 16)
 	_content.add_child(head)
 	var points := UiTheme.label("Yetenek Puanı: %d" % skill_tree.points_left(), UiTheme.label_settings(24, Color("#8fe3ff"), 5))
 	head.add_child(points)
-	var info := UiTheme.label("Her hesap seviyesinde +%d puan. Tüm karakterler için kalıcıdır. Alttaki yetenekler daha çok puan ister ve üstündekiler yeterli seviyeye gelince açılır." % SkillTree.POINTS_PER_LEVEL,
+	var info := UiTheme.label("Her hesap seviyesinde +%d puan. Tüm karakterler için kalıcıdır. Ortadaki Lumora Kalbi dalları açar; dışa doğru yetenekler daha çok puan ister." % SkillTree.POINTS_PER_LEVEL,
 		UiTheme.label_settings(14, UiTheme.MUTED, 0))
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1050,137 +1220,23 @@ func _build_skills() -> void:
 			notify("Yetenek puanların geri verildi.")
 			refresh()))
 	head.add_child(reset)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	_content.add_child(row)
+	var key := HFlowContainer.new()
+	key.add_theme_constant_override("h_separation", 18)
+	_content.add_child(key)
 	for b: Dictionary in skill_tree.branches:
-		row.add_child(_skill_branch(b))
-
-
-func _skill_branch(b: Dictionary) -> Control:
-	var color := Color(str(b.color))
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := _card_style(color.darkened(0.45), 2)
-	style.bg_color = color.darkened(0.88)
-	panel.add_theme_stylebox_override("panel", style)
-	var canvas := Control.new()
-	canvas.custom_minimum_size = Vector2(SKILL_COL * 2.0 + SKILL_NODE + 16.0, SKILL_TOP + SKILL_ROW * 3.0 + SKILL_NODE + 30.0)
-	panel.add_child(canvas)
-	var title := UiTheme.label(UiTheme.upper(str(b.name)), UiTheme.label_settings(20, color.lightened(0.2), 4))
-	title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 4)
-	title.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	canvas.add_child(title)
-	var ids := skill_tree.branch_nodes(str(b.id))
-	# Connection lines, drawn under the nodes.
-	canvas.draw.connect(func() -> void:
-		var origin_x := (canvas.size.x - (SKILL_COL * 2.0 + SKILL_NODE)) * 0.5
-		for id: String in ids:
-			var req: Dictionary = skill_tree.nodes[id].get("requires", {})
-			for need: String in req:
-				var met := skill_tree.level(need) >= int(req[need])
-				var from := _skill_center(skill_tree.nodes[need], origin_x)
-				var to := _skill_center(skill_tree.nodes[id], origin_x)
-				canvas.draw_line(from, to, Color(0, 0, 0, 0.6), 7.0)
-				canvas.draw_line(from, to, color if met else Color(1, 1, 1, 0.14), 3.0 if met else 2.0))
-	var holder := Control.new()
-	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(holder)
-	holder.resized.connect(func() -> void:
-		var origin_x := (holder.size.x - (SKILL_COL * 2.0 + SKILL_NODE)) * 0.5
-		for child: Control in holder.get_children():
-			var d: Dictionary = skill_tree.nodes[str(child.get_meta("skill"))]
-			child.position = _skill_center(d, origin_x) - Vector2(SKILL_NODE * 0.5, SKILL_NODE * 0.5)
-		canvas.queue_redraw())
-	for id: String in ids:
-		holder.add_child(_skill_node(id, color))
-	return panel
-
-
-func _skill_center(d: Dictionary, origin_x: float) -> Vector2:
-	return Vector2(origin_x + float(d.col) * SKILL_COL + SKILL_NODE * 0.5, SKILL_TOP + float(d.row) * SKILL_ROW + SKILL_NODE * 0.5)
-
-
-## One round skill button with its icon and a level badge below.
-func _skill_node(id: String, color: Color) -> Control:
-	var d: Dictionary = skill_tree.nodes[id]
-	var lv := skill_tree.level(id)
-	var open := skill_tree.is_unlocked(id)
-	var maxed := skill_tree.is_maxed(id)
-	var ready := skill_tree.can_buy(id)
-	var box := Control.new()
-	box.set_meta("skill", id)
-	box.size = Vector2(SKILL_NODE, SKILL_NODE + 22.0)
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var button: Button = ItemSlot.new()
-	button.size = Vector2(SKILL_NODE, SKILL_NODE)
-	button.tooltip_text = str(d.name)
-	button.set("tooltip_builder", func() -> Control: return _skill_tooltip(id, color))
-	var border := UiTheme.ACCENT if maxed else (color if lv > 0 else (color.darkened(0.2) if ready else Color(1, 1, 1, 0.18)))
-	for state: String in ["normal", "hover", "pressed", "disabled"]:
-		var style := UiTheme.box(color.darkened(0.6 if lv > 0 else 0.82), int(SKILL_NODE * 0.5), 6)
-		style.set_border_width_all(4 if maxed or ready else 3)
-		style.border_color = border.lightened(0.3) if state == "hover" else border
-		if maxed or lv > 0:
-			style.shadow_color = Color(border, 0.55)
-			style.shadow_size = 8 if maxed else 4
-		button.add_theme_stylebox_override(state, style)
-	button.pressed.connect(learn_skill.bind(id))
-	var icon := PixelIcons.rect(str(d.icon), 34)
-	icon.position = Vector2((SKILL_NODE - 34.0) * 0.5, (SKILL_NODE - 34.0) * 0.5)
-	icon.size = Vector2(34, 34)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if not open:
-		icon.modulate = Color(0.3, 0.3, 0.3, 0.8)
-	button.add_child(icon)
-	box.add_child(button)
-	if ready:
-		# A soft pulse on nodes that can be learned right now.
-		var tween := button.create_tween().set_loops()
-		tween.tween_property(button, "self_modulate", Color(1.35, 1.35, 1.35), 0.6)
-		tween.tween_property(button, "self_modulate", Color.WHITE, 0.6)
-	var badge := UiTheme.label("KİLİTLİ" if not open else ("MAKS" if maxed else "%d/%d" % [lv, skill_tree.max_level(id)]),
-		UiTheme.label_settings(12, UiTheme.ACCENT if maxed else (UiTheme.MUTED if not open else color.lightened(0.3)), 3))
-	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	badge.position = Vector2(-20, SKILL_NODE + 1.0)
-	badge.size = Vector2(SKILL_NODE + 40.0, 18)
-	box.add_child(badge)
-	return box
-
-
-func _skill_tooltip(id: String, color: Color) -> Control:
-	var d: Dictionary = skill_tree.nodes[id]
-	var lv := skill_tree.level(id)
-	var panel := PanelContainer.new()
-	var style := UiTheme.box(Color(0.05, 0.07, 0.1, 0.97), 8, 12)
-	style.set_border_width_all(2)
-	style.border_color = color
-	panel.add_theme_stylebox_override("panel", style)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 3)
-	panel.add_child(col)
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 10)
-	head.add_child(PixelIcons.rect(str(d.icon), 40))
-	var names := VBoxContainer.new()
-	names.add_child(UiTheme.label(str(d.name), UiTheme.label_settings(20, color.lightened(0.2), 4)))
-	names.add_child(UiTheme.label("Seviye %d / %d" % [lv, skill_tree.max_level(id)], UiTheme.label_settings(13, UiTheme.MUTED, 3)))
-	head.add_child(names)
-	col.add_child(head)
-	col.add_child(HSeparator.new())
-	col.add_child(UiTheme.label("Şu an: " + (skill_tree.effect_text(id, lv) if lv > 0 else "yok"), UiTheme.label_settings(15, Color("#8fe39a") if lv > 0 else UiTheme.MUTED, 3)))
-	if skill_tree.is_maxed(id):
-		col.add_child(UiTheme.label("En yüksek seviyede", UiTheme.label_settings(14, UiTheme.ACCENT, 3)))
-	else:
-		col.add_child(UiTheme.label("Sonraki seviye: " + skill_tree.effect_text(id, 1), UiTheme.label_settings(15, UiTheme.TEXT, 3)))
-		var afford := skill_tree.points_left() >= skill_tree.cost(id)
-		col.add_child(UiTheme.label("Maliyet: %d yetenek puanı" % skill_tree.cost(id), UiTheme.label_settings(14, Color("#8fe3ff") if afford else Color("#ff6b6b"), 3)))
-	if not skill_tree.is_unlocked(id):
-		col.add_child(UiTheme.label("Gerekli: " + skill_tree.requirement_text(id), UiTheme.label_settings(14, Color("#ff6b6b"), 3)))
-	elif not skill_tree.is_maxed(id):
-		col.add_child(UiTheme.label("Öğrenmek için tıkla", UiTheme.label_settings(12, UiTheme.MUTED, 2)))
-	return panel
+		var chip := HBoxContainer.new()
+		chip.add_theme_constant_override("separation", 6)
+		var dot := ColorRect.new()
+		dot.color = Color(str(b.color))
+		dot.custom_minimum_size = Vector2(12, 12)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		chip.add_child(dot)
+		chip.add_child(UiTheme.label(str(b.name), UiTheme.label_settings(15, Color(str(b.color)).lightened(0.2), 2)))
+		chip.add_child(UiTheme.label(str(b.get("desc", "")), UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+		key.add_child(chip)
+	var view: Control = SkillTreeView.new()
+	view.call("setup", skill_tree, learn_skill)
+	_content.add_child(view)
 
 
 ## Every achievement with its progress and reward; finished ones glow gold.
@@ -1236,6 +1292,136 @@ func _build_achievements() -> void:
 		grid.add_child(card)
 
 
+## Leaderboards in categories: the best players online (or, offline, the
+## accounts on this device), the top three in gold, silver and bronze, and
+## this account's own place.
+func _build_leaderboard() -> void:
+	var tabs := HFlowContainer.new()
+	tabs.add_theme_constant_override("h_separation", 6)
+	tabs.add_theme_constant_override("v_separation", 6)
+	_content.add_child(tabs)
+	for entry: Array in LEADERBOARDS:
+		var b := Button.new()
+		b.text = str(entry[1])
+		b.toggle_mode = true
+		b.button_pressed = board == str(entry[0])
+		b.add_theme_font_size_override("font_size", 15)
+		b.pressed.connect(show_board.bind(str(entry[0])))
+		tabs.add_child(b)
+	var online: bool = net != null and net.is_online()
+	var now := Time.get_ticks_msec()
+	if online and now - int(_board_asked.get(board, -100000)) > 10000:
+		_board_asked[board] = now
+		net.ask_leaderboard(board)
+	var data: Dictionary = _boards.get(board, {}) if online else local_board(board)
+	var rows: Array = data.get("rows", [])
+	if online and data.is_empty():
+		_text("Sıralama yükleniyor...", 16, UiTheme.MUTED)
+		return
+	if not online:
+		_text("Çevrimiçi değilsin: bu cihazdaki hesaplar sıralanıyor. Çevrimiçi olunca tüm oyuncular görünür.", 14, UiTheme.MUTED)
+	var me: Dictionary = data.get("me", {})
+	if not me.is_empty():
+		_text("Senin sıran: %d.  ·  %s" % [int(me.rank), board_value(board, float(me.value))], 18, Color("#8fe3ff"))
+	if rows.is_empty():
+		_text("Henüz kimse yok.", 16, UiTheme.MUTED)
+		return
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	_content.add_child(list)
+	var medals := [Color("#ffd23f"), Color("#d8e1ea"), Color("#e09a5a")]
+	var my_name := str(progression.profile.name).to_lower()
+	for i in rows.size():
+		var r: Dictionary = rows[i]
+		var mine := str(r.name).to_lower() == my_name
+		var color: Color = medals[i] if i < 3 else UiTheme.TEXT
+		var card := PanelContainer.new()
+		var style := _card_style(color if i < 3 else (Color("#8fe3ff") if mine else Color(1, 1, 1, 0.08)), 2 if i < 3 or mine else 1)
+		style.set_content_margin_all(6)
+		if i < 3:
+			style.bg_color = color.darkened(0.85)
+		card.add_theme_stylebox_override("panel", style)
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 12)
+		card.add_child(line)
+		var place := UiTheme.label("%d." % (i + 1), UiTheme.label_settings(20 if i < 3 else 17, color, 3))
+		place.custom_minimum_size.x = 44
+		place.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		line.add_child(place)
+		if i < 3:
+			line.add_child(PixelIcons.rect("trophy", 24))
+		var name_box := HBoxContainer.new()
+		name_box.add_theme_constant_override("separation", 8)
+		name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_box.add_child(UiTheme.label(str(r.name), UiTheme.label_settings(19, Color("#8fe3ff") if mine else UiTheme.TEXT, 2)))
+		if board != "level":
+			name_box.add_child(_level_tag(int(r.get("level", 0))))
+		if mine:
+			name_box.add_child(UiTheme.label("(sen)", UiTheme.label_settings(13, Color("#8fe3ff"), 0)))
+		line.add_child(name_box)
+		line.add_child(UiTheme.label(board_value(board, float(r.value)), UiTheme.label_settings(19, color if i < 3 else UiTheme.ACCENT, 3)))
+		list.add_child(card)
+
+
+## Opens one leaderboard.
+func show_board(id: String) -> void:
+	board = id
+	refresh()
+
+
+## A leaderboard arrived from the server.
+func on_leaderboard(id: String, rows: Array, me: Dictionary) -> void:
+	_boards[id] = {"rows": rows, "me": me}
+	if visible and section == "leaderboard" and board == id and not is_confirm_open():
+		open_section("leaderboard")
+
+
+## The leaderboard of the accounts on this device (offline): {rows, me}.
+func local_board(id: String) -> Dictionary:
+	var path: Array = []
+	for entry: Array in LEADERBOARDS:
+		if str(entry[0]) == id:
+			path = entry[2]
+	var all: Array = [progression.profile] + progression.store.call("other_profiles", str(progression.profile.name))
+	var rows: Array = []
+	for p: Dictionary in all:
+		rows.append({"name": str(p.get("name", "?")), "value": _number_at(p, path), "level": int(p.get("accountLevel", 1))})
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a.value) > float(b.value) or (float(a.value) == float(b.value) and int(a.level) > int(b.level)))
+	var me := {}
+	for i in rows.size():
+		if str(rows[i].name) == str(progression.profile.name):
+			me = {"rank": i + 1, "value": rows[i].value}
+	return {"rows": rows.slice(0, 20), "me": me}
+
+
+static func _number_at(data: Dictionary, path: Array) -> float:
+	var v: Variant = data
+	for k: String in path:
+		v = (v as Dictionary).get(k) if v is Dictionary else null
+	return float(v) if v is float or v is int else 0.0
+
+
+## A leaderboard number as text: "Sv. 12", "1.234", "8:05".
+func board_value(id: String, value: float) -> String:
+	var fmt := "number"
+	for entry: Array in LEADERBOARDS:
+		if str(entry[0]) == id:
+			fmt = str(entry[3])
+	match fmt:
+		"level":
+			return "Sv. %d" % int(value)
+		"time":
+			return "%d:%02d" % [int(value) / 60, int(value) % 60]
+		_:
+			return _short(value)
+
+
+## 12.0 -> "12", 2.46 -> "2.5" (chances in the market).
+func _percent(v: float) -> String:
+	return str(roundi(v)) if absf(v - roundf(v)) < 0.05 or v >= 10.0 else "%.1f" % v
+
+
 ## 1234 -> "1.234", 300 seconds shown as plain numbers.
 func _short(v: float) -> String:
 	var n := str(int(v))
@@ -1285,9 +1471,13 @@ func _build_friends() -> void:
 		dot.custom_minimum_size = Vector2(14, 14)
 		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		line.add_child(dot)
-		var name_label := UiTheme.label(friend, UiTheme.label_settings(22, UiTheme.TEXT, 0))
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		line.add_child(name_label)
+		var name_box := HBoxContainer.new()
+		name_box.add_theme_constant_override("separation", 8)
+		name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_box.add_child(UiTheme.label(friend, UiTheme.label_settings(22, UiTheme.TEXT, 0)))
+		var level_label := _level_tag(player_level(friend))
+		name_box.add_child(level_label)
+		line.add_child(name_box)
 		var state := UiTheme.label("", UiTheme.label_settings(16, UiTheme.MUTED, 0))
 		line.add_child(state)
 		var invite_button := Button.new()
@@ -1299,7 +1489,7 @@ func _build_friends() -> void:
 		remove.pressed.connect(_remove_friend.bind(friend))
 		line.add_child(remove)
 		_content.add_child(line)
-		_friend_rows[friend] = [dot, state, invite_button]
+		_friend_rows[friend] = [dot, state, invite_button, level_label]
 	update_friend_status()
 	_who_timer = 0.0
 
@@ -1393,13 +1583,8 @@ func _build_room() -> void:
 		leave.pressed.connect(func() -> void: net.leave_room())
 		top.add_child(leave)
 		_content.add_child(top)
-		for m: Dictionary in net.members():
-			var tags := PackedStringArray()
-			if int(m.id) == int(net.room.host):
-				tags.append("ev sahibi")
-			if int(m.id) == net.my_id:
-				tags.append("sen")
-			_text("•  %s%s" % [m.name, "  (%s)" % ", ".join(tags) if not tags.is_empty() else ""], 19)
+		_content.add_child(_room_tavern())
+		_text("Masada %d / %d kişi. ★ ev sahibi." % [net.members().size(), net.MAX_MEMBERS], 14, UiTheme.MUTED)
 		_text("Hazır olunca OYNA'ya bas: odadaki herkes seninle aynı haritada başlar." if net.is_host()
 			else "Ev sahibi OYNA'ya basınca oyun başlar ve otomatik katılırsın.", 15, UiTheme.MUTED)
 		var row := HBoxContainer.new()
@@ -1434,6 +1619,40 @@ func _build_room() -> void:
 		_content.add_child(line)
 
 
+## The tavern with everyone in the room at the table; made when the room is
+## first shown (people already there are seated), then newcomers walk in.
+func _room_tavern() -> Control:
+	var fresh := _tavern == null
+	if fresh:
+		_tavern = TavernView.new()
+		_tavern.call("setup", Vector2(0, 300))
+	var members: Array = []
+	for m: Dictionary in net.members():
+		members.append({"id": int(m.id), "name": str(m.name), "look": m.get("look", {}),
+			"host": int(m.id) == int(net.room.host), "me": int(m.id) == net.my_id})
+	_tavern.call("set_members", members, not fresh)
+	return _tavern
+
+
+## Leaves the tavern behind once out of the room.
+func _drop_tavern() -> void:
+	if _tavern:
+		if _tavern.get_parent():
+			_tavern.get_parent().remove_child(_tavern)
+		_tavern.queue_free()
+		_tavern = null
+
+
+## Sends this player's look (active character and gear) to the room when it changed.
+func _sync_look() -> void:
+	if net == null:
+		return
+	var c := inventory.active_character()
+	var look: Dictionary = inventory.character_look(c) if not c.is_empty() else {}
+	if JSON.stringify(look) != JSON.stringify(net.my_look):
+		net.set_look(look)
+
+
 ## Invites an online player to this player's room (opens one if needed).
 func invite_friend(friend_name: String) -> void:
 	friend_name = friend_name.strip_edges()
@@ -1455,6 +1674,8 @@ func ask_invite(from_name: String, code: String) -> void:
 func refresh_online() -> void:
 	if net == null:
 		return
+	if not net.in_room():
+		_drop_tavern()
 	var parts := PackedStringArray()
 	parts.append({"online": "● Çevrimiçi", "connecting": "● Bağlanıyor", "connected": "● Giriş yapılıyor"}.get(net.status, "● Çevrimdışı"))
 	if net.in_room():
@@ -1481,6 +1702,7 @@ func update_friend_status() -> void:
 		(row[0] as ColorRect).color = Color("#3ddc84") if on else Color("#6b7280")
 		(row[1] as Label).text = "çevrimiçi" if on else "çevrimdışı"
 		(row[2] as Button).visible = on
+		_set_level_tag(row[3] as Label, player_level(friend))
 
 
 func _process(delta: float) -> void:
@@ -1513,9 +1735,12 @@ func update_online_list() -> void:
 		dot.custom_minimum_size = Vector2(12, 12)
 		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		line.add_child(dot)
-		var label := UiTheme.label(n, UiTheme.label_settings(19, UiTheme.TEXT, 0))
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		line.add_child(label)
+		var name_box := HBoxContainer.new()
+		name_box.add_theme_constant_override("separation", 8)
+		name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_box.add_child(UiTheme.label(n, UiTheme.label_settings(19, UiTheme.TEXT, 0)))
+		name_box.add_child(_level_tag(player_level(n)))
+		line.add_child(name_box)
 		if not friends.has(n):
 			var add := Button.new()
 			add.text = "Arkadaş ekle"
@@ -1526,6 +1751,31 @@ func update_online_list() -> void:
 		invite.pressed.connect(invite_friend.bind(n))
 		line.add_child(invite)
 		_online_box.add_child(line)
+
+
+## Account level of another player: what the server said, else this
+## device's copy of their account (0 when unknown).
+func player_level(player_name: String) -> int:
+	if net != null and net.level_of(player_name) > 0:
+		return net.level_of(player_name)
+	for other: Dictionary in progression.store.call("other_profiles", str(progression.profile.name)):
+		if str(other.name).to_lower() == player_name.to_lower():
+			return int(other.get("accountLevel", 1))
+	return 0
+
+
+## A small, faint "Sv. 12" next to a player's name.
+func _level_tag(level: int) -> Label:
+	var tag := UiTheme.label("", UiTheme.label_settings(14, Color(UiTheme.TEXT, 0.45), 0))
+	tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_set_level_tag(tag, level)
+	return tag
+
+
+func _set_level_tag(tag: Label, level: int) -> void:
+	tag.text = "Sv. %d" % level if level > 0 else ""
+	tag.tooltip_text = "Hesap seviyesi"
+	tag.mouse_filter = Control.MOUSE_FILTER_PASS
 
 
 ## Other players to befriend: accounts that played on this device and are
