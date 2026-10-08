@@ -1,7 +1,7 @@
 {
 	"forest": {
-		"name": "Sakin Orman", "subtitle": "Çam ağaçları, göletler ve ateş böcekleri",
-		"seed": 1337, "props": "forest", "amplitude": 9.0,
+		"name": "Sakin Orman", "subtitle": "Çam ağaçları, göletler ve yıkık evler",
+		"seed": 1337, "props": "forest", "amplitude": 5.0, "trees": 190, "rocks": 70, "ruins": 2,
 		"ground": ["#4f9a3a", "#6cb446"], "slope": "#8a6a3f", "stone": "#7b7f86",
 		"sky": ["#4f97d6", "#d9ecf2", "#4f7a46"], "ambient": "#b7d3e6", "ambientEnergy": 0.55,
 		"fog": "#a9d1e8", "fogDensity": 0.012, "sun": "#fff1d6", "sunEnergy": 1.1
