@@ -38,13 +38,23 @@ jobs:
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" test.log
 
       - name: Install web and Windows export templates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           curl -fsSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
           dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION/-/.}"
           mkdir -p "$dest"
           unzip -j -q templates.tpz "templates/web_nothreads_release.zip" "templates/web_nothreads_debug.zip" "templates/windows_release_x86_64.exe" "templates/windows_debug_x86_64.exe" "templates/version.txt" -d "$dest"
           rm templates.tpz
-          ls "$dest"
+          # Use the slim web template (see web-template.yml) when it has been built.
+          if gh release download "web-template-${GODOT_VERSION%-stable}" -p web_nothreads_release.zip -D slim 2>/dev/null; then
+            cp slim/web_nothreads_release.zip "$dest/web_nothreads_release.zip"
+            echo "Using the slim web template"
+          else
+            echo "Slim web template not built yet; using the official one"
+          fi
+          ls -la "$dest"
 
       - name: Stamp build number
         run: |
@@ -59,6 +69,16 @@ jobs:
           test -f build/web/index.html
           test -f build/web/index.pck
           ls -la build/web
+
+      - name: Check the web build starts in Chrome
+        run: |
+          (cd build/web && python3 -m http.server 8000 >/dev/null 2>&1 &)
+          sleep 1
+          timeout 45 google-chrome --headless=new --no-sandbox --use-angle=swiftshader --enable-unsafe-swiftshader \
+            --enable-logging=stderr --v=0 --user-data-dir="$RUNNER_TEMP/chrome" http://localhost:8000/index.html 2> chrome.log || true
+          grep -E "CONSOLE|Godot|ERROR" chrome.log | head -40 || true
+          grep -q "Godot Engine v" chrome.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Couldn't load project data" chrome.log
 
       - name: Upload web build
         uses: actions/upload-pages-artifact@v3
