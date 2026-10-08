@@ -1,0 +1,16 @@
+{
+	"seed": 1337,
+	"size": 160,
+	"segments": 160,
+	"playableHalfSize": 70,
+	"trees": 360,
+	"rocks": 120,
+	"bushes": 260,
+	"grass": 2600,
+	"flowerPatches": 140,
+	"mushroomRings": 30,
+	"logs": 22,
+	"ponds": 5,
+	"shrines": 4,
+	"spawnClearRadius": 14
+}

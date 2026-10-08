@@ -1,0 +1,11 @@
+# Godot
+.godot/
+*.translation
+/build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Online server
+server/node_modules/

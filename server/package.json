@@ -1,0 +1,18 @@
+{
+  "name": "lumora-online",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rooms, invites and live co-op relay for LumoraRPG",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "pg": "8.13.1",
+    "ws": "8.18.0"
+  }
+}

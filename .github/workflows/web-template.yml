@@ -1,0 +1,63 @@
+# Builds a smaller Godot web export template without the engine parts this
+# game does not use (other text shaping, video/audio codecs, networking, XR,
+# navigation, glTF/FBX import, CSG, ...). The result is published as the
+# release "web-template-<version>" and CI uses it for the web export instead
+# of the official template, so the browser downloads much less.
+# Run it again (Actions → "Slim web template" → Run workflow) after
+# changing GODOT_VERSION or the module list.
+name: Slim web template
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/web-template.yml]
+
+env:
+  GODOT_VERSION: 4.5.1-stable
+  EMSCRIPTEN_VERSION: 3.1.64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Get Godot source
+        run: git clone --depth 1 --branch "$GODOT_VERSION" https://github.com/godotengine/godot.git godot
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSCRIPTEN_VERSION }}
+
+      - name: Install SCons
+        run: python -m pip install scons
+
+      - name: Build template
+        working-directory: godot
+        run: |
+          scons platform=web target=template_release threads=no production=yes optimize=size lto=full deprecated=no \
+            module_text_server_adv_enabled=no module_text_server_fb_enabled=yes \
+            module_gltf_enabled=no module_fbx_enabled=no module_csg_enabled=no module_gridmap_enabled=no \
+            module_webrtc_enabled=no module_websocket_enabled=no module_multiplayer_enabled=no \
+            module_enet_enabled=no module_upnp_enabled=no module_jsonrpc_enabled=no \
+            module_mobile_vr_enabled=no module_webxr_enabled=no module_openxr_enabled=no \
+            module_theora_enabled=no module_vorbis_enabled=no module_ogg_enabled=no module_minimp3_enabled=no \
+            module_interactive_music_enabled=no module_raycast_enabled=no module_lightmapper_rd_enabled=no \
+            module_xatlas_unwrap_enabled=no module_meshoptimizer_enabled=no module_basis_universal_enabled=no \
+            module_ktx_enabled=no module_camera_enabled=no module_msdfgen_enabled=no module_regex_enabled=no \
+            module_navigation_2d_enabled=no module_navigation_3d_enabled=no module_jolt_physics_enabled=no
+          ls -la bin
+
+      - name: Publish template
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="web-template-${GODOT_VERSION%-stable}"
+          cp godot/bin/godot.web.template_release.wasm32.nothreads.zip web_nothreads_release.zip
+          unzip -l web_nothreads_release.zip
+          gh release delete "$tag" --yes --cleanup-tag || true
+          gh release create "$tag" web_nothreads_release.zip --target "$GITHUB_SHA" --prerelease \
+            --title "Küçültülmüş web şablonu (Godot ${GODOT_VERSION%-stable})" \
+            --notes "CI web sürümünü bu şablonla dışa aktarır. Oyunun kendisi değil."

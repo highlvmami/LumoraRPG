@@ -1,0 +1,61 @@
+{
+	"rarities": [
+		{ "id": "common", "name": "Sıradan", "color": "#b8c2cc", "affixes": 1, "power": 1.0, "sell": 5 },
+		{ "id": "rare", "name": "Nadir", "color": "#4fb8ff", "affixes": 2, "power": 1.4, "sell": 15 },
+		{ "id": "very_rare", "name": "Çok Nadir", "color": "#5fcf6a", "affixes": 3, "power": 1.9, "sell": 40 },
+		{ "id": "epic", "name": "Epik", "color": "#b65cff", "affixes": 4, "power": 2.5, "sell": 100 },
+		{ "id": "legendary", "name": "Efsanevi", "color": "#ff9a3c", "affixes": 5, "power": 3.3, "sell": 250 },
+		{ "id": "divine", "name": "Tanrısal", "color": "#ffe14d", "affixes": 6, "power": 4.5, "sell": 600 }
+	],
+	"slots": [
+		{ "id": "weapon", "name": "Silah" },
+		{ "id": "helmet", "name": "Kask" },
+		{ "id": "armor", "name": "Zırh" },
+		{ "id": "gloves", "name": "Eldiven" },
+		{ "id": "boots", "name": "Çizme" },
+		{ "id": "ring", "name": "Yüzük" }
+	],
+	"bases": [
+		{ "id": "sword", "slot": "weapon", "class": "warrior", "icon": "sword", "main": { "damage": 0.08 },
+			"names": ["Paslı Kılıç", "Çelik Kılıç", "Rün Kılıcı", "Ejder Palası", "Güneş Kılıcı", "Tanrıların Kılıcı"] },
+		{ "id": "bow", "slot": "weapon", "class": "archer", "icon": "bow", "main": { "damage": 0.08 },
+			"names": ["Av Yayı", "Uzun Yay", "Elf Yayı", "Fırtına Yayı", "Anka Yayı", "Tanrıların Yayı"] },
+		{ "id": "staff", "slot": "weapon", "class": "mage", "icon": "staff", "main": { "damage": 0.08 },
+			"names": ["Meşe Asa", "Kristal Asa", "Rün Asası", "Yıldız Asası", "Kadim Asa", "Tanrıların Asası"] },
+		{ "id": "helmet", "slot": "helmet", "icon": "helmet", "main": { "maxHp": 10.0 },
+			"names": ["Deri Başlık", "Demir Miğfer", "Şövalye Miğferi", "Ejder Miğferi", "Kral Tacı", "Tanrı Tacı"] },
+		{ "id": "armor", "slot": "armor", "icon": "armor", "main": { "maxHp": 20.0 },
+			"names": ["Deri Zırh", "Zincir Zırh", "Plaka Zırh", "Ejder Zırhı", "Güneş Zırhı", "Tanrı Zırhı"] },
+		{ "id": "gloves", "slot": "gloves", "icon": "gloves", "main": { "attackSpeed": 0.04 },
+			"names": ["Bez Eldiven", "Deri Eldiven", "Demir Eldiven", "Ejder Pençesi", "Şimşek Eldiveni", "Tanrı Eli"] },
+		{ "id": "boots", "slot": "boots", "icon": "boot", "main": { "moveSpeed": 0.04 },
+			"names": ["Eski Çizme", "Deri Çizme", "Gezgin Çizmesi", "Rüzgâr Çizmesi", "Kanatlı Çizme", "Tanrı Adımları"] },
+		{ "id": "ring", "slot": "ring", "icon": "ring", "main": { "critChance": 0.02 },
+			"names": ["Bakır Yüzük", "Gümüş Yüzük", "Altın Yüzük", "Yakut Yüzük", "Ejder Yüzüğü", "Tanrı Yüzüğü"] }
+	],
+	"affixes": [
+		{ "stat": "damage", "label": "Hasar", "min": 0.03, "max": 0.06, "format": "percent" },
+		{ "stat": "attackSpeed", "label": "Saldırı Hızı", "min": 0.03, "max": 0.06, "format": "percent" },
+		{ "stat": "critChance", "label": "Kritik Şansı", "min": 0.01, "max": 0.03, "format": "percent" },
+		{ "stat": "critDamage", "label": "Kritik Hasarı", "min": 0.05, "max": 0.12, "format": "percent" },
+		{ "stat": "maxHp", "label": "Maks. Can", "min": 5.0, "max": 12.0, "format": "flat" },
+		{ "stat": "moveSpeed", "label": "Hareket Hızı", "min": 0.02, "max": 0.04, "format": "percent" },
+		{ "stat": "regen", "label": "Can Yenileme", "min": 0.2, "max": 0.5, "format": "perSecond" },
+		{ "stat": "range", "label": "Saldırı Alanı", "min": 0.3, "max": 0.8, "format": "flat" },
+		{ "stat": "expGain", "label": "EXP Kazancı", "min": 0.04, "max": 0.1, "format": "percent" },
+		{ "stat": "goldGain", "label": "Altın Kazancı", "min": 0.05, "max": 0.12, "format": "percent" }
+	],
+	"chests": [
+		{ "id": "common", "name": "Sıradan Kasa", "color": "#b8c2cc", "price": 120, "odds": [60, 28, 9, 3, 0, 0] },
+		{ "id": "rare", "name": "Nadir Kasa", "color": "#4fb8ff", "price": 350, "odds": [20, 42, 25, 10, 3, 0] },
+		{ "id": "epic", "name": "Epik Kasa", "color": "#b65cff", "price": 900, "odds": [0, 15, 35, 33, 14, 3] },
+		{ "id": "legendary", "name": "Efsanevi Kasa", "color": "#ff9a3c", "price": 2500, "odds": [0, 0, 10, 40, 37, 13] }
+	],
+	"drops": {
+		"enemyItemChance": 0.012,
+		"enemyOdds": [75, 20, 5, 0, 0, 0],
+		"bossChestOdds": [[45, 38, 15, 2], [5, 40, 38, 17]],
+		"stashLimit": 60,
+		"maxCharacters": 3
+	}
+}
