@@ -178,7 +178,6 @@ func _run() -> void:
 	for i in 1500:
 		await physics_frame
 		orbs_seen = maxi(orbs_seen, int(loot.call("count")))
-		# Level-ups pause the game until a boost is picked.
 		if bool(level_up.get("visible")):
 			level_up.call("pick", 0)
 		if int(enemies.get("kills")) >= 3:
@@ -203,7 +202,7 @@ func _run() -> void:
 	var crit_before := float(bow.get("crit_chance"))
 	progression.call("add_exp", int(progression.call("exp_to_next_level")))
 	await _frames(1)
-	_check(bool(level_up.get("visible")) and paused, "level-up opens the choice and pauses")
+	_check(bool(level_up.get("visible")) and not paused, "level-up shows the choices and the game keeps running")
 	var choices: Array = level_up.get("_choices")
 	_check(choices.size() == 3, "three cards are offered (%d)" % choices.size())
 	_check(choices.any(func(c: Dictionary) -> bool: return c.type == "weapon"), "a weapon card is offered")
@@ -213,7 +212,7 @@ func _run() -> void:
 			crit_index = c
 	level_up.call("pick", maxi(crit_index, 0))
 	await _frames(1)
-	_check(not bool(level_up.get("visible")) and not paused, "picking a card resumes the game")
+	_check(not bool(level_up.get("visible")) and not paused, "picking a card closes the choices")
 	var picked_count := (boosts.call("picked") as Array).size() + (weapons.call("owned") as Array).size()
 	_check(picked_count == 1, "picked card is recorded")
 	if crit_index >= 0:
@@ -254,9 +253,11 @@ func _run() -> void:
 
 	# Every extra weapon damages enemies around the player.
 	main.call("cheat", "clear")
-	for id: String in ["orbit", "fireball", "lightning", "aura"]:
+	var offered: Array = (weapons.call("available_choices") as Array).map(func(d: Dictionary) -> String: return str(d.id))
+	_check(offered.has("arrow_rain") and not offered.has("meteor") and not offered.has("shield_bash"), "only the archer's own class skill is offered")
+	for id: String in ["orbit", "fireball", "lightning", "aura", "arrow_rain"]:
 		weapons.call("add", id)
-	_check((weapons.call("owned") as Array).size() == 4, "all four weapons can be carried")
+	_check((weapons.call("owned") as Array).size() == 5, "all extra weapons and the class skill can be carried")
 	var dealt: Dictionary = weapons.get("damage_dealt")
 	for i in 400:
 		if i % 40 == 0:
@@ -266,10 +267,24 @@ func _run() -> void:
 		await physics_frame
 		if bool(level_up.get("visible")):
 			level_up.call("pick", 0)
-		if dealt.size() == 4:
+		if dealt.size() == 5:
 			break
-	for id: String in ["orbit", "fireball", "lightning", "aura"]:
+	for id: String in ["orbit", "fireball", "lightning", "aura", "arrow_rain"]:
 		_check(float(dealt.get(id, 0.0)) > 0.0, "%s deals damage (%.0f)" % [id, float(dealt.get(id, 0.0))])
+
+	# Double arrow: with full chance every shot fires two arrows.
+	var fired_before := int(bow.get("arrows_fired"))
+	bow.set("double_chance", 1.0)
+	for i in 300:
+		if i % 40 == 0:
+			enemies.call("spawn", "slime", player.global_position + Vector3(5, 0, 0))
+		await physics_frame
+		if bool(level_up.get("visible")):
+			level_up.call("pick", 0)
+		if int(bow.get("arrows_fired")) != fired_before:
+			break
+	_check(int(bow.get("arrows_fired")) - fired_before == 2, "a double arrow shot fires two arrows")
+	bow.set("double_chance", 0.0)
 
 	# Boss: spawns with a health bar and announces its defeat.
 	var defeated: Array = []

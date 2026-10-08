@@ -10,7 +10,7 @@
 		"critChance": 0.05,
 		"critMultiplier": 1.5
 	},
-	"slots": 4,
+	"slots": 6,
 	"extra": [
 		{
 			"id": "slash", "name": "Kılıç Savuruşu", "desc": "Önündeki düşmanları biçer", "icon": "sword", "color": "#e0e6ee",
@@ -49,6 +49,27 @@
 			"maxLevel": 5, "damage": 3.0, "damagePerLevel": 0.3,
 			"tick": 0.5, "radius": 3.0, "radiusPerLevel": 0.4,
 			"upgrade": "+30% hasar, daha geniş alan"
+		},
+		{
+			"id": "arrow_rain", "name": "Ok Yağmuru", "desc": "Düşmanlara gökten ok yağdırır", "icon": "arrow_rain", "color": "#ffd27a",
+			"class": "archer",
+			"maxLevel": 5, "damage": 9.0, "damagePerLevel": 0.3,
+			"cooldown": 2.6, "range": 15.0, "radius": 2.6, "radiusPerLevel": 0.3,
+			"upgrade": "+30% hasar, daha geniş alan"
+		},
+		{
+			"id": "meteor", "name": "Meteor", "desc": "Gökten dev bir ateş topu düşürür", "icon": "meteor", "color": "#ff5a1f",
+			"class": "mage",
+			"maxLevel": 5, "damage": 22.0, "damagePerLevel": 0.3,
+			"cooldown": 3.4, "range": 16.0, "radius": 3.2, "radiusPerLevel": 0.35,
+			"upgrade": "+30% hasar, daha büyük patlama"
+		},
+		{
+			"id": "shield_bash", "name": "Kalkan Darbesi", "desc": "Kalkanla vurup düşmanları uzağa iter", "icon": "shield", "color": "#9fc3ff",
+			"class": "warrior",
+			"maxLevel": 5, "damage": 12.0, "damagePerLevel": 0.3,
+			"cooldown": 3.0, "radius": 3.6, "radiusPerLevel": 0.3, "push": 7.0,
+			"upgrade": "+30% hasar, daha geniş darbe"
 		}
 	]
 }

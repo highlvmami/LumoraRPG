@@ -28,6 +28,10 @@ var crit_multiplier := 1.5
 ## Crit stats of the weapon before any boosts.
 var base_crit_chance := 0.05
 var base_crit_multiplier := 1.5
+## Chance to shoot a second arrow next to the first ("Çift Ok").
+var double_chance := 0.0
+## Arrows shot this run (two per double shot).
+var arrows_fired := 0
 
 var _w: Dictionary
 var _cooldown := 0.0
@@ -102,11 +106,22 @@ func _try_fire() -> void:
 	if target < 0 or _arrow_pos.size() >= MAX_ARROWS:
 		return
 	var dir := (enemies.position_of(target) - origin).normalized()
+	if randf() < double_chance:
+		_shoot(origin, dir.rotated(Vector3.UP, 0.09))
+		_shoot(origin, dir.rotated(Vector3.UP, -0.09))
+	else:
+		_shoot(origin, dir)
+	_cooldown = float(_w.cooldown) / attack_speed_multiplier
+	fired.emit(dir)
+
+
+func _shoot(origin: Vector3, dir: Vector3) -> void:
+	if _arrow_pos.size() >= MAX_ARROWS:
+		return
 	_arrow_pos.append(origin)
 	_arrow_vel.append(dir * float(_w.projectileSpeed))
 	_arrow_life.append(_w.projectileLifetime)
-	_cooldown = float(_w.cooldown) / attack_speed_multiplier
-	fired.emit(dir)
+	arrows_fired += 1
 
 
 func _update_arrows(delta: float) -> void:
