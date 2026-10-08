@@ -30,6 +30,7 @@ const SkillTree := preload("res://scripts/progression/skill_tree.gd")
 const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const Achievements := preload("res://scripts/progression/achievements.gd")
+const Screen := preload("res://scripts/core/screen.gd")
 const ChestWheel := preload("res://scripts/ui/chest_wheel.gd")
 const LoginScreen := preload("res://scripts/ui/login_screen.gd")
 const MainMenu := preload("res://scripts/ui/main_menu.gd")
@@ -103,6 +104,7 @@ var _last_step_pos := Vector3.ZERO
 
 func _ready() -> void:
 	InputSetup.register()
+	Screen.restore()
 	_world_cfg = Config.load_json("res://data/world.json")
 	maps = Config.load_json("res://data/maps.json")
 	_build_world_viewport()
@@ -336,6 +338,15 @@ func login(username: String, remember := false) -> void:
 
 	apply_settings()
 	show_menu()
+
+
+## F11 switches full screen anywhere in the game.
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).keycode == KEY_F11:
+		Screen.toggle()
+		if main_menu and main_menu.visible:
+			main_menu.refresh()
+		get_viewport().set_input_as_handled()
 
 
 ## Applies the account's settings (camera distance, mouse speed, damage numbers).
