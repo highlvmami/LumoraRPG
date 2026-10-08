@@ -1,0 +1,9 @@
+{
+	"seed": 1337,
+	"size": 160,
+	"segments": 160,
+	"playableHalfSize": 70,
+	"trees": 360,
+	"rocks": 120,
+	"spawnClearRadius": 14
+}
