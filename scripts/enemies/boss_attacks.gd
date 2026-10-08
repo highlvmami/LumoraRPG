@@ -10,6 +10,9 @@ const DROP_HEIGHT := 14.0
 ## Rocks fall during the last part of the warning.
 const DROP_TIME := 0.45
 
+## Every zone drawn, as data a co-op partner can draw again (see replay).
+signal zone_added(spec: Dictionary)
+
 var terrain: Terrain
 var _zones: Array = []
 
@@ -27,6 +30,7 @@ func clear() -> void:
 ## A round zone at `center` that hits after `time` seconds; `rock` drops a
 ## stone (or egg) from the sky onto it.
 func circle(center: Vector3, radius: float, time: float, color: Color, rock := false) -> void:
+	zone_added.emit({"k": "c", "a": _v(center), "r": radius, "t": time, "c": color.to_html(), "rock": rock})
 	var root := _zone_root(center)
 	var edge := _disc(radius, Color(color, 0.28))
 	root.add_child(edge)
@@ -52,6 +56,7 @@ func circle(center: Vector3, radius: float, time: float, color: Color, rock := f
 
 ## A ring-shaped zone (a shockwave) between `inner` and `outer` around `center`.
 func ring(center: Vector3, inner: float, outer: float, time: float, color: Color) -> void:
+	zone_added.emit({"k": "r", "a": _v(center), "i": inner, "o": outer, "t": time, "c": color.to_html()})
 	var root := _zone_root(center)
 	var edge := _annulus(inner, outer, Color(color, 0.35))
 	root.add_child(edge)
@@ -65,6 +70,7 @@ func ring(center: Vector3, inner: float, outer: float, time: float, color: Color
 
 ## A straight zone from `from` to `to` (a charge or a web line).
 func line(from: Vector3, to: Vector3, width: float, time: float, color: Color) -> void:
+	zone_added.emit({"k": "l", "a": _v(from), "b": _v(to), "w": width, "t": time, "c": color.to_html()})
 	var root := _zone_root(from)
 	var flat := Vector3(to.x - from.x, 0.0, to.z - from.z)
 	var length := flat.length()
@@ -75,6 +81,27 @@ func line(from: Vector3, to: Vector3, width: float, time: float, color: Color) -
 	fill.scale = Vector3(1, 1, 0.01)
 	root.add_child(fill)
 	_zones.append({"root": root, "fill": fill, "time": time, "total": time, "kind": "line", "rock": null, "radius": width, "length": length, "color": color})
+
+
+## Draws a zone sent by the co-op host (only the picture; the host hits).
+func replay(spec: Dictionary) -> void:
+	var color := Color(str(spec.get("c", "ff2b2b")))
+	var t := float(spec.get("t", 1.0))
+	match str(spec.get("k", "")):
+		"c":
+			circle(_vec(spec.a), float(spec.r), t, color, bool(spec.get("rock", false)))
+		"r":
+			ring(_vec(spec.a), float(spec.i), float(spec.o), t, color)
+		"l":
+			line(_vec(spec.a), _vec(spec.b), float(spec.w), t, color)
+
+
+static func _v(v: Vector3) -> Array:
+	return [snappedf(v.x, 0.01), snappedf(v.y, 0.01), snappedf(v.z, 0.01)]
+
+
+static func _vec(a: Variant) -> Vector3:
+	return Vector3(float(a[0]), float(a[1]), float(a[2])) if a is Array and a.size() == 3 else Vector3.ZERO
 
 
 func _process(delta: float) -> void:

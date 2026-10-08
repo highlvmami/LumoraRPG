@@ -1,0 +1,140 @@
+## Live co-op test with the real online server (server/index.js, needs node):
+## two games in one process sign in, one opens a room and invites the other,
+## the host starts a run and both play it together.
+## Run: godot --headless --path . -s res://tests/coop_test.gd
+extends SceneTree
+
+const PORT := 18090
+
+var _failures := 0
+var _server_pid := -1
+
+
+func _initialize() -> void:
+	_run()
+
+
+func _run() -> void:
+	OS.set_environment("PORT", str(PORT))
+	_server_pid = OS.create_process("node", [ProjectSettings.globalize_path("res://server/index.js")])
+	_check(_server_pid > 0, "the online server starts")
+	await create_timer(1.5).timeout
+
+	var host := await _game("coop_host", "EvSahibi")
+	var guest := await _game("coop_guest", "Misafir")
+	_check(await _until(func() -> bool: return host.net.is_online() and guest.net.is_online()), "both games connect to the server")
+
+	# Friends see each other online.
+	host.progression.profile.friends.append("Misafir")
+	host.net.ask_who(["Misafir", "kimse"])
+	_check(await _until(func() -> bool: return host.net.is_name_online("Misafir") and not host.net.is_name_online("kimse")), "a friend shows as online")
+
+	# Inviting opens a room and the friend gets the invite.
+	host.main_menu.invite_friend("Misafir")
+	_check(await _until(func() -> bool: return host.net.in_room() and guest.net.invites.size() == 1), "inviting opens a room and the friend gets the invite")
+	_check(guest.main_menu.is_confirm_open(), "the invite asks the friend to join")
+	guest.net.join_room(str(guest.net.invites[0].code))
+	_check(await _until(func() -> bool: return host.net.members().size() == 2 and guest.net.in_room()), "the friend joins the room")
+	_check(host.net.is_host() and not guest.net.is_host(), "the one who opened the room is the host")
+	guest.main_menu.close_confirm()
+
+	# Only the host starts; the friend's game follows on the same map.
+	guest.start_run()
+	_check(not guest.in_run, "the friend can't start the run alone")
+	host.start_run()
+	_check(await _until(func() -> bool: return guest.in_run), "the host's start brings the friend into the run")
+	_check(guest.map_id == host.map_id, "both play on the same map")
+	_check(guest.enemies.mirror and not host.enemies.mirror, "the friend's game mirrors the host's enemies")
+	_check(not host.pause_menu.freezes, "the pause menu doesn't stop a shared run")
+
+	_check(await _until(func() -> bool: return host.coop.puppet(guest.net.my_id) != null and guest.coop.puppet(host.net.my_id) != null),
+		"each sees the other's character")
+	guest.player.global_position = Vector3(6, guest.terrain.height_at(6, 4) + 0.5, 4)
+	var seen := await _until(func() -> bool: return host.coop.puppet(guest.net.my_id).global_position.distance_to(guest.player.global_position) < 1.0)
+	if not seen:
+		print("  host sees ", host.coop.puppet(guest.net.my_id).global_position, " friend is at ", guest.player.global_position)
+	_check(seen, "the friend's moves show in the host's game")
+	_check(host.enemies.targets.size() == 2, "enemies can chase both players")
+
+	# Enemies come from the host.
+	host.enemies.kill_all_silently()
+	host.enemies.spawn("slime", Vector3(10, 0, 10), true)
+	var uid: int = host.enemies.uid_of(host.enemies.count() - 1)
+	_check(await _until(func() -> bool: return guest.enemies.index_of_uid(uid) >= 0), "the friend sees the host's enemies")
+
+	# The friend's hit kills it on the host; both get the reward.
+	var host_exp := _xp(host)
+	var guest_exp := _xp(guest)
+	guest.enemies.damage(guest.enemies.index_of_uid(uid), 99999.0)
+	_check(await _until(func() -> bool: return host.enemies.kills >= 1 and _xp(guest) > guest_exp),
+		"the friend's hit kills the enemy and both get EXP")
+	_check(_xp(host) > host_exp, "the host gets the EXP too")
+	_check(await _until(func() -> bool: return guest.enemies.index_of_uid(uid) == -1), "the killed enemy disappears for the friend")
+
+	# Damage to the friend comes from the host's game.
+	var hp: float = guest.player.hp
+	host.coop.puppet(guest.net.my_id).take_damage(10.0)
+	_check(await _until(func() -> bool: return guest.player.hp < hp), "enemies on the host hurt the friend")
+
+	# Boss attack warnings show for the friend.
+	host.enemies.attacks.circle(Vector3(0, 0, 0), 3.0, 2.0, Color.RED)
+	_check(await _until(func() -> bool: return guest.enemies.attacks.active_count() > 0), "boss attack warnings show for the friend")
+	_check(guest.coop.snapshots_received > 3, "snapshots keep coming")
+
+	# The host leaves: the run ends for the friend too.
+	host.leave_run()
+	_check(await _until(func() -> bool: return not guest.in_run), "the host leaving ends the run for the friend")
+	guest.net.leave_room()
+	_check(await _until(func() -> bool: return not host.net.members().size() == 2), "leaving the room shows for the host")
+
+	OS.kill(_server_pid)
+	print("all checks passed" if _failures == 0 else "%d checks FAILED" % _failures)
+	quit(1 if _failures > 0 else 0)
+
+
+func _game(save: String, account: String) -> Node:
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	root.add_child(main)
+	await _frames(5)
+	var path := "user://%s_profiles.json" % save
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	if main.login_screen:
+		main.login_screen.queue_free()
+		main.login_screen = null
+	main.store.path = path
+	main.store.load_from_disk()
+	main.forced_map = "forest"
+	main.login(account)
+	main.inventory.create_character(account, "warrior")
+	main.net.stop()
+	main.net.url = "ws://localhost:%d" % PORT
+	main.net.enabled = true
+	main.net.start(account)
+	return main
+
+
+func _xp(game: Node) -> int:
+	return int(game.progression.level) * 1000000 + int(game.progression.level_exp)
+
+
+func _until(condition: Callable, seconds := 8.0) -> bool:
+	var end := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < end:
+		if condition.call():
+			return true
+		await process_frame
+	return false
+
+
+func _frames(n: int) -> void:
+	for i in n:
+		await process_frame
+
+
+func _check(ok: bool, what: String) -> void:
+	if ok:
+		print("PASS ", what)
+	else:
+		_failures += 1
+		print("FAIL ", what)

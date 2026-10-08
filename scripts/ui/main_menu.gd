@@ -60,6 +60,11 @@ var quality := "medium"
 var version_text := ""
 ## The open yes/no question, if any.
 var _confirm_layer: Control
+## Online server (NetClient): rooms, invites, who is online.
+var net: Node
+var _online_label: Label
+var _friend_rows := {}
+var _who_timer := 0.0
 
 var _root: Control
 var _account_label: Label
@@ -257,7 +262,8 @@ func ask_delete_character(id: int) -> void:
 
 
 ## A yes/no question over the menu; `on_yes` runs only after "yes".
-func confirm(question: String, detail: String, yes_text: String, on_yes: Callable) -> void:
+## `danger`: the yes button is red (it deletes something).
+func confirm(question: String, detail: String, yes_text: String, on_yes: Callable, danger := true) -> void:
 	close_confirm()
 	_confirm_layer = ColorRect.new()
 	(_confirm_layer as ColorRect).color = Color(0, 0, 0, 0.6)
@@ -291,7 +297,8 @@ func confirm(question: String, detail: String, yes_text: String, on_yes: Callabl
 	var yes := Button.new()
 	yes.text = yes_text
 	yes.custom_minimum_size = Vector2(140, 40)
-	_danger(yes)
+	if danger:
+		_danger(yes)
 	yes.pressed.connect(func() -> void:
 		close_confirm()
 		on_yes.call())
@@ -407,6 +414,9 @@ func _build_top_bar() -> Control:
 	_notice = UiTheme.label("", UiTheme.label_settings(18, Color("#8fe3ff"), 4))
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	right.add_child(_notice)
+	_online_label = UiTheme.label("", UiTheme.label_settings(15, UiTheme.MUTED, 0))
+	_online_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(_online_label)
 	if OS.has_feature("web"):
 		var download := Button.new()
 		download.text = "Masaüstü sürümünü indir"
@@ -964,6 +974,8 @@ func _build_profile() -> void:
 
 
 func _build_friends() -> void:
+	_build_room()
+	_header("Arkadaşlar")
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var edit := LineEdit.new()
@@ -978,6 +990,7 @@ func _build_friends() -> void:
 	row.add_child(add)
 	_content.add_child(row)
 
+	_friend_rows.clear()
 	var friends: Array = progression.profile.friends
 	if friends.is_empty():
 		_text("Henüz arkadaşın yok. Kullanıcı adını yazıp ekleyebilirsin.", 18, UiTheme.MUTED)
@@ -985,20 +998,26 @@ func _build_friends() -> void:
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 12)
 		var dot := ColorRect.new()
-		dot.color = Color("#6b7280")
 		dot.custom_minimum_size = Vector2(14, 14)
 		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		line.add_child(dot)
 		var name_label := UiTheme.label(friend, UiTheme.label_settings(22, UiTheme.TEXT, 0))
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(name_label)
-		line.add_child(UiTheme.label("çevrimdışı", UiTheme.label_settings(16, UiTheme.MUTED, 0)))
+		var state := UiTheme.label("", UiTheme.label_settings(16, UiTheme.MUTED, 0))
+		line.add_child(state)
+		var invite_button := Button.new()
+		invite_button.text = "Odaya davet et"
+		invite_button.pressed.connect(invite_friend.bind(friend))
+		line.add_child(invite_button)
 		var remove := Button.new()
 		remove.text = "Sil"
 		remove.pressed.connect(_remove_friend.bind(friend))
 		line.add_child(remove)
 		_content.add_child(line)
-	_text("Arkadaşlarının çevrimiçi durumu ve birlikte oynama, çevrimiçi hesaplar gelince açılacak.", 15, UiTheme.MUTED)
+		_friend_rows[friend] = [dot, state, invite_button]
+	update_friend_status()
+	_who_timer = 0.0
 
 	_header("Arkadaş önerileri")
 	var suggestions := friend_suggestions()
@@ -1026,6 +1045,160 @@ func _build_friends() -> void:
 		add_button.pressed.connect(func() -> void: add_friend(str(s.name)))
 		line.add_child(add_button)
 		_content.add_child(line)
+
+
+# --- Online: rooms and invites ----------------------------------------------
+
+## The "Birlikte Oyna" box: server status, the room (code, members, invite)
+## and invites waiting for an answer.
+func _build_room() -> void:
+	_header("Birlikte Oyna")
+	if net == null:
+		_text("Çevrimiçi oyun kapalı.", 16, UiTheme.MUTED)
+		return
+	var status_row := HBoxContainer.new()
+	status_row.add_theme_constant_override("separation", 10)
+	var dot := ColorRect.new()
+	dot.custom_minimum_size = Vector2(14, 14)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	dot.color = {"online": Color("#3ddc84"), "connecting": Color("#ffc94d")}.get(net.status, Color("#ff6b6b"))
+	status_row.add_child(dot)
+	status_row.add_child(UiTheme.label({
+		"online": "Çevrimiçi",
+		"connecting": "Sunucuya bağlanıyor... (sunucu uyuyorsa ilk bağlantı 1 dakika sürebilir)",
+	}.get(net.status, "Bağlantı yok, tekrar deneniyor..."), UiTheme.label_settings(17, UiTheme.TEXT, 0)))
+	_content.add_child(status_row)
+
+	if not net.in_room():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var create := UiTheme.primary_button("Oda Kur")
+		create.custom_minimum_size = Vector2(150, 40)
+		create.disabled = not net.is_online()
+		create.pressed.connect(func() -> void: net.create_room())
+		row.add_child(create)
+		var code := LineEdit.new()
+		code.placeholder_text = "Oda kodu (örn. K7QX2)"
+		code.max_length = 5
+		code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		code.text_submitted.connect(func(t: String) -> void: net.join_room(t))
+		row.add_child(code)
+		var join := Button.new()
+		join.text = "Katıl"
+		join.disabled = not net.is_online()
+		join.pressed.connect(func() -> void: net.join_room(code.text))
+		row.add_child(join)
+		_content.add_child(row)
+		_text("Oda kur, arkadaşını davet et ya da oda kodunu ver. En fazla %d kişi aynı haritada canlı oynar." % net.MAX_MEMBERS, 15, UiTheme.MUTED)
+	else:
+		var top := HBoxContainer.new()
+		top.add_theme_constant_override("separation", 14)
+		var code_label := UiTheme.label("Oda kodu: %s" % net.room.code, UiTheme.label_settings(26, UiTheme.ACCENT, 4))
+		code_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		top.add_child(code_label)
+		var leave := Button.new()
+		leave.text = "Odadan ayrıl"
+		_danger(leave)
+		leave.pressed.connect(func() -> void: net.leave_room())
+		top.add_child(leave)
+		_content.add_child(top)
+		for m: Dictionary in net.members():
+			var tags := PackedStringArray()
+			if int(m.id) == int(net.room.host):
+				tags.append("ev sahibi")
+			if int(m.id) == net.my_id:
+				tags.append("sen")
+			_text("•  %s%s" % [m.name, "  (%s)" % ", ".join(tags) if not tags.is_empty() else ""], 19)
+		_text("Hazır olunca OYNA'ya bas: odadaki herkes seninle aynı haritada başlar." if net.is_host()
+			else "Ev sahibi OYNA'ya basınca oyun başlar ve otomatik katılırsın.", 15, UiTheme.MUTED)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var who := LineEdit.new()
+		who.placeholder_text = "Davet edilecek kullanıcı adı"
+		who.max_length = 16
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		who.text_submitted.connect(func(t: String) -> void: invite_friend(t))
+		row.add_child(who)
+		var send := Button.new()
+		send.text = "Davet et"
+		send.pressed.connect(func() -> void: invite_friend(who.text))
+		row.add_child(send)
+		_content.add_child(row)
+
+	for inv: Dictionary in net.invites:
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 10)
+		var text := UiTheme.label("%s seni odasına çağırıyor" % inv.from, UiTheme.label_settings(18, Color("#8fe3ff"), 0))
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(text)
+		var accept := UiTheme.primary_button("Katıl")
+		accept.pressed.connect(func() -> void: net.join_room(str(inv.code)))
+		line.add_child(accept)
+		var ignore := Button.new()
+		ignore.text = "Yok say"
+		ignore.pressed.connect(func() -> void:
+			net.decline_invite(str(inv.code))
+			refresh_online())
+		line.add_child(ignore)
+		_content.add_child(line)
+
+
+## Invites an online player to this player's room (opens one if needed).
+func invite_friend(friend_name: String) -> void:
+	friend_name = friend_name.strip_edges()
+	if net == null or friend_name == "":
+		return
+	if not net.is_online():
+		notify("Sunucuya bağlı değilsin.")
+		return
+	net.invite(friend_name)
+
+
+## An invite arrived while in the menu.
+func ask_invite(from_name: String, code: String) -> void:
+	confirm("%s seni odasına çağırıyor" % from_name, "Katılırsan ev sahibi oyunu başlatınca aynı haritada birlikte oynarsınız.",
+		"Katıl", func() -> void: net.join_room(code), false)
+
+
+## Online state changed (connection, room, who is online): redraw what shows it.
+func refresh_online() -> void:
+	if net == null:
+		return
+	var parts := PackedStringArray()
+	parts.append({"online": "● Çevrimiçi", "connecting": "● Bağlanıyor"}.get(net.status, "● Çevrimdışı"))
+	if net.in_room():
+		parts.append("Oda %s · %d kişi" % [net.room.code, net.members().size()])
+	if not net.invites.is_empty():
+		parts.append("%d davet" % net.invites.size())
+	_online_label.text = "   ".join(parts)
+	if visible and section == "friends" and not is_confirm_open():
+		var focus := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+		if focus is LineEdit and (focus as LineEdit).text != "":
+			# Don't wipe what the player is typing; only the friend list.
+			update_friend_status()
+		else:
+			open_section("friends")
+
+
+## Online dots of the friend list (after a `who` answer).
+func update_friend_status() -> void:
+	for friend: String in _friend_rows:
+		var row: Array = _friend_rows[friend]
+		if not is_instance_valid(row[0]):
+			continue
+		var on: bool = net != null and net.is_online() and net.is_name_online(friend)
+		(row[0] as ColorRect).color = Color("#3ddc84") if on else Color("#6b7280")
+		(row[1] as Label).text = "çevrimiçi" if on else "çevrimdışı"
+		(row[2] as Button).visible = on
+
+
+func _process(delta: float) -> void:
+	if net == null or not visible or section != "friends":
+		return
+	_who_timer -= delta
+	if _who_timer <= 0.0:
+		_who_timer = 8.0
+		net.ask_who(progression.profile.friends)
 
 
 ## Other players to befriend: accounts that played on this device and are

@@ -12,6 +12,8 @@ signal resumed
 signal menu_requested
 signal quality_selected(quality: String)
 
+## False in a co-op run: the others keep playing while this menu is open.
+var freezes := true
 var boosts: RunBoosts
 ## Returns true when the game may be paused right now (in a run, alive, no other popup).
 var can_pause: Callable = func() -> bool: return true
@@ -107,7 +109,7 @@ func open() -> void:
 		return
 	_refresh(stats_source.call())
 	visible = true
-	get_tree().paused = true
+	get_tree().paused = freezes
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 

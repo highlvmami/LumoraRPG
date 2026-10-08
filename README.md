@@ -38,6 +38,8 @@ Seviye kartlarında yeni **silahlar** da çıkar (sınıf silahının yanında 5
 
 **Başarımlar** menüsünde 17 hedef vardır (canavar kesme, boss yenme, seviye, hayatta kalma süresi, altın, eşya, kasa, geliştirme, arkadaş); her biri tamamlanınca altın ödülü verir. **Arkadaşlar** bölümünde bu cihazda oynayan diğer oyuncular (ortak arkadaşı olanlar önce) arkadaş olarak önerilir.
 
+**Birlikte oyna:** Arkadaşlar bölümündeki **Birlikte Oyna** kutusunda oda kur, çevrimiçi arkadaşına **Odaya davet et** de ya da ona 5 harfli oda kodunu ver (en fazla 4 kişi). Davet gelen oyuncuya "Katıl" diye sorulur. Ev sahibi **OYNA**'ya basınca odadaki herkes aynı haritada canlı birlikte oynar: düşmanlar en yakın oyuncuya saldırır, kesilen canavarların EXP ve altını herkese gider, kalabalık odada daha çok düşman gelir. Oyunu ev sahibinin bilgisayarı yönetir; ev sahibi çıkarsa oyun herkes için biter. Bağlantı `server/` klasöründeki küçük Node.js sunucusundan geçer (Render'da `lumora-online` servisi, `main`'e her birleştirmede kendiliğinden güncellenir). Ücretsiz sunucu kimse oynamazken uyur; ilk bağlantı bir dakika kadar sürebilir. Yerelde denemek için: `cd server && npm install && node index.js`, oyunu `-- --server=ws://localhost:8080` ile aç.
+
 ## Kontroller
 
 | Tuş | Eylem |
