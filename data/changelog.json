@@ -1,5 +1,15 @@
 {
 	"versions": [
+		{ "version": "0.20", "date": "2026-10-08", "title": "Sıralamalar, taverna ve yeni petler", "notes": [
+			"Sıralama sayfası: hesap seviyesi, canavar kesme, boss yenme, karakter seviyesi, hayatta kalma, verilen hasar ve kazanılan altın; ilk üç altın, gümüş ve bronz",
+			"Yetenek ağacı yenilendi: ortada Lumora Kalbi, dört dal dışa doğru açılıyor ve her türün kendi rengi var",
+			"Yeni Hazine dalı (oyun dışı): Geniş Çanta, Pazarlıkçı, Kasa Şansı, Usta Tüccar, Ganimet Kokusu, Yumurta Fısıltısı",
+			"Oda artık bir taverna: odadakiler masada oturur, katılan oyuncunun karakteri kapıdan girip boş sandalyeye oturur (en fazla 4 kişi)",
+			"6 yeni pet: Tilki, Kurbağa, Baykuş, Kaplumbağa, Tekboynuz, Yavru Ejder; yeni Epik nadirliği",
+			"Pet Koleksiyonu: tüm petler nadirliğe göre, bulunanlar renkli, bulunmayanlar gri; listelerde petlerin küçük resmi",
+			"Petler oyunda daha küçük ve sevimli; slottaki petler dönmeden hafif yandan durur",
+			"Çanta: slota ve nadirliğe göre filtre, her zaman nadirliğe göre sıralı, başka karakterin taktığı eşyalar en sonda",
+			"Arkadaş listesinde adın yanında hesap seviyesi" ] },
 		{ "version": "0.19", "date": "2026-10-08", "title": "Ultiler ve petler", "notes": [
 			"Sınıfa özel ulti (R): her seferinde rastgele biri çıkar ve haritadaki tüm düşmanlara vurur",
 			"Büyücü: dev göktaşı ya da şimşek fırtınası · Savaşçı: yer sarsıntısı ya da kılıç yağmuru · Okçu: ok fırtınası ya da yıldız yağmuru",
