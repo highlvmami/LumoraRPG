@@ -103,10 +103,12 @@ func shots_per_second() -> float:
 func _try_fire() -> void:
 	var origin := player.global_position + Vector3.UP * 1.3
 	var target := enemies.nearest(origin, attack_range())
-	if target < 0 or _arrow_pos.size() >= MAX_ARROWS:
+	var double := randf() < double_chance
+	# A double shot waits until both arrows fit.
+	if target < 0 or _arrow_pos.size() + (2 if double else 1) > MAX_ARROWS:
 		return
 	var dir := (enemies.position_of(target) - origin).normalized()
-	if randf() < double_chance:
+	if double:
 		_shoot(origin, dir.rotated(Vector3.UP, 0.09))
 		_shoot(origin, dir.rotated(Vector3.UP, -0.09))
 	else:

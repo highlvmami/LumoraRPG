@@ -45,6 +45,7 @@ const NAV := [
 	["leaderboard", "Sıralama", "trophy"],
 	["profile", "Profil", "eye"],
 	["friends", "Arkadaşlar", "heart"],
+	["hub", "Taverna", "mug"],
 	["logs", "Kayıtlar", "double_arrow"],
 	["versions", "Sürümler", "staff"],
 	["settings", "Ayarlar", "shield"],
@@ -103,6 +104,11 @@ var _name_edit: LineEdit
 var _pet_pictures: Node
 ## The room's tavern (kept while in a room so seated characters stay put).
 var _tavern: Control
+## The hub tavern page: the big hall, the chat log and its text box.
+var _hub_view: Control
+var _hub_log: RichTextLabel
+var _hub_edit: LineEdit
+var _hub_count: Label
 ## Versions whose notes are open on the versions page.
 var _open_versions := {}
 ## Leaderboard shown on the Sıralama page.
@@ -166,11 +172,17 @@ func setup(p_progression: Progression, p_skill_tree: SkillTree, p_inventory: Inv
 	scroll.add_child(_content)
 
 	open_section("characters")
+	# Going into a run (or anywhere the menu hides) gets the player up from the hub tavern.
+	visibility_changed.connect(func() -> void:
+		if not visible and section == "hub":
+			open_section("characters"))
 
 
 func _exit_tree() -> void:
 	if _tavern and not _tavern.is_inside_tree():
 		_tavern.queue_free()
+	if _hub_view and not _hub_view.is_inside_tree():
+		_hub_view.queue_free()
 
 
 func show_menu() -> void:
@@ -192,12 +204,14 @@ func refresh() -> void:
 
 
 func open_section(id: String) -> void:
+	if section == "hub" and id != "hub":
+		_leave_hub()
 	section = id
 	for key: String in _tab_buttons:
 		(_tab_buttons[key] as Button).button_pressed = key == id or (key == "characters" and id == "create")
 	for child in _content.get_children():
 		_content.remove_child(child)
-		if child != _tavern:
+		if child != _tavern and child != _hub_view:
 			child.queue_free()
 	match id:
 		"create":
@@ -230,6 +244,9 @@ func open_section(id: String) -> void:
 		"friends":
 			_section_title.text = "Arkadaşlar"
 			_build_friends()
+		"hub":
+			_section_title.text = "Lumora Tavernası"
+			_build_hub()
 		"logs":
 			_section_title.text = "Kayıtlar"
 			_build_logs()
@@ -260,6 +277,8 @@ func play() -> void:
 		open_section("create")
 		notify("Önce bir karakter oluştur!")
 		return
+	if section == "hub":
+		open_section("characters")
 	play_pressed.emit()
 
 
@@ -505,10 +524,15 @@ func _build_nav() -> Control:
 	scroll.custom_minimum_size = Vector2(230, 0)
 	var nav := VBoxContainer.new()
 	nav.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	nav.add_theme_constant_override("separation", 4)
+	nav.add_theme_constant_override("separation", 3)
 	scroll.add_child(nav)
 	var play_button := UiTheme.primary_button("OYNA")
-	play_button.custom_minimum_size = Vector2(0, 52)
+	play_button.custom_minimum_size = Vector2(0, 48)
+	play_button.add_theme_font_size_override("font_size", 28)
+	for state: String in ["normal", "hover", "pressed"]:
+		var st := play_button.get_theme_stylebox(state) as StyleBoxFlat
+		st.content_margin_top = 6
+		st.content_margin_bottom = 6
 	play_button.pressed.connect(play)
 	nav.add_child(play_button)
 	for entry: Array in NAV:
@@ -516,7 +540,7 @@ func _build_nav() -> Control:
 		button.text = "  " + str(entry[1])
 		button.toggle_mode = true
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(0, 31)
+		button.custom_minimum_size = Vector2(0, 29)
 		button.add_theme_font_size_override("font_size", 16)
 		button.icon = PixelIcons.texture(str(entry[2]), UiTheme.ACCENT)
 		button.expand_icon = true
@@ -535,8 +559,8 @@ func _build_nav() -> Control:
 		button.add_theme_stylebox_override("pressed", on)
 		button.add_theme_stylebox_override("hover_pressed", on)
 		for style: StyleBoxFlat in [normal, hover, on]:
-			style.content_margin_top = 3
-			style.content_margin_bottom = 3
+			style.content_margin_top = 2
+			style.content_margin_bottom = 2
 		button.pressed.connect(open_section.bind(str(entry[0])))
 		_tab_buttons[entry[0]] = button
 		nav.add_child(button)
@@ -1685,6 +1709,104 @@ func _room_tavern() -> Control:
 	return _tavern
 
 
+## The hub tavern: everyone online can come in, sit at one of the tables and
+## chat. Coming to this page sits the player down; leaving it gets them up.
+func _build_hub() -> void:
+	if net == null or not net.is_online():
+		_leave_hub()
+		_text("Taverna çevrimiçi oyuncuların buluşma yeri. Sunucuya bağlanınca buraya gel; herkesle oturup sohbet edebilirsin.", 16, UiTheme.MUTED)
+		return
+	net.join_hub()
+	_hub_count = UiTheme.label("", UiTheme.label_settings(15, UiTheme.MUTED, 0))
+	_content.add_child(_hub_count)
+	var fresh := _hub_view == null
+	if fresh:
+		_hub_view = TavernView.new()
+		_hub_view.call("setup", Vector2(0, 270), true)
+	_content.add_child(_hub_view)
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", _card_style(Color("#8a5a2b"), 1))
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	box.add_child(col)
+	_hub_log = RichTextLabel.new()
+	_hub_log.bbcode_enabled = true
+	_hub_log.scroll_following = true
+	_hub_log.custom_minimum_size = Vector2(0, 74)
+	_hub_log.add_theme_font_size_override("normal_font_size", 15)
+	col.add_child(_hub_log)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_hub_edit = LineEdit.new()
+	_hub_edit.max_length = 200
+	_hub_edit.placeholder_text = "Tavernadakilere bir şey yaz..."
+	_hub_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hub_edit.text_submitted.connect(func(_t: String) -> void: send_hub_chat())
+	row.add_child(_hub_edit)
+	var send := Button.new()
+	send.text = "Gönder"
+	send.custom_minimum_size = Vector2(110, 0)
+	send.pressed.connect(send_hub_chat)
+	row.add_child(send)
+	col.add_child(row)
+	_content.add_child(box)
+	update_hub(not fresh)
+	for line: Dictionary in net.hub_chat:
+		_hub_log.append_text(_chat_line(str(line.name), str(line.text)))
+
+
+## The hub changed: seat newcomers, walk out the ones who left.
+func update_hub(walk_in := true) -> void:
+	if _hub_view == null or net == null:
+		return
+	var members: Array = []
+	for m: Dictionary in net.hub_members:
+		members.append({"id": int(m.id), "name": str(m.name), "look": m.get("look", {}), "seat": int(m.seat),
+			"level": int(m.get("level", 0)), "me": int(m.id) == net.my_id})
+	_hub_view.call("set_members", members, walk_in)
+	if _hub_count and is_instance_valid(_hub_count):
+		_hub_count.text = "Tavernada %d kişi · Herkes gelip oturabilir, sohbet edebilir" % members.size() if not members.is_empty() else "Tavernaya giriliyor..."
+
+
+## A chat line arrived: add it to the log and show it over the speaker's head.
+func on_hub_chat(from: int, from_name: String, text: String) -> void:
+	if section != "hub" or _hub_log == null or not is_instance_valid(_hub_log):
+		return
+	_hub_log.append_text(_chat_line(from_name, text))
+	if _hub_view:
+		_hub_view.call("say", from, text)
+
+
+## Sends what is typed in the chat box. Returns false if nothing was sent.
+func send_hub_chat() -> bool:
+	if _hub_edit == null or not is_instance_valid(_hub_edit):
+		return false
+	var ok: bool = net != null and net.send_chat(_hub_edit.text)
+	if ok:
+		_hub_edit.text = ""
+	_hub_edit.grab_focus()
+	return ok
+
+
+func _chat_line(from_name: String, text: String) -> String:
+	var mine: bool = net != null and from_name.to_lower() == str(net.account).to_lower()
+	var color := "#ffd23f" if mine else "#8fe3ff"
+	return "[color=%s]%s:[/color] %s\n" % [color, from_name.replace("[", "[lb]"), text.replace("[", "[lb]")]
+
+
+func _leave_hub() -> void:
+	if net:
+		net.leave_hub()
+	if _hub_view:
+		if _hub_view.get_parent():
+			_hub_view.get_parent().remove_child(_hub_view)
+		_hub_view.queue_free()
+		_hub_view = null
+	_hub_log = null
+	_hub_edit = null
+	_hub_count = null
+
+
 ## Leaves the tavern behind once out of the room.
 func _drop_tavern() -> void:
 	if _tavern:
@@ -1727,6 +1849,8 @@ func refresh_online() -> void:
 		return
 	if not net.in_room():
 		_drop_tavern()
+	if visible and section == "hub" and (net.is_online() != (_hub_view != null)):
+		open_section("hub")
 	var parts := PackedStringArray()
 	parts.append({"online": "● Çevrimiçi", "connecting": "● Bağlanıyor", "connected": "● Giriş yapılıyor"}.get(net.status, "● Çevrimdışı"))
 	if net.in_room():

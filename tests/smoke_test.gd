@@ -550,6 +550,7 @@ func _run() -> void:
 	_check(int(enemies.get("boss_attacks_started")) >= 3, "the forest giant uses different attacks")
 	boss = int(enemies.call("boss_index"))
 	var tempo_start := float(enemies.call("boss_tempo"))
+	_check(tempo_start >= 1.3, "bosses attack faster from the start (tempo %.2f)" % tempo_start)
 	var phases: Array = []
 	enemies.connect("boss_phase_changed", func(_n: String, ph: int) -> void: phases.append(ph))
 	var boss_max := float((enemies.get("_max_hp") as PackedFloat32Array)[boss])
@@ -737,11 +738,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.21")) and not bool(menu.call("is_version_open", "0.20")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.22")) and not bool(menu.call("is_version_open", "0.21")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.20")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.21")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

@@ -1,5 +1,10 @@
 {
 	"versions": [
+		{ "version": "0.22", "date": "2026-10-08", "title": "Lumora Tavernası ve zorlu bosslar", "notes": [
+			"Lumora Tavernası (menüde Taverna): çevrimiçi herkes gelip 24 kişilik büyük salonda oturabilir",
+			"Taverna sohbeti: yazdıkların herkesin ekranında ve karakterinin başının üstünde görünür",
+			"Bosslar daha zorlu: daha sık ve daha hızlı saldırır, uyarı süreleri kısaldı, canları ve hızları arttı",
+			"Çift ok her zaman iki ok birden atar" ] },
 		{ "version": "0.21", "date": "2026-10-08", "title": "Pet başarımları ve tam ekran", "notes": [
 			"Tam ekran: üstteki düğme, Ayarlar ya da F11 (bilgisayarda bir sonraki açılışta hatırlanır)",
 			"Menü ekrana sığıyor: sol menü kısaldı, yetenek ağacı sayfaya sığacak şekilde küçülüyor",

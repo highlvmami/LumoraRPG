@@ -32,6 +32,10 @@ signal online_list_updated
 ## A leaderboard arrived: its category, the best rows [{name, value, level}]
 ## and this account's place ({rank, value}, or empty).
 signal leaderboard_received(category: String, rows: Array, me: Dictionary)
+## The hub tavern changed (someone sat down or left).
+signal hub_changed
+## A chat line in the hub tavern: who said it (id and name) and what.
+signal hub_chat_received(from: int, from_name: String, text: String)
 
 var url := DEFAULT_URL
 var status := "offline"
@@ -49,6 +53,10 @@ var online_list: PackedStringArray = []
 var levels := {}
 ## How this player's character looks (PlayerModel look), shown to the room.
 var my_look: Dictionary = {}
+## People in the hub tavern: [{id, name, look, seat, level}] (empty when not in it).
+var hub_members: Array = []
+## The last chat lines of the hub tavern: [{name, text}].
+var hub_chat: Array = []
 ## False stops reconnecting (tests, offline play).
 var enabled := true
 
@@ -56,6 +64,8 @@ var _ws: WebSocketPeer
 var _retry := 0.0
 var _ping := 0.0
 var _invite_after_room := ""
+## The player wants to be in the hub tavern (joins again after a reconnect).
+var _want_hub := false
 ## How to sign in (again after a reconnect): {mode, name, pw | token, profile}.
 var _creds: Dictionary = {}
 var _save: Dictionary = {}
@@ -164,8 +174,36 @@ func create_room() -> void:
 ## The character this player shows in the room changed.
 func set_look(look: Dictionary) -> void:
 	my_look = look
-	if in_room():
+	if in_room() or in_hub():
 		_send({"t": "look", "look": look})
+
+
+## Sits down in the hub tavern (everyone online can come and chat).
+func join_hub() -> void:
+	_want_hub = true
+	if is_online():
+		_send({"t": "hub_join", "look": my_look})
+
+
+func leave_hub() -> void:
+	if _want_hub and is_online():
+		_send({"t": "hub_leave"})
+	_want_hub = false
+	hub_members = []
+	hub_changed.emit()
+
+
+func in_hub() -> bool:
+	return not hub_members.is_empty()
+
+
+## Says something in the hub tavern. Returns false if it can't be sent.
+func send_chat(text: String) -> bool:
+	text = text.strip_edges()
+	if text == "" or not in_hub():
+		return false
+	_send({"t": "chat", "text": text.left(200)})
+	return true
 
 
 ## Asks for a leaderboard (answer: leaderboard_received).
@@ -308,6 +346,9 @@ func _process(delta: float) -> void:
 			_retry = RETRY_TIME
 			var had_room := in_room()
 			room = {}
+			if in_hub():
+				hub_members = []
+				hub_changed.emit()
 			_set_status("offline")
 			if had_room:
 				notice.emit("Sunucu bağlantısı koptu, odadan çıktın.")
@@ -363,6 +404,25 @@ func _handle(msg: Dictionary) -> void:
 		"game":
 			if msg.d is Dictionary:
 				game_message.emit(int(msg.from), msg.d)
+		"hub":
+			if not _want_hub:
+				return
+			hub_members = []
+			for m: Dictionary in msg.get("members", []):
+				var look: Variant = m.get("look")
+				hub_members.append({"id": int(m.id), "name": str(m.name), "look": look if look is Dictionary else {},
+					"seat": int(m.get("seat", -1)), "level": int(m.get("level", 0))})
+			hub_chat = []
+			for line: Dictionary in msg.get("chat", []):
+				hub_chat.append({"name": str(line.name), "text": str(line.text)})
+			hub_changed.emit()
+		"hub_chat":
+			if not _want_hub:
+				return
+			hub_chat.append({"name": str(msg.name), "text": str(msg.text)})
+			if hub_chat.size() > 40:
+				hub_chat.pop_front()
+			hub_chat_received.emit(int(msg.id), str(msg.name), str(msg.text))
 		"error":
 			_invite_after_room = ""
 			notice.emit(str(msg.msg))
@@ -373,6 +433,8 @@ func _on_auth(msg: Dictionary) -> void:
 		account = str(msg.name)
 		_creds = {"mode": "resume", "name": account, "token": str(msg.token)}
 		_set_status("online")
+		if _want_hub:
+			_send({"t": "hub_join", "look": my_look})
 		var profile: Variant = msg.get("profile")
 		signed_in.emit(account, str(msg.token), profile if profile is Dictionary else {}, float(msg.get("savedAt", 0.0)))
 		return
