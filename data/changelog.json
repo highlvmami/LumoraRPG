@@ -1,5 +1,11 @@
 {
 	"versions": [
+		{ "version": "0.18", "date": "2026-10-08", "title": "Çevrimiçi hesaplar", "notes": [
+			"Hesaplar artık sunucuda: aynı hesapla her bilgisayardan gir, oyunun (karakterler, eşyalar, altın) seninle gelir",
+			"Bu bilgisayardaki eski hesabın ilk girişte otomatik çevrimiçi olur",
+			"Arkadaşlar'da \"Şu an çevrimiçi\" listesi: ekle ya da odaya davet et",
+			"Birlikte oynarken sol ortada parti listesi: karakter adı ve can barı",
+			"Sunucuya ulaşılamazsa bu bilgisayardaki hesabınla çevrimdışı oynayabilirsin" ] },
 		{ "version": "0.17", "date": "2026-10-08", "title": "Birlikte oyna", "notes": [
 			"Çevrimiçi sunucu: arkadaşlarının çevrimiçi olup olmadığını gör",
 			"Oda kur, arkadaşını davet et ya da 5 harfli oda koduyla katıl (en fazla 4 kişi)",

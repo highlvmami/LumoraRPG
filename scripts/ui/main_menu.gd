@@ -65,6 +65,7 @@ var net: Node
 var _online_label: Label
 var _friend_rows := {}
 var _who_timer := 0.0
+var _online_box: VBoxContainer
 
 var _root: Control
 var _account_label: Label
@@ -1019,6 +1020,12 @@ func _build_friends() -> void:
 	update_friend_status()
 	_who_timer = 0.0
 
+	_header("Şu an çevrimiçi")
+	_online_box = VBoxContainer.new()
+	_online_box.add_theme_constant_override("separation", 6)
+	_content.add_child(_online_box)
+	update_online_list()
+
 	_header("Arkadaş önerileri")
 	var suggestions := friend_suggestions()
 	if suggestions.is_empty():
@@ -1061,10 +1068,11 @@ func _build_room() -> void:
 	var dot := ColorRect.new()
 	dot.custom_minimum_size = Vector2(14, 14)
 	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	dot.color = {"online": Color("#3ddc84"), "connecting": Color("#ffc94d")}.get(net.status, Color("#ff6b6b"))
+	dot.color = {"online": Color("#3ddc84"), "connecting": Color("#ffc94d"), "connected": Color("#ffc94d")}.get(net.status, Color("#ff6b6b"))
 	status_row.add_child(dot)
 	status_row.add_child(UiTheme.label({
-		"online": "Çevrimiçi",
+		"online": "Çevrimiçi: %s" % net.account,
+		"connected": "Sunucuya bağlı, hesabına giriş yapılıyor...",
 		"connecting": "Sunucuya bağlanıyor... (sunucu uyuyorsa ilk bağlantı 1 dakika sürebilir)",
 	}.get(net.status, "Bağlantı yok, tekrar deneniyor..."), UiTheme.label_settings(17, UiTheme.TEXT, 0)))
 	_content.add_child(status_row)
@@ -1165,7 +1173,7 @@ func refresh_online() -> void:
 	if net == null:
 		return
 	var parts := PackedStringArray()
-	parts.append({"online": "● Çevrimiçi", "connecting": "● Bağlanıyor"}.get(net.status, "● Çevrimdışı"))
+	parts.append({"online": "● Çevrimiçi", "connecting": "● Bağlanıyor", "connected": "● Giriş yapılıyor"}.get(net.status, "● Çevrimdışı"))
 	if net.in_room():
 		parts.append("Oda %s · %d kişi" % [net.room.code, net.members().size()])
 	if not net.invites.is_empty():
@@ -1199,6 +1207,42 @@ func _process(delta: float) -> void:
 	if _who_timer <= 0.0:
 		_who_timer = 8.0
 		net.ask_who(progression.profile.friends)
+		net.ask_online_list()
+
+
+## The "Şu an çevrimiçi" list: everyone online, with add / invite buttons.
+func update_online_list() -> void:
+	if _online_box == null or not is_instance_valid(_online_box):
+		return
+	for child in _online_box.get_children():
+		child.queue_free()
+	var names: PackedStringArray = net.online_list if net and net.is_online() else PackedStringArray()
+	if names.is_empty():
+		_online_box.add_child(UiTheme.label("Şu an çevrimiçi başka oyuncu yok." if net and net.is_online() else "Çevrimiçi olunca burada diğer oyuncular görünür.",
+			UiTheme.label_settings(15, UiTheme.MUTED, 0)))
+		return
+	var friends: Array = progression.profile.friends
+	for n in names:
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 10)
+		var dot := ColorRect.new()
+		dot.color = Color("#3ddc84")
+		dot.custom_minimum_size = Vector2(12, 12)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(dot)
+		var label := UiTheme.label(n, UiTheme.label_settings(19, UiTheme.TEXT, 0))
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(label)
+		if not friends.has(n):
+			var add := Button.new()
+			add.text = "Arkadaş ekle"
+			add.pressed.connect(func() -> void: add_friend(n))
+			line.add_child(add)
+		var invite := Button.new()
+		invite.text = "Odaya davet et"
+		invite.pressed.connect(invite_friend.bind(n))
+		line.add_child(invite)
+		_online_box.add_child(line)
 
 
 ## Other players to befriend: accounts that played on this device and are
@@ -1361,6 +1405,8 @@ func change_password(password: String) -> bool:
 		notify("Şifre en az 4 karakter olmalı.")
 		return false
 	progression.store.call("set_password", str(progression.profile.name), password)
+	if net and net.is_online():
+		net.change_password(password)
 	notify("Şifre değiştirildi.")
 	return true
 

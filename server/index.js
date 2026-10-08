@@ -2,8 +2,18 @@
 // and a relay for live co-op. The game itself runs on the room's host (the
 // player who opened the room); this server only passes messages along.
 //
+// Accounts live in Postgres (DATABASE_URL) with their saved game (profile),
+// so the same account works on any computer; without a database (local
+// tests) they are kept in memory.
+//
 // Messages are JSON text. From a client:
-//   {t:"hello", name}            sign in with the account name
+//   {t:"register", name, pw, profile?, at?}  open an account (signs in)
+//   {t:"login", name, pw}        sign in; answer {t:"auth", ok, name, token, profile, savedAt}
+//   {t:"resume", name, token}    sign in again with a remembered token
+//   {t:"save", profile, at}      store the signed-in account's game
+//   {t:"password", new}          change the password (other devices sign out)
+//   {t:"online_list"}            up to 50 accounts online now
+//   {t:"exists", name}           is there an account with this name
 //   {t:"who", names:[...]}       which of these accounts are online
 //   {t:"create"}                 open a room (you become its host)
 //   {t:"join", code}             join a room by its code
@@ -12,17 +22,21 @@
 //   {t:"game", d, to?}           co-op data for the room (or one member)
 //   {t:"ping"}
 // To a client:
-//   {t:"welcome", id}  {t:"who", online}  {t:"room", code, host, members, you}
+//   {t:"welcome", id}  {t:"auth", ...}  {t:"saved", at}  {t:"who", online}
+//   {t:"online_list", names}  {t:"exists", name, found}  {t:"password", ok, msg, token}  {t:"room", code, host, members, you}
 //   {t:"room_closed", reason}  {t:"invited", from, code}  {t:"invite_sent", to}
 //   {t:"game", from, d}  {t:"error", msg}  {t:"pong"}
 
 const http = require("http");
 const { WebSocketServer } = require("ws");
+const { Accounts, key } = require("./accounts.js");
 
 const PORT = Number(process.env.PORT) || 8080;
 const MAX_MEMBERS = 4;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const NAME_MAX = 16;
+const MAX_FAILS = 8;
+
+const accounts = new Accounts(process.env.DATABASE_URL);
 
 const clients = new Map(); // id -> client
 const rooms = new Map(); // code -> room
@@ -33,8 +47,8 @@ function send(c, msg) {
 }
 
 function online(name) {
-  const key = String(name).toLowerCase();
-  for (const c of clients.values()) if (c.name && c.name.toLowerCase() === key) return c;
+  const k = key(name);
+  for (const c of clients.values()) if (c.name && key(c.name) === k) return c;
   return null;
 }
 
@@ -92,15 +106,39 @@ function joinRoom(c, code) {
   broadcastRoom(room);
 }
 
-function handle(c, msg) {
+async function authenticate(c, msg) {
+  if (c.fails >= MAX_FAILS) return send(c, { t: "auth", ok: false, code: "too_many", msg: "Çok fazla deneme. Biraz sonra tekrar dene." });
+  let res;
+  if (msg.t === "register") res = await accounts.register(msg.name, msg.pw, msg.profile, msg.at);
+  else if (msg.t === "login") res = await accounts.login(msg.name, msg.pw);
+  else res = await accounts.resume(msg.name, msg.token);
+  if (!res.ok) {
+    c.fails++;
+    return send(c, { t: "auth", ok: false, code: res.code, msg: res.msg });
+  }
+  c.name = res.name;
+  send(c, { t: "auth", ok: true, name: res.name, token: res.token, profile: res.profile, savedAt: res.savedAt, id: c.id });
+}
+
+async function handle(c, msg) {
   if (!msg || typeof msg.t !== "string") return;
   if (msg.t === "ping") return send(c, { t: "pong" });
-  if (msg.t === "hello") {
-    c.name = String(msg.name || "").trim().slice(0, NAME_MAX);
-    return send(c, { t: "welcome", id: c.id });
-  }
+  if (msg.t === "hello") return send(c, { t: "error", msg: "Oyunun yeni sürümü var, sayfayı yenile." });
+  if (msg.t === "register" || msg.t === "login" || msg.t === "resume") return authenticate(c, msg);
+  if (msg.t === "exists") return send(c, { t: "exists", name: String(msg.name), found: await accounts.exists(msg.name) });
   if (!c.name) return send(c, { t: "error", msg: "Önce giriş yap." });
   switch (msg.t) {
+    case "save":
+      if (msg.profile && typeof msg.profile === "object" && (await accounts.save(c.name, msg.profile, msg.at))) send(c, { t: "saved", at: msg.at });
+      return;
+    case "password": {
+      const res = await accounts.changePassword(c.name, msg.new);
+      return send(c, { t: "password", ok: res.ok, msg: res.ok ? "Şifre değişti." : res.msg, token: res.token });
+    }
+    case "online_list": {
+      const names = [...new Set([...clients.values()].filter((o) => o.name && o !== c).map((o) => o.name))];
+      return send(c, { t: "online_list", names: names.slice(0, 50) });
+    }
     case "who": {
       const names = Array.isArray(msg.names) ? msg.names.slice(0, 200) : [];
       return send(c, { t: "who", online: names.filter((n) => online(n)) });
@@ -143,11 +181,12 @@ const server = http.createServer((req, res) => {
   res.end(`Lumora online sunucusu çalışıyor. Çevrimiçi: ${clients.size}, oda: ${rooms.size}\n`);
 });
 
-const wss = new WebSocketServer({ server, maxPayload: 256 * 1024 });
+const wss = new WebSocketServer({ server, maxPayload: 2 * 1024 * 1024 });
 
 wss.on("connection", (ws) => {
-  const c = { id: nextId++, ws, name: "", room: null, alive: true };
+  const c = { id: nextId++, ws, name: "", room: null, alive: true, fails: 0 };
   clients.set(c.id, c);
+  send(c, { t: "welcome", id: c.id });
   ws.on("pong", () => (c.alive = true));
   ws.on("message", (data, isBinary) => {
     if (isBinary) return;
@@ -157,7 +196,10 @@ wss.on("connection", (ws) => {
     } catch {
       return;
     }
-    handle(c, msg);
+    handle(c, msg).catch((e) => {
+      console.error("message failed", e);
+      send(c, { t: "error", msg: "Sunucu hatası, tekrar dene." });
+    });
   });
   ws.on("close", () => {
     leaveRoom(c);
@@ -178,6 +220,17 @@ const heartbeat = setInterval(() => {
 }, 20000);
 wss.on("close", () => clearInterval(heartbeat));
 
-server.listen(PORT, () => console.log(`Lumora online server on port ${PORT}`));
+const ready = accounts
+  .init()
+  .catch((e) => console.error("account database failed to start", e))
+  .then(
+    () =>
+      new Promise((resolve) =>
+        server.listen(PORT, () => {
+          console.log(`Lumora online server on port ${PORT} (accounts: ${accounts.persistent ? "database" : "memory"})`);
+          resolve();
+        })
+      )
+  );
 
-module.exports = { server, wss };
+module.exports = { server, wss, ready };

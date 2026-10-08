@@ -1,6 +1,7 @@
 ## In-run HUD: account level (top left), run time and kills (top right),
 ## a character panel at the bottom center (portrait, level, health, exp, gold
 ## and combat stats), floating "+EXP" / damage numbers and the death screen.
+## In co-op the party is listed on the left: character name and health bar.
 extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
@@ -52,6 +53,9 @@ var _float_settings: LabelSettings
 var _gold_settings: LabelSettings
 var _hit_settings: LabelSettings
 var _crit_settings: LabelSettings
+var _party: VBoxContainer
+## One row per party member: [panel, name label, info label, health bar].
+var _party_rows: Array = []
 
 
 func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: EnemyManager, p_camera: Camera3D, p_world_scale: float) -> void:
@@ -110,6 +114,14 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 
 	_build_character_panel()
 
+	_party = VBoxContainer.new()
+	_party.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT, Control.PRESET_MODE_MINSIZE, 16)
+	_party.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_party.add_theme_constant_override("separation", 6)
+	_party.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party.visible = false
+	_root.add_child(_party)
+
 	_toast = UiTheme.label("", UiTheme.label_settings(40, UiTheme.ACCENT, 10))
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -162,6 +174,50 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 
 
 ## `loot` lists the items and chests found this run (already in the backpack).
+## Co-op party on the left (empty hides it). Each entry: name (character),
+## account, class, hp, max_hp, dead, me.
+func set_party(entries: Array) -> void:
+	_party.visible = not entries.is_empty()
+	while _party_rows.size() < entries.size():
+		_party_rows.append(_party_row())
+	while _party_rows.size() > entries.size():
+		(_party_rows.pop_back()[0] as Control).queue_free()
+	for i in entries.size():
+		var e: Dictionary = entries[i]
+		var row: Array = _party_rows[i]
+		var dead := bool(e.get("dead", false))
+		(row[1] as Label).text = str(e.get("name", "?")) + ("  (sen)" if e.get("me", false) else "")
+		(row[2] as Label).text = "ÖLDÜ" if dead else "%s  ·  %s" % [e.get("account", ""), e.get("class", "")]
+		var bar := row[3] as ProgressBar
+		bar.max_value = maxf(1.0, float(e.get("max_hp", 100.0)))
+		bar.value = 0.0 if dead else float(e.get("hp", 0.0))
+		var ratio := bar.value / bar.max_value
+		var fill := bar.get_theme_stylebox("fill") as StyleBoxFlat
+		fill.bg_color = Color("#3ddc84") if ratio > 0.5 else (Color("#ffc94d") if ratio > 0.25 else Color("#ff5a5a"))
+		(row[0] as Control).modulate.a = 0.55 if dead else 1.0
+
+
+func _party_row() -> Array:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := UiTheme.box(Color(0.05, 0.08, 0.11, 0.78), 8, 8)
+	style.border_width_left = 3
+	style.border_color = UiTheme.ACCENT.darkened(0.2)
+	panel.add_theme_stylebox_override("panel", style)
+	_party.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.custom_minimum_size.x = 190
+	panel.add_child(box)
+	var name_label := UiTheme.label("", UiTheme.label_settings(16, UiTheme.TEXT, 3))
+	box.add_child(name_label)
+	var info := UiTheme.label("", UiTheme.label_settings(12, UiTheme.MUTED, 2))
+	box.add_child(info)
+	var bar := _bar(Color("#3ddc84"), Vector2(186, 10))
+	box.add_child(bar)
+	return [panel, name_label, info, bar]
+
+
 func show_death(level: int, kills: int, gold: int, seconds: float, loot: PackedStringArray = PackedStringArray()) -> void:
 	_death_text.text = "ÖLDÜN\n\nSeviye %d   ·   %d canavar   ·   +%d altın   ·   %d:%02d" % [level, kills, gold, int(seconds) / 60, int(seconds) % 60]
 	if not loot.is_empty():
