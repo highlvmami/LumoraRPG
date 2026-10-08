@@ -559,7 +559,7 @@ func boss_phase() -> int:
 ## How much faster boss attacks come (warning time and pauses are divided by
 ## it): grows with every boss already met this run and every phase.
 func boss_tempo() -> float:
-	return minf(1.0 + float(_spawn.bossTempoPerBoss) * _boss_rank + float(_spawn.bossTempoPerPhase) * (_boss_phase - 1), float(_spawn.bossMaxTempo))
+	return minf(float(_spawn.get("bossBaseTempo", 1.0)) + float(_spawn.bossTempoPerBoss) * _boss_rank + float(_spawn.bossTempoPerPhase) * (_boss_phase - 1), float(_spawn.bossMaxTempo))
 
 
 ## Attack style level 1-3: which attacks the boss may use and how big they
@@ -592,7 +592,7 @@ func _boss_attack_pool(kd: Dictionary) -> Array:
 
 
 func _dash_warn(a: Dictionary) -> float:
-	return maxf(float(a.telegraph) / boss_tempo(), 0.45)
+	return maxf(float(a.telegraph) / boss_tempo(), 0.4)
 
 
 func _dash_damage(a: Dictionary) -> float:

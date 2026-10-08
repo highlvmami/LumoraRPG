@@ -136,6 +136,44 @@ function client() {
   a.send({ t: "leave" });
   assert.match((await b.next("room_closed")).reason, /Ev sahibi/);
 
+  // The hub tavern: both sit down, chat reaches everyone in it.
+  a.send({ t: "hub_join", look: { class: "mage" } });
+  const hubA = await a.next("hub");
+  assert.strictEqual(hubA.members.length, 1);
+  assert.strictEqual(hubA.members[0].seat, 0);
+  assert.strictEqual(hubA.members[0].look.class, "mage");
+  b.send({ t: "hub_join" });
+  const hubB = await b.next("hub");
+  assert.strictEqual(hubB.members.length, 2);
+  assert.strictEqual(hubB.you, wb.id);
+  assert.notStrictEqual(hubB.members[0].seat, hubB.members[1].seat, "everyone gets their own seat");
+  assert.ok(hubB.members.every((m) => m.level >= 1), "hub members come with their account level");
+  assert.strictEqual((await a.next("hub")).members.length, 2);
+  b.send({ t: "chat", text: "  merhaba\nherkese  " });
+  const line = await a.next("hub_chat");
+  assert.strictEqual(line.text, "merhaba herkese");
+  assert.strictEqual(line.id, wb.id);
+  await b.next("hub_chat");
+  b.send({ t: "chat", text: "çok hızlı" });
+  b.send({ t: "chat", text: "x".repeat(500) });
+  await new Promise((r) => setTimeout(r, 700));
+  b.send({ t: "chat", text: "x".repeat(500) });
+  const long = await a.next("hub_chat");
+  assert.strictEqual(long.text.length, 200, "chat lines are cut short");
+  await b.next("hub_chat");
+  b.send({ t: "hub_leave" });
+  const afterLeave = await a.next("hub");
+  assert.strictEqual(afterLeave.members.length, 1);
+  b.send({ t: "hub_join" });
+  const hubBack = await b.next("hub");
+  assert.ok(hubBack.chat.some((c) => c.text === "merhaba herkese"), "the last chat lines are shown when you come in");
+  await a.next("hub");
+  await new Promise((r) => setTimeout(r, 700));
+  b.send({ t: "chat", text: "son söz" });
+  a.send({ t: "hub_leave" });
+  await b.next("hub_chat");
+  await b.next("hub");
+
   a.close();
   b.close();
   wss.close();

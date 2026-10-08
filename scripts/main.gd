@@ -329,6 +329,8 @@ func login(username: String, remember := false) -> void:
 	net.who_updated.connect(main_menu.update_friend_status)
 	net.online_list_updated.connect(main_menu.update_online_list)
 	net.leaderboard_received.connect(main_menu.on_leaderboard)
+	net.hub_changed.connect(main_menu.update_hub)
+	net.hub_chat_received.connect(main_menu.on_hub_chat)
 	net.signed_in.connect(_on_signed_in)
 	net.sign_in_failed.connect(_on_sign_in_failed)
 	net.password_changed.connect(_on_password_changed)
