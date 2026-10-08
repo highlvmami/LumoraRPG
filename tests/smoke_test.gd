@@ -70,18 +70,18 @@ func _run() -> void:
 	_check((ach.get("defs") as Array).size() >= 10, "there are many achievements")
 	var shop: RefCounted = main.get("skill_tree")
 	var profile0: Dictionary = main.get("progression").get("profile")
-	_check(not bool(menu.call("learn_skill", "power")), "cannot learn a skill without gold")
-	profile0.gold = 100
-	var first_price := int(shop.call("price", "power"))
-	_check(bool(menu.call("learn_skill", "power")), "learning a skill level with gold works")
-	_check(int(profile0.gold) == 100 - first_price and int(shop.call("level", "power")) == 1, "gold is spent and the upgrade gains a level")
-	_check(int(shop.call("price", "power")) > first_price, "the next level costs more")
+	profile0.accountLevel = 1
+	_check(int(shop.call("points_left")) == 2, "a new account has skill points from its level")
+	_check(bool(menu.call("learn_skill", "power")), "learning a skill level with points works")
+	_check(int(shop.call("points_left")) == 1 and int(shop.call("level", "power")) == 1, "a point is spent and the skill gains a level")
 	_check(is_equal_approx(float(shop.call("total", "damage")), 0.01), "one level gives a small bonus (+1% damage)")
 	_check((shop.get("nodes") as Dictionary).size() >= 15 and (shop.get("branches") as Array).size() == 3, "the skill tree has three branches with many skills")
-	var gold_keep := int(profile0.gold)
-	profile0.gold = 100000
-	_check(not bool(shop.call("is_unlocked", "haste")) and not bool(menu.call("learn_skill", "haste")), "a skill below stays locked until the one above levels up")
 	menu.call("learn_skill", "power")
+	_check(not bool(menu.call("learn_skill", "power")), "cannot learn without skill points")
+	_check(int(shop.call("cost", "fury")) > int(shop.call("cost", "power")), "deeper skills cost more points")
+	profile0.accountLevel = 30
+	_check(int(shop.call("points_left")) == 58, "every account level gives more skill points")
+	_check(not bool(shop.call("is_unlocked", "haste")) and not bool(menu.call("learn_skill", "haste")), "a skill below stays locked until the one above levels up")
 	menu.call("learn_skill", "power")
 	_check(bool(shop.call("is_unlocked", "haste")) and bool(menu.call("learn_skill", "haste")), "power level 3 opens the next skills")
 	menu.call("open_section", "skills")
@@ -93,8 +93,35 @@ func _run() -> void:
 		_check(skill_tip is Control, "hovering a skill shows what it gives")
 		if skill_tip:
 			skill_tip.free()
-	(profile0.upgrades as Dictionary).erase("haste")
+	shop.call("reset")
+	_check(int(shop.call("points_left")) == 60 and int(shop.call("level", "power")) == 0, "resetting the skill tree gives every point back")
+	profile0.accountLevel = 1
 	profile0.upgrades.power = 1
+	var gold_keep := int(profile0.gold)
+
+	# Pets: eggs from the market, 3 slots opening with the account level.
+	var pets: RefCounted = main.get("pets")
+	_check(menu.call("hatch_pet").is_empty(), "an egg can't be bought without gold")
+	profile0.gold = 100000
+	var pet: Dictionary = menu.call("hatch_pet")
+	_check(not pet.is_empty() and (pets.call("owned") as Array).size() == 1, "an egg hatches a pet")
+	menu.call("close_confirm")
+	_check(not bool(menu.call("equip_pet", int(pet.uid))), "pet slots are locked at a low account level")
+	profile0.accountLevel = 10
+	_check(bool(menu.call("equip_pet", int(pet.uid))) and int(pets.call("slot_of", int(pet.uid))) == 0, "the first pet slot opens at account level 10")
+	var phoenix: Dictionary = pets.call("add", "phoenix")
+	var bear: Dictionary = pets.call("add", "bear")
+	_check(not bool(menu.call("equip_pet", int(phoenix.uid))), "the second slot is still locked")
+	profile0.accountLevel = 50
+	_check(bool(menu.call("equip_pet", int(phoenix.uid))) and bool(menu.call("equip_pet", int(bear.uid))), "all 3 slots open by account level 50")
+	_check(float(main.call("_extra", "attackSpeed")) >= 0.1 and float(main.call("_extra", "defense")) >= 0.04, "pets in slots give their stats")
+	_check((pets.call("kind", "phoenix").stats as Dictionary).size() > (pets.call("kind", "bear").stats as Dictionary).size(), "rarer pets give more stats")
+	menu.call("open_section", "pets")
+	await _frames(2)
+	_check(menu.find_children("*", "SubViewportContainer", true, false).size() >= 3, "the pet page shows the pets in slots turning")
+	var gold_before_release := int(profile0.gold)
+	_check(int(menu.call("release_pet", int(bear.uid))) > 0 and int(profile0.gold) > gold_before_release and int(pets.call("slot_of", int(bear.uid))) < 0, "a pet can be released for gold")
+	profile0.accountLevel = 1
 	profile0.gold = gold_keep
 	var migrated: RefCounted = load("res://scripts/progression/skill_tree.gd").new({"gold": 0, "upgrades": {"brutality": 4, "greed": 2}}, main.get("store"))
 	_check(int(migrated.call("level", "brutality")) == 4 and bool(migrated.call("is_unlocked", "brutality")) and is_equal_approx(float(migrated.call("total", "goldGain")), 0.04), "old market upgrades carry over into the skill tree")
@@ -273,7 +300,7 @@ func _run() -> void:
 	if crit_index >= 0:
 		_check(float(bow.get("crit_chance")) > crit_before, "crit boost raises crit chance")
 	var hud: Node = main.get("hud")
-	_check((hud.get("_stat_values") as Array).size() == 8, "character panel shows 8 stats")
+	_check((hud.get("_stat_values") as Array).size() == 9, "character panel shows 9 stats")
 
 	# Pause menu: pauses, changes quality, resumes.
 	var pause: Node = main.get("pause_menu")
@@ -339,8 +366,34 @@ func _run() -> void:
 			level_up.call("pick", 0)
 		if int(bow.get("arrows_fired")) != fired_before:
 			break
-	_check(int(bow.get("arrows_fired")) - fired_before == 2, "a double arrow shot fires two arrows")
+	_check(int(bow.get("arrows_fired")) - fired_before == 2, "a double arrow shot fires two arrows (%d)" % (int(bow.get("arrows_fired")) - fired_before))
 	bow.set("double_chance", 0.0)
+
+	# Ultimate: R hits every enemy on the map with a big show; it then charges again.
+	var ult: Node = main.get("ultimate")
+	_check(float(ult.call("ratio")) > 0.0, "the ultimate charges during the run")
+	ult.set("cooldown_left", 5.0)
+	_check(not bool(ult.call("try_cast", "")), "the ultimate can't be cast while charging")
+	ult.set("cooldown_left", 0.0)
+	main.call("cheat", "clear")
+	var far_uids: Array = []
+	for n in 6:
+		enemies.call("spawn", "slime", player.global_position + Vector3(25.0 + n * 3.0, 0, 30.0), true)
+		far_uids.append(int(enemies.call("uid_of", int(enemies.call("count")) - 1)))
+	var kills_before_ult := int(enemies.get("kills"))
+	_check(bool(ult.call("try_cast", "meteor")) and float(ult.get("cooldown_left")) > 40.0, "the mage's meteor ultimate can be cast")
+	_check(not bool(ult.call("try_cast", "")), "the ultimate can't be cast again right away")
+	await _play_for(2.2, level_up)
+	_check(int(enemies.get("kills")) - kills_before_ult >= 6, "the ultimate hits enemies anywhere on the map (%d)" % (int(enemies.get("kills")) - kills_before_ult))
+	for variant: String in ["storm", "quake", "blades", "arrows", "stars"]:
+		ult.set("cooldown_left", 0.0)
+		for n in 4:
+			enemies.call("spawn", "slime", player.global_position + Vector3(-20.0, 0, 10.0 + n * 3.0), true)
+		var before_variant := int(enemies.get("kills"))
+		ult.call("try_cast", variant)
+		await _play_for(3.6, level_up)
+		_check(int(enemies.get("kills")) - before_variant >= 4, "the %s ultimate hits every enemy" % variant)
+	_check(main.find_child("Ultimate", true, false).get_child_count() < 400, "ultimate effects clean up after themselves")
 
 	# Boss: spawns with a health bar and announces its defeat.
 	var defeated: Array = []
@@ -550,6 +603,14 @@ func _run() -> void:
 	for section_id: String in ["logs", "versions", "settings"]:
 		menu.call("open_section", section_id)
 		await _frames(1)
+	menu.call("open_section", "versions")
+	await _frames(2)
+	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.19")) and not bool(menu.call("is_version_open", "0.18")), "the versions page lists versions with only the newest open")
+	if version_heads.size() >= 2:
+		(version_heads[1] as Button).pressed.emit()
+		await create_timer(0.5).timeout
+		_check(bool(menu.call("is_version_open", "0.18")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
@@ -571,6 +632,15 @@ func _run() -> void:
 		and (profile.upgrades as Dictionary).is_empty() and (profile.achievements as Dictionary).is_empty() and str(profile.name) == "ci_test", "resetting the account wipes characters, items, gold, skills and achievements")
 
 	_finish()
+
+
+## Lets the run play for a while, taking the first card on level-ups.
+func _play_for(seconds: float, level_up: Node) -> void:
+	var end := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < end:
+		await process_frame
+		if bool(level_up.get("visible")):
+			level_up.call("pick", 0)
 
 
 func _frames(count: int) -> void:

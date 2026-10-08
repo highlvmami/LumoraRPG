@@ -26,6 +26,9 @@ var zoom := 7.0
 ## Mouse look speed multiplier (settings).
 var sensitivity_scale := 1.0
 
+var _shake_time := 0.0
+var _shake_length := 1.0
+var _shake_strength := 0.0
 var _pitch_pivot: Node3D
 var _arm: SpringArm3D
 var camera: Camera3D
@@ -69,6 +72,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		pitch = clampf(pitch - motion.relative.y * SENSITIVITY * sensitivity_scale, MIN_PITCH, MAX_PITCH)
 
 
+## Shakes the camera for `duration` seconds (fading out); big hits, ultimates.
+func shake(strength: float, duration: float) -> void:
+	if strength >= _shake_strength * (_shake_time / _shake_length) or _shake_time <= 0.0:
+		_shake_strength = strength
+		_shake_time = duration
+		_shake_length = maxf(duration, 0.01)
+
+
 ## Moves the camera closer (negative) or further away (positive).
 func zoom_by(amount: float) -> void:
 	zoom = clampf(zoom + amount, MIN_ZOOM, MAX_ZOOM)
@@ -84,3 +95,7 @@ func _process(delta: float) -> void:
 	_pitch_pivot.rotation.x = pitch
 	_arm.spring_length = lerpf(_arm.spring_length, zoom, minf(1.0, delta * 10.0))
 	target.set("camera_yaw", yaw)
+	_shake_time = maxf(0.0, _shake_time - delta)
+	var amount := _shake_strength * (_shake_time / _shake_length) * 0.5
+	camera.h_offset = randf_range(-amount, amount)
+	camera.v_offset = randf_range(-amount, amount)

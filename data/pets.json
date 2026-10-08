@@ -1,0 +1,25 @@
+{
+	"slotLevels": [10, 25, 50],
+	"maxPets": 30,
+	"rarities": [
+		{ "id": "common", "name": "Sıradan", "color": "#b8c2cc", "release": 60 },
+		{ "id": "rare", "name": "Nadir", "color": "#4fb8ff", "release": 250 },
+		{ "id": "legendary", "name": "Efsanevi", "color": "#ff9a3c", "release": 1000 }
+	],
+	"kinds": [
+		{ "id": "bear", "name": "Ayı", "rarity": 0, "desc": "Kocaman ve sadık. Canını ve savunmanı artırır.",
+			"stats": { "maxHp": 20.0, "defense": 0.04 } },
+		{ "id": "minotaur", "name": "Minotor", "rarity": 1, "desc": "Baltalı boğa savaşçı. Saldırı, savunma ve can verir.",
+			"stats": { "damage": 0.06, "defense": 0.06, "maxHp": 35.0 } },
+		{ "id": "phoenix", "name": "Anka Kuşu", "rarity": 2, "desc": "Alevlerden doğan efsanevi kuş. Saldırı gücü, saldırı hızı, can ve yenilenme verir.",
+			"stats": { "damage": 0.1, "attackSpeed": 0.1, "maxHp": 50.0, "regen": 0.6 } }
+	],
+	"egg": { "name": "Pet Yumurtası", "price": 500, "odds": [75, 21, 4] },
+	"stats": {
+		"maxHp": { "label": "Can", "format": "flat" },
+		"defense": { "label": "Savunma", "format": "percent" },
+		"damage": { "label": "Saldırı Gücü", "format": "percent" },
+		"attackSpeed": { "label": "Saldırı Hızı", "format": "percent" },
+		"regen": { "label": "Can Yenileme", "format": "perSecond" }
+	}
+}

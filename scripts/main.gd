@@ -4,7 +4,8 @@
 ## During a run: level-ups pause for a boost choice, Esc opens the pause menu.
 ## The account has up to 3 characters (warrior, archer, mage) sharing one
 ## backpack of items and chests; the active character's class and gear decide
-## its starting weapon, look and stats.
+## its starting weapon, look and stats. Pets in the account's pet slots
+## follow the player and add their stats; R casts the class ultimate.
 ## The 3D world lives in a SubViewport rendered at half resolution (pixel look),
 ## while all UI is drawn at full resolution so text stays sharp.
 extends Node
@@ -20,6 +21,9 @@ const AutoBow := preload("res://scripts/combat/auto_bow.gd")
 const RangeRing := preload("res://scripts/combat/range_ring.gd")
 const LootOrbs := preload("res://scripts/combat/loot_orbs.gd")
 const WeaponSet := preload("res://scripts/combat/weapon_set.gd")
+const Ultimate := preload("res://scripts/combat/ultimate.gd")
+const PetFollowers := preload("res://scripts/player/pet_followers.gd")
+const Pets := preload("res://scripts/progression/pets.gd")
 const ProfileStore := preload("res://scripts/progression/profile_store.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const SkillTree := preload("res://scripts/progression/skill_tree.gd")
@@ -51,6 +55,9 @@ var bow: AutoBow
 var range_ring: RangeRing
 var loot_orbs: LootOrbs
 var weapons: WeaponSet
+var ultimate: Ultimate
+var pets: Pets
+var pet_followers: PetFollowers
 var progression: Progression
 var skill_tree: SkillTree
 var boosts := RunBoosts.new()
@@ -188,6 +195,7 @@ func login(username: String, remember := false) -> void:
 	progression = Progression.new(store, profile)
 	skill_tree = SkillTree.new(profile, store)
 	inventory = Inventory.new(profile, store)
+	pets = Pets.new(profile, store)
 	achievements = Achievements.new(profile, store)
 	achievements.reward_gold = progression.add_gold
 	achievements.unlocked.connect(_on_achievement)
@@ -225,6 +233,17 @@ func login(username: String, remember := false) -> void:
 	weapons.setup(player, enemies, bow, terrain)
 	weapons.attacked.connect(player.play_attack)
 
+	ultimate = Ultimate.new()
+	ultimate.name = "Ultimate"
+	world.add_child(ultimate)
+	ultimate.setup(player, enemies, terrain, bow)
+	ultimate.camera_rig = camera_rig
+
+	pet_followers = PetFollowers.new()
+	pet_followers.name = "Pets"
+	world.add_child(pet_followers)
+	pet_followers.setup(player, terrain)
+
 	loot_orbs = LootOrbs.new()
 	loot_orbs.name = "LootOrbs"
 	world.add_child(loot_orbs)
@@ -247,6 +266,10 @@ func login(username: String, remember := false) -> void:
 	weapons.hit_landed.connect(hud.show_hit)
 	bow.hit_landed.connect(_on_hit_dealt)
 	weapons.hit_landed.connect(_on_hit_dealt)
+	ultimate.hit_landed.connect(hud.show_hit)
+	ultimate.hit_landed.connect(_on_hit_dealt)
+	ultimate.hud = hud
+	hud.ultimate = ultimate
 
 	level_up_screen = LevelUpScreen.new()
 	add_child(level_up_screen)
@@ -275,6 +298,7 @@ func login(username: String, remember := false) -> void:
 	add_child(main_menu)
 	main_menu.setup(progression, skill_tree, inventory)
 	main_menu.achievements = achievements
+	main_menu.pets = pets
 	main_menu.play_pressed.connect(start_run)
 	main_menu.chest_open_requested.connect(open_chest)
 	main_menu.quality_selected.connect(set_quality)
@@ -403,6 +427,9 @@ func show_menu() -> void:
 	bow.active = false
 	weapons.active = false
 	weapons.reset()
+	ultimate.active = false
+	ultimate.reset()
+	pet_followers.set_pets([])
 	player.visible = false
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	range_ring.visible = false
@@ -469,6 +496,10 @@ func start_run(guest_map := "") -> void:
 	enemies.active = true
 	bow.active = archer
 	weapons.active = true
+	ultimate.reset()
+	ultimate.class_id = class_id()
+	ultimate.active = true
+	pet_followers.set_pets(pets.active_kinds())
 	hud.set_weapons(weapon_list())
 	camera_rig.capture_enabled = true
 	camera_rig.camera.current = true
@@ -575,6 +606,7 @@ func open_chest(uid: int) -> Dictionary:
 ## Combines base stats, class, gear, character level, skill tree and boosts.
 func _apply_stats() -> void:
 	player.speed_multiplier = 1.0 + _extra("moveSpeed")
+	player.defense = _extra("defense")
 	player.regen = _extra("regen")
 	player.set_max_hp(_max_hp())
 	weapons.uses_bow = class_id() == "archer"
@@ -650,6 +682,7 @@ func stat_list() -> Array:
 		["Saldırı Alanı", "%.1f m" % _attack_range()],
 		["Hareket Hızı", "%.1f" % player.move_speed()],
 		["Can Yenileme", "%.1f/sn" % player.regen],
+		["Savunma", "%%%d" % roundi(minf(player.defense, Player.MAX_DEFENSE) * 100.0)],
 	]
 
 
@@ -658,9 +691,10 @@ func _max_hp() -> float:
 	return base + progression.max_hp_bonus() + _extra("maxHp")
 
 
-## Run boosts, skill tree, class bonus, worn gear and the developer cheat bonus for a stat.
+## Run boosts, skill tree, pets, class bonus, worn gear and the developer cheat bonus for a stat.
 func _extra(stat: String) -> float:
 	var sum := boosts.total(stat) + (cheat_menu.total(stat) if cheat_menu else 0.0) + (skill_tree.total(stat) if skill_tree else 0.0)
+	sum += pets.total(stat) if pets else 0.0
 	if inventory and not _character.is_empty():
 		var bonus: Dictionary = inventory.class_info(class_id()).bonus
 		sum += float(bonus.get(stat, 0.0)) + inventory.gear_total(_character, stat)
@@ -675,6 +709,20 @@ func cheat(id: String) -> void:
 			return
 		"chest":
 			_drop_chest(_rng.randi() % inventory.gear.chests.size())
+			return
+		"points":
+			progression.profile.bonusSkillPoints = int(progression.profile.get("bonusSkillPoints", 0)) + 10
+			_notify("+10 YETENEK PUANI")
+			return
+		"pet":
+			var kinds := pets.kinds()
+			var p := pets.add(str(kinds[_rng.randi() % kinds.size()].id))
+			if not p.is_empty():
+				_notify("PET: " + UiTheme.upper(str(pets.info(p).name)))
+			return
+		"level10":
+			progression.profile.accountLevel = int(progression.profile.accountLevel) + 10
+			_notify("HESAP SEVİYESİ %d" % progression.account_level())
 			return
 	if not in_run:
 		return
@@ -699,6 +747,8 @@ func cheat(id: String) -> void:
 			around.call(3, "thrower")
 		"time":
 			enemies.run_time += 60.0
+		"ult":
+			ultimate.cooldown_left = 0.0
 		"boss", "spider_boss":
 			enemies.spawn_boss(id, player.global_position + Vector3(0, 0, 14))
 		"weapons":
@@ -708,6 +758,14 @@ func cheat(id: String) -> void:
 				while weapons.level(d.id) < int(d.maxLevel):
 					weapons.add(str(d.id))
 			hud.set_weapons(weapon_list())
+
+
+func _notify(text: String) -> void:
+	if in_run:
+		hud.toast(text)
+	else:
+		main_menu.notify(text)
+		main_menu.refresh()
 
 
 func _can_pause() -> bool:
@@ -834,6 +892,7 @@ func _on_player_died() -> void:
 	enemies.active = coop.running
 	bow.active = false
 	weapons.active = false
+	ultimate.active = false
 	_end_run()
 	camera_rig.capture_enabled = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

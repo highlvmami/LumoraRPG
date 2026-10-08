@@ -297,14 +297,19 @@ func _update_spawning(delta: float) -> void:
 	var ramp := clampf(run_time / float(_spawn.rampSeconds), 0.0, 1.0)
 	# More players, more enemies.
 	_spawn_timer = lerpf(_spawn.startInterval, _spawn.minInterval, ramp) / party_scale()
-	if _pos.size() >= int(_spawn.maxAlive):
-		return
-	# Spawn on a ring around a player, outside the view of the action.
-	var angle := _rng.randf() * TAU
-	var dist := _rng.randf_range(_spawn.ringMin, _spawn.ringMax)
+	# Small packs at first, bigger ones later; both stop growing after
+	# rampSeconds (and the enemy cap), while enemies keep getting tougher.
+	var batch := roundi(lerpf(float(_spawn.get("batchStart", 1)), float(_spawn.get("batchMax", 1)), ramp))
 	var anchor := _spawn_anchor()
-	var at := Vector3(anchor.x + cos(angle) * dist, 0.0, anchor.z + sin(angle) * dist)
-	spawn(str(_kinds[_pick_kind()].id), at)
+	var angle := _rng.randf() * TAU
+	for n in batch:
+		if _pos.size() >= int(_spawn.maxAlive):
+			return
+		# Spawn on a ring around a player, outside the view of the action.
+		var a := angle + _rng.randf_range(-0.35, 0.35)
+		var dist := _rng.randf_range(_spawn.ringMin, _spawn.ringMax)
+		var at := Vector3(anchor.x + cos(a) * dist, 0.0, anchor.z + sin(a) * dist)
+		spawn(str(_kinds[_pick_kind()].id), at)
 
 
 ## A random living player's position to spawn around.

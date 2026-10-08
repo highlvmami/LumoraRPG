@@ -53,6 +53,14 @@ var _float_settings: LabelSettings
 var _gold_settings: LabelSettings
 var _hit_settings: LabelSettings
 var _crit_settings: LabelSettings
+## Class ultimate (Ultimate node): its button fills up while it charges.
+var ultimate: Node
+var _ult_fill: ColorRect
+var _ult_text: Label
+var _ult_box: PanelContainer
+var _ult_style: StyleBoxFlat
+var _flash: ColorRect
+var _flash_tween: Tween
 var _party: VBoxContainer
 ## One row per party member: [panel, name label, info label, health bar].
 var _party_rows: Array = []
@@ -108,9 +116,15 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	_stats = UiTheme.label("", UiTheme.label_settings(20))
 	_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top_right.add_child(_stats)
-	var controls := UiTheme.label("WASD yürü · BOŞLUK zıpla · TIKLA + FARE bak · ESC duraklat · F1 hile", UiTheme.label_settings(14, UiTheme.MUTED, 4))
+	var controls := UiTheme.label("WASD yürü · BOŞLUK zıpla · R ulti · TIKLA + FARE bak · ESC duraklat · F1 hile", UiTheme.label_settings(14, UiTheme.MUTED, 4))
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top_right.add_child(controls)
+
+	_flash = ColorRect.new()
+	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flash.color = Color(1, 1, 1, 0)
+	_root.add_child(_flash)
 
 	_build_character_panel()
 
@@ -295,6 +309,7 @@ func _process(_delta: float) -> void:
 	_hp_bar.value = hp
 	_hp_text.text = "%d / %d" % [ceili(hp), int(max_hp)]
 	_gold.text = "%d altın" % progression.gold()
+	_update_ultimate()
 	var boss := enemies.boss_index()
 	_boss_box.visible = boss >= 0
 	if boss >= 0:
@@ -413,6 +428,77 @@ func _build_character_panel() -> void:
 	_stats_grid.add_theme_constant_override("v_separation", 0)
 	_stats_grid.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_stats_grid)
+
+	row.add_child(VSeparator.new())
+	row.add_child(_build_ultimate_button())
+
+
+## The ultimate's button: an icon that fills up from the bottom while it
+## charges and glows when ready, with the key under it.
+func _build_ultimate_button() -> Control:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_ult_box = PanelContainer.new()
+	_ult_box.custom_minimum_size = Vector2(54, 54)
+	_ult_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ult_style = UiTheme.box(Color(0.1, 0.08, 0.16, 0.9), 10, 4)
+	_ult_style.set_border_width_all(2)
+	_ult_style.border_color = Color(1, 1, 1, 0.2)
+	_ult_box.add_theme_stylebox_override("panel", _ult_style)
+	col.add_child(_ult_box)
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.clip_contents = true
+	_ult_box.add_child(holder)
+	_ult_fill = ColorRect.new()
+	_ult_fill.color = Color(1.0, 0.75, 0.2, 0.35)
+	_ult_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(_ult_fill)
+	var icon := PixelIcons.rect("ultimate", 40)
+	icon.position = Vector2(3, 3)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(icon)
+	_ult_text = UiTheme.label("", UiTheme.label_settings(18, Color.WHITE, 5))
+	_ult_text.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ult_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_ult_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	holder.add_child(_ult_text)
+	var key := UiTheme.label("R · ULTİ", UiTheme.label_settings(11, UiTheme.ACCENT, 3))
+	key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(key)
+	return col
+
+
+func _update_ultimate() -> void:
+	_ult_box.visible = ultimate != null
+	if ultimate == null:
+		return
+	var ratio := float(ultimate.call("ratio"))
+	var size := _ult_box.size - Vector2(8, 8)
+	_ult_fill.size = Vector2(size.x, size.y * ratio)
+	_ult_fill.position = Vector2(0, size.y * (1.0 - ratio))
+	var ready := bool(ultimate.call("is_ready"))
+	_ult_text.text = "" if ready else str(ceili(float(ultimate.get("cooldown_left"))))
+	_ult_fill.color = Color(1.0, 0.75, 0.2, 0.55 if ready else 0.3)
+	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
+	_ult_style.border_color = Color(1.0, 0.8, 0.25, 0.6 + 0.4 * pulse) if ready else Color(1, 1, 1, 0.2)
+	_ult_style.shadow_color = Color(1.0, 0.7, 0.2, 0.6 * pulse) if ready else Color(0, 0, 0, 0)
+	_ult_style.shadow_size = 8 if ready else 0
+
+
+## Tints the whole screen: fades in to `peak` alpha, holds, fades out.
+func screen_flash(color: Color, fade_in: float, hold: float, fade_out: float, peak := 0.85) -> void:
+	if _flash_tween:
+		_flash_tween.kill()
+	var from := _flash.color.a
+	_flash.color = Color(color, from)
+	_flash_tween = create_tween()
+	_flash_tween.tween_property(_flash, "color:a", peak, maxf(fade_in, 0.01))
+	if hold > 0.0:
+		_flash_tween.tween_interval(hold)
+	_flash_tween.tween_property(_flash, "color:a", 0.0, maxf(fade_out, 0.05))
 
 
 ## A progress bar with its text drawn centered on top of it.

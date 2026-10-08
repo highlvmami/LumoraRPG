@@ -47,6 +47,9 @@ func setup(p_main: Node, p_net: Node) -> void:
 		if running and not guest_run:
 			net.send_game({"k": "z", "z": spec}))
 	enemies.remote_hit.connect(_on_remote_hit)
+	main.ultimate.cast.connect(func(variant: String, at: Vector3) -> void:
+		if running:
+			net.send_game({"k": "ult", "v": variant, "p": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)]}))
 	main.weapons.attacked.connect(func(_dir: Vector3) -> void: _attacks += 1)
 	main.bow.fired.connect(func(_dir: Vector3) -> void: _attacks += 1)
 
@@ -189,6 +192,11 @@ func _on_game(from: int, d: Dictionary) -> void:
 		"hits":
 			if running and not guest_run:
 				_apply_hits(d.get("h", []))
+		"ult":
+			# A partner's ultimate: show it here (their game sends the hits).
+			if running:
+				var p: Array = d.get("p", [0, 0, 0])
+				main.ultimate.play(str(d.get("v", "")), Vector3(float(p[0]), float(p[1]), float(p[2])), false)
 		"hurt":
 			if running and from == host:
 				main.player.take_damage(float(d.get("a", 0.0)))

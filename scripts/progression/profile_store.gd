@@ -204,6 +204,8 @@ static func _fill_defaults(profile: Dictionary) -> void:
 		"nextUid": 1,
 		"history": [],
 		"settings": {},
+		"pets": [],
+		"petSlots": [-1, -1, -1],
 	}
 	for key: String in defaults:
 		if not profile.has(key):

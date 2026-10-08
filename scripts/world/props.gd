@@ -17,6 +17,8 @@ const Terrain := preload("res://scripts/world/terrain.gd")
 var _rng := RandomNumberGenerator.new()
 ## Ponds placed so far: (x, z, radius).
 var _ponds: Array[Vector3] = []
+## Ruined buildings (x, z, radius): trees and rocks keep out of them.
+var _ruins: Array[Vector3] = []
 var _fire_lights: Array = []
 var _time := 0.0
 
@@ -26,6 +28,7 @@ func build(terrain: Terrain, cfg: Dictionary, map := {}) -> void:
 		remove_child(child)
 		child.queue_free()
 	_ponds.clear()
+	_ruins.clear()
 	_fire_lights.clear()
 	_rng.seed = int(map.get("seed", cfg.seed)) + 7
 	var colliders := StaticBody3D.new()
@@ -37,18 +40,19 @@ func build(terrain: Terrain, cfg: Dictionary, map := {}) -> void:
 		"dungeon":
 			_build_dungeon(terrain, cfg, colliders)
 		_:
-			_build_forest(terrain, cfg, colliders)
+			_build_forest(terrain, cfg, map, colliders)
 
 
-func _build_forest(terrain: Terrain, cfg: Dictionary, colliders: StaticBody3D) -> void:
+func _build_forest(terrain: Terrain, cfg: Dictionary, map: Dictionary, colliders: StaticBody3D) -> void:
 	var half: float = cfg.playableHalfSize
 	var clear: float = cfg.spawnClearRadius
 
-	# Ponds first so nothing grows in the water.
+	# Ponds first so nothing grows in the water, then the ruins (trees keep away).
 	_build_ponds(terrain, cfg)
+	_build_ruins(terrain, int(map.get("ruins", 0)), half, clear, colliders)
 
 	# Trees: trunk + two stacked cones.
-	var tree_count := int(cfg.trees)
+	var tree_count := int(map.get("trees", cfg.trees))
 	var trunks := _multimesh(_cylinder(0.35, 0.45, 2.0), Toon.material(Color("#6b4a2b")), tree_count, false)
 	var leaves := _multimesh(_cylinder(0.0, 1.9, 3.2), Toon.material(Color.WHITE, true), tree_count, true)
 	var tops := _multimesh(_cylinder(0.0, 1.3, 2.4), Toon.material(Color("#3f9a46")), tree_count, false)
@@ -65,7 +69,7 @@ func _build_forest(terrain: Terrain, cfg: Dictionary, colliders: StaticBody3D) -
 		_add_collider(colliders, Vector3(spot.x, ground, spot.y), 0.45 * s, 6.0 * s)
 
 	# Rocks: squashed low-poly blobs you can bump into.
-	var rock_count := int(cfg.rocks)
+	var rock_count := int(map.get("rocks", cfg.rocks))
 	var rock_mesh := SphereMesh.new()
 	rock_mesh.radial_segments = 6
 	rock_mesh.rings = 3
@@ -361,11 +365,149 @@ func _build_fireflies(half: float, tint := Color(0.85, 1.0, 0.45), amount := 500
 	add_child(flies)
 
 
+func _in_ruin(spot: Vector2) -> bool:
+	for r: Vector3 in _ruins:
+		if Vector2(r.x, r.y).distance_to(spot) < r.z:
+			return true
+	return false
+
+
+## Ruined buildings: a roofless stone house with broken walls, fallen
+## beams and a cold campfire, and a collapsed round watchtower. Walls are
+## stacks of blocks with jagged tops, moss on some; you bump into them.
+func _build_ruins(terrain: Terrain, count: int, half: float, clear: float, colliders: StaticBody3D) -> void:
+	if count <= 0:
+		return
+	var blocks: Array[Transform3D] = []
+	var block_colors: Array[Color] = []
+	var moss: Array[Transform3D] = []
+	var wood: Array[Transform3D] = []
+	var floor_tiles: Array[Transform3D] = []
+	for n in count:
+		var center := Vector2.ZERO
+		for t in 40:
+			center = _pick_spot(half * 0.72, clear + 14.0)
+			var ok := not _near_pond(center, 9.0)
+			for r: Vector3 in _ruins:
+				ok = ok and Vector2(r.x, r.y).distance_to(center) > 40.0
+			if ok:
+				break
+		var yaw := _rng.randf() * TAU
+		var basis := Basis(Vector3.UP, yaw)
+		var place := func(local: Vector3) -> Vector3:
+			var w := basis * local
+			return Vector3(center.x + w.x, terrain.height_at(center.x + w.x, center.y + w.z), center.y + w.z)
+		var block := func(local: Vector3, size: Vector3, tilt: float) -> void:
+			var at: Vector3 = place.call(local)
+			# Blocks reach a little into the ground so slopes don't show gaps.
+			var b := (basis * Basis(Vector3.FORWARD, tilt)).scaled(size + Vector3(0, 0.5, 0))
+			blocks.append(Transform3D(b, at + Vector3.UP * (local.y + size.y * 0.5 - 0.25)))
+			block_colors.append(Color("#9a968c").darkened(_rng.randf_range(0.0, 0.3)).lerp(Color("#7d8a6a"), _rng.randf() * 0.25))
+			if _rng.randf() < 0.35:
+				moss.append(Transform3D((basis * Basis(Vector3.FORWARD, tilt)).scaled(Vector3(size.x * 1.04, 0.14, size.z * 1.06)), at + Vector3.UP * (local.y + size.y)))
+		if n % 2 == 0:
+			# House: 10 x 8, a doorway in the front, walls broken down in places.
+			var w := 10.0
+			var d := 8.0
+			_ruins.append(Vector3(center.x, center.y, 8.5))
+			for ix in range(-4, 5):
+				for iz in range(-3, 4):
+					if _rng.randf() < 0.8:
+						var at: Vector3 = place.call(Vector3(ix * 1.1, 0, iz * 1.1))
+						floor_tiles.append(Transform3D(basis.rotated(Vector3.UP, _rng.randf_range(-0.1, 0.1)).scaled(Vector3(1.0, 0.5, 1.0)), at + Vector3.UP * _rng.randf_range(-0.05, 0.08)))
+			var sides := [[Vector3(0, 0, -d * 0.5), Vector3.RIGHT, w], [Vector3(0, 0, d * 0.5), Vector3.RIGHT, w],
+				[Vector3(-w * 0.5, 0, 0), Vector3.BACK, d], [Vector3(w * 0.5, 0, 0), Vector3.BACK, d]]
+			for side_i in sides.size():
+				var side: Array = sides[side_i]
+				var length: float = side[2]
+				var steps := int(length)
+				var top := _rng.randf_range(2.2, 3.2)
+				for k in steps:
+					var t := (k + 0.5) - steps * 0.5
+					# Doorway in the middle of the front wall.
+					if side_i == 1 and absf(t) < 1.2:
+						continue
+					# Jagged height: falls off towards a collapsed stretch.
+					var h := clampf(top + sin(k * 1.7 + side_i) * 0.8 - (1.6 if (k + side_i * 3) % 7 == 5 else 0.0) + _rng.randf_range(-0.5, 0.3), 0.4, 3.4)
+					var local: Vector3 = side[0] + (side[1] as Vector3) * t
+					var size := Vector3(1.02, h, 0.7) if side[1] == Vector3.RIGHT else Vector3(0.7, h, 1.02)
+					block.call(local, size, 0.0)
+					_add_box_collider(colliders, Transform3D(basis, place.call(local) + Vector3.UP * h * 0.5), size)
+			for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+				var local := Vector3(corner.x * w * 0.5, 0, corner.y * d * 0.5)
+				var h := _rng.randf_range(2.8, 4.2)
+				block.call(local, Vector3(1.1, h, 1.1), _rng.randf_range(-0.06, 0.06))
+			# Fallen roof beams leaning on the walls, and a toppled pillar.
+			for b in 3:
+				var x := -3.0 + b * 3.0
+				var beam_basis := basis * Basis(Vector3.RIGHT, 0.55 + _rng.randf() * 0.3)
+				var at: Vector3 = place.call(Vector3(x, 0, -1.6))
+				wood.append(Transform3D(beam_basis.scaled(Vector3(0.35, 0.35, 5.5)), at + Vector3.UP * 1.35))
+			var pillar_at: Vector3 = place.call(Vector3(1.5, 0, 1.6))
+			blocks.append(Transform3D((basis * Basis(Vector3.FORWARD, PI * 0.5)).scaled(Vector3(0.8, 3.2, 0.8)), pillar_at + Vector3.UP * 0.4))
+			block_colors.append(Color("#a39e92"))
+			_add_fire(place.call(Vector3(-2.2, 0.3, 1.2)), 0.22, 1.4, 8.0)
+		else:
+			# Watchtower: a ring of blocks, tall on one side, crumbled on the other.
+			var radius := 3.4
+			_ruins.append(Vector3(center.x, center.y, radius + 3.5))
+			var ring := 18
+			for k in ring:
+				var a := TAU * k / ring
+				if k == 4 or k == 5:
+					continue  # broken entrance
+				var h := clampf(1.0 + 5.5 * (0.5 + 0.5 * cos(a)) + _rng.randf_range(-0.6, 0.6), 0.5, 7.0)
+				var local := Vector3(cos(a) * radius, 0, sin(a) * radius)
+				var size := Vector3(1.25, h, 0.8)
+				var at: Vector3 = place.call(local)
+				var b := Basis(Vector3.UP, yaw - a + PI * 0.5)
+				blocks.append(Transform3D(b.scaled(size + Vector3(0, 0.5, 0)), at + Vector3.UP * (h * 0.5 - 0.25)))
+				block_colors.append(Color("#8f8b84").darkened(_rng.randf_range(0.0, 0.3)))
+				if h > 2.0 and _rng.randf() < 0.5:
+					moss.append(Transform3D(b.scaled(Vector3(1.3, 0.14, 0.85)), at + Vector3.UP * h))
+				_add_box_collider(colliders, Transform3D(b, at + Vector3.UP * h * 0.5), size)
+			# A wooden floor stub and stair beams inside.
+			for k in 3:
+				var at: Vector3 = place.call(Vector3(-0.6 + k * 0.9, 0, -0.4))
+				wood.append(Transform3D((basis * Basis(Vector3.RIGHT, 0.7)).scaled(Vector3(0.3, 0.3, 3.2)), at + Vector3.UP * (0.9 + k * 0.6)))
+		# Rubble all around.
+		for k in 26:
+			var a := _rng.randf() * TAU
+			var dist := _rng.randf_range(2.0, 8.0)
+			var local := Vector3(cos(a) * dist, 0, sin(a) * dist)
+			var at: Vector3 = place.call(local)
+			var sz := _rng.randf_range(0.25, 0.7)
+			blocks.append(Transform3D(Basis.from_euler(Vector3(_rng.randf(), _rng.randf() * TAU, _rng.randf())).scaled(Vector3(sz * 1.3, sz, sz)), at + Vector3.UP * sz * 0.3))
+			block_colors.append(Color("#9a968c").darkened(_rng.randf_range(0.0, 0.35)))
+	var stone := _multimesh(_box(Vector3.ONE), Toon.material(Color.WHITE, true), blocks.size(), true)
+	for i in blocks.size():
+		stone.multimesh.set_instance_transform(i, blocks[i])
+		stone.multimesh.set_instance_color(i, block_colors[i])
+	var moss_mm := _multimesh(_box(Vector3.ONE), Toon.material(Color("#5d8a3a")), moss.size(), false)
+	for i in moss.size():
+		moss_mm.multimesh.set_instance_transform(i, moss[i])
+	var wood_mm := _multimesh(_box(Vector3.ONE), Toon.material(Color("#5a3d22")), wood.size(), false)
+	for i in wood.size():
+		wood_mm.multimesh.set_instance_transform(i, wood[i])
+	var floor_mm := _multimesh(_box(Vector3(1.05, 0.3, 1.05)), Toon.material(Color("#7f7b73")), floor_tiles.size(), false)
+	for i in floor_tiles.size():
+		floor_mm.multimesh.set_instance_transform(i, floor_tiles[i])
+
+
+func _add_box_collider(body: StaticBody3D, xform: Transform3D, size: Vector3) -> void:
+	var shape := BoxShape3D.new()
+	shape.size = size
+	var col := CollisionShape3D.new()
+	col.shape = shape
+	col.transform = xform
+	body.add_child(col)
+
+
 ## A random spot outside the clear area that is not in a pond.
 func _dry_spot(half: float, min_dist: float) -> Vector2:
 	for n in 20:
 		var spot := _pick_spot(half, min_dist)
-		if not _near_pond(spot, 0.5):
+		if not _near_pond(spot, 0.5) and not _in_ruin(spot):
 			return spot
 	return _pick_spot(half, min_dist)
 

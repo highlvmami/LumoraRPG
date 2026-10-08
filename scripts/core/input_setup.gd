@@ -9,6 +9,7 @@ const BINDINGS := {
 	"move_right": [KEY_D, KEY_RIGHT],
 	"jump": [KEY_SPACE],
 	"pause": [KEY_ESCAPE, KEY_P],
+	"ultimate": [KEY_R, KEY_Q],
 }
 
 

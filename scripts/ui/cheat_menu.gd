@@ -33,6 +33,10 @@ const ACTIONS := [
 	["weapons", "Tüm silahlar max"],
 	["item", "Rastgele eşya"],
 	["chest", "Rastgele kasa"],
+	["ult", "Ulti hazır"],
+	["points", "+10 yetenek puanı"],
+	["pet", "Rastgele pet"],
+	["level10", "+10 hesap seviyesi"],
 ]
 
 ## A stat bonus changed; recalculate stats.
