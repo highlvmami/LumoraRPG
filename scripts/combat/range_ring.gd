@@ -11,6 +11,8 @@ const LIFT := 0.12
 var terrain: Terrain
 var target: Node3D
 var radius := 10.0
+var color := Color(1.0, 0.95, 0.75, 0.35)
+var width := WIDTH
 
 var _mesh := ImmediateMesh.new()
 
@@ -21,7 +23,7 @@ func _ready() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.95, 0.75, 0.35)
+	mat.albedo_color = color
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.no_depth_test = false
 	material_override = mat
@@ -37,7 +39,7 @@ func _process(_delta: float) -> void:
 	for i in SEGMENTS + 1:
 		var a := TAU * float(i) / SEGMENTS
 		var dir := Vector2(cos(a), sin(a))
-		for r: float in [radius - WIDTH, radius + WIDTH]:
+		for r: float in [radius - width, radius + width]:
 			var x := c.x + dir.x * r
 			var z := c.z + dir.y * r
 			_mesh.surface_add_vertex(Vector3(x, terrain.height_at(x, z) + LIFT, z))

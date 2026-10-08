@@ -6,7 +6,7 @@ extends Node3D
 const Terrain := preload("res://scripts/world/terrain.gd")
 
 const MAX_ORBS := 256
-const MAX_PER_KIND := 5
+const MAX_PER_KIND := 10
 const LIFETIME := 2.6
 const SHRINK_TIME := 0.5
 const GRAVITY := 22.0

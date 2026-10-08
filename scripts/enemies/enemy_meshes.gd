@@ -12,6 +12,8 @@ static func build(id: String, radius: float) -> ArrayMesh:
 			return _spider()
 		"thrower":
 			return _thrower()
+		"boss":
+			return _golem()
 		_:
 			return _slime(radius)
 
@@ -85,6 +87,30 @@ static func _thrower() -> ArrayMesh:
 		[_box(Vector3(0.13, 0.45, 0.13)), Vector3(0.34, 1.08, 0), skin],
 		[_box(Vector3(0.13, 0.4, 0.13)), Vector3(-0.34, 0.66, 0), skin],
 		[_sphere(0.15, 0.3), Vector3(0.34, 1.4, 0), rock],
+	])
+
+
+## The forest giant boss: a mossy stone golem about 3.5 units tall.
+static func _golem() -> ArrayMesh:
+	var stone := Color("#7d7a72")
+	var dark := Color("#57544d")
+	var moss := Color("#4f9a3a")
+	var eye := Color("#7dffb0")
+	return _compound([
+		[_box(Vector3(0.6, 1.1, 0.6)), Vector3(-0.5, 0.55, 0), dark],
+		[_box(Vector3(0.6, 1.1, 0.6)), Vector3(0.5, 0.55, 0), dark],
+		[_box(Vector3(1.8, 1.4, 1.1)), Vector3(0, 1.75, 0), stone],
+		[_box(Vector3(1.9, 0.25, 1.2)), Vector3(0, 2.5, 0), moss],
+		[_box(Vector3(0.9, 0.8, 0.8)), Vector3(0, 2.95, 0.1), stone],
+		[_box(Vector3(0.95, 0.18, 0.85)), Vector3(0, 3.42, 0.1), moss],
+		[_box(Vector3(0.18, 0.14, 0.05)), Vector3(-0.22, 3.0, 0.52), eye],
+		[_box(Vector3(0.18, 0.14, 0.05)), Vector3(0.22, 3.0, 0.52), eye],
+		[_box(Vector3(0.55, 1.5, 0.55)), Vector3(-1.2, 1.55, 0.15), stone],
+		[_box(Vector3(0.55, 1.5, 0.55)), Vector3(1.2, 1.55, 0.15), stone],
+		[_box(Vector3(0.7, 0.5, 0.7)), Vector3(-1.2, 0.6, 0.2), dark],
+		[_box(Vector3(0.7, 0.5, 0.7)), Vector3(1.2, 0.6, 0.2), dark],
+		[_box(Vector3(0.6, 0.2, 0.6)), Vector3(-1.2, 2.35, 0.15), moss],
+		[_box(Vector3(0.6, 0.2, 0.6)), Vector3(1.2, 2.35, 0.15), moss],
 	])
 
 

@@ -13,6 +13,8 @@ const EnemyMeshes := preload("res://scripts/enemies/enemy_meshes.gd")
 signal enemy_killed(at_position: Vector3, exp_amount: int, gold_amount: int)
 ## Emitted the first time a kind can spawn in a run (not for the starting kind).
 signal kind_unlocked(kind_name: String)
+signal boss_spawned(boss_name: String)
+signal boss_defeated(boss_name: String)
 
 const GRID_CELL := 2.0
 const HIT_FLASH_TIME := 0.12
@@ -36,8 +38,13 @@ var _rng := RandomNumberGenerator.new()
 var _spawn_timer := 0.0
 var _bounds := 70.0
 var _announced := {}
+var _next_boss := 0
+var _next_uid := 1
 
 var _kind := PackedInt32Array()
+## Stable id per enemy (indices change when enemies are removed).
+var _uid := PackedInt32Array()
+var _max_hp := PackedFloat32Array()
 var _pos := PackedVector3Array()
 var _hp := PackedFloat32Array()
 var _flash := PackedFloat32Array()
@@ -113,6 +120,9 @@ func count_kind(id: String) -> int:
 
 func clear() -> void:
 	_kind.clear()
+	_uid.clear()
+	_max_hp.clear()
+	_next_boss = 0
 	_pos.clear()
 	_hp.clear()
 	_flash.clear()
@@ -138,7 +148,9 @@ func kill_all_silently() -> void:
 	var t := run_time
 	var k := kills
 	var s := shots_fired
+	var b := _next_boss
 	clear()
+	_next_boss = b
 	run_time = t
 	kills = k
 	shots_fired = s
@@ -177,8 +189,17 @@ func _update_spawning(delta: float) -> void:
 	for k: Dictionary in _kinds:
 		if _unlocked(k) and not _announced.has(k.id):
 			_announced[k.id] = true
-			if float(k.unlockAt) > 0.0:
+			if float(k.unlockAt) > 0.0 and not k.get("boss", false):
 				kind_unlocked.emit(str(k.name))
+
+	# Bosses arrive at fixed times.
+	var boss_times: Array = _spawn.bossTimes
+	if _next_boss < boss_times.size() and run_time >= float(boss_times[_next_boss]):
+		_next_boss += 1
+		var a := _rng.randf() * TAU
+		var from := player.global_position + Vector3(cos(a), 0.0, sin(a)) * float(_spawn.ringMin)
+		if spawn("boss", from, true):
+			boss_spawned.emit(str(_kinds[_kind_index("boss")].name))
 
 	_spawn_timer -= delta
 	if _spawn_timer > 0.0:
@@ -200,10 +221,12 @@ func _pick_kind() -> int:
 	for k: Dictionary in _kinds:
 		if _unlocked(k):
 			total += float(k.weight)
+	if total <= 0.0:
+		return 0
 	var roll := _rng.randf() * total
 	for i in _kinds.size():
 		var k: Dictionary = _kinds[i]
-		if not _unlocked(k):
+		if not _unlocked(k) or float(k.weight) <= 0.0:
 			continue
 		roll -= float(k.weight)
 		if roll <= 0.0:
@@ -212,16 +235,21 @@ func _pick_kind() -> int:
 
 
 ## Spawns one enemy of kind `id` at `at` (y is snapped to the ground).
-## Returns false if the kind is unknown or the enemy cap is reached.
-func spawn(id: String, at: Vector3) -> bool:
+## Returns false if the kind is unknown or the enemy cap is reached
+## (`force` ignores the cap, used for bosses).
+func spawn(id: String, at: Vector3, force := false) -> bool:
 	var k := _kind_index(id)
-	if k < 0 or _pos.size() >= int(_spawn.maxAlive):
+	if k < 0 or (_pos.size() >= int(_spawn.maxAlive) and not force):
 		return false
 	var x := clampf(at.x, -_bounds, _bounds)
 	var z := clampf(at.z, -_bounds, _bounds)
+	var hp := float(_kinds[k].hp) * growth("hpGrowthPerMinute")
 	_kind.append(k)
+	_uid.append(_next_uid)
+	_next_uid += 1
+	_max_hp.append(hp)
 	_pos.append(Vector3(x, terrain.height_at(x, z), z))
-	_hp.append(float(_kinds[k].hp) * growth("hpGrowthPerMinute"))
+	_hp.append(hp)
 	_flash.append(0.0)
 	_phase.append(_rng.randf() * TAU)
 	_yaw.append(0.0)
@@ -270,7 +298,15 @@ func _update_movement(delta: float) -> void:
 				move = Vector2(-dir.y, dir.x) * speed * 0.35
 			_cool[i] -= delta
 			if _cool[i] <= 0.0 and dist < float(r.range):
-				_throw(p + Vector3.UP * 1.3, float(r.projectileSpeed), float(r.damage) * damage_scale)
+				var from := p + Vector3.UP * float(r.get("height", 1.3))
+				var dmg := float(r.damage) * damage_scale
+				var aim := (player.global_position + Vector3.UP * 0.9 - from).normalized()
+				_throw(from, aim, float(r.projectileSpeed), dmg)
+				# Bosses also send a ring of shots in every direction.
+				var ring := int(r.get("ring", 0))
+				for n in ring:
+					var a := TAU * n / ring
+					_throw(from, Vector3(cos(a), -0.08, sin(a)), float(r.projectileSpeed), dmg)
 				_cool[i] = float(r.cooldown) * _rng.randf_range(0.8, 1.2)
 
 		# Push away from neighbours so they spread out instead of stacking.
@@ -304,14 +340,12 @@ func _update_movement(delta: float) -> void:
 			player.call("take_damage", float(kd.damage) * damage_scale)
 
 
-func _throw(from: Vector3, speed: float, dmg: float) -> void:
+func _throw(from: Vector3, dir: Vector3, speed: float, dmg: float) -> void:
 	if _shot_pos.size() >= MAX_SHOTS:
 		return
-	var aim := player.global_position + Vector3.UP * 0.9
-	var vel := (aim - from).normalized() * speed
 	_shot_pos.append(from)
-	_shot_vel.append(vel)
-	_shot_life.append(from.distance_to(aim) / speed + 0.8)
+	_shot_vel.append(dir.normalized() * speed)
+	_shot_life.append(3.0)
 	_shot_damage.append(dmg)
 	shots_fired += 1
 
@@ -384,6 +418,41 @@ func nearest(from: Vector3, max_range: float) -> int:
 	return best
 
 
+## Indices of every enemy within `radius` of `from` (ground distance).
+func in_range(from: Vector3, radius: float) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for i in _pos.size():
+		var d := Vector2(_pos[i].x - from.x, _pos[i].z - from.z)
+		var r := radius + float(_kinds[_kind[i]].radius)
+		if d.length_squared() < r * r:
+			out.append(i)
+	return out
+
+
+func uid_of(index: int) -> int:
+	return _uid[index]
+
+
+func radius_of(index: int) -> float:
+	return float(_kinds[_kind[index]].radius)
+
+
+## Index of the living boss, or -1.
+func boss_index() -> int:
+	for i in _kind.size():
+		if _kinds[_kind[i]].get("boss", false):
+			return i
+	return -1
+
+
+func health_ratio(index: int) -> float:
+	return clampf(_hp[index] / _max_hp[index], 0.0, 1.0)
+
+
+func kind_name(index: int) -> String:
+	return str(_kinds[_kind[index]].name)
+
+
 func position_of(index: int) -> Vector3:
 	return _pos[index] + Vector3.UP * float(_kinds[_kind[index]].center)
 
@@ -413,12 +482,16 @@ func damage(index: int, amount: float, push_dir := Vector3.ZERO) -> void:
 		_remove(index)
 		kills += 1
 		enemy_killed.emit(where, int(kd.xp), int(kd.get("gold", 0)))
+		if kd.get("boss", false):
+			boss_defeated.emit(str(kd.name))
 
 
 func _remove(index: int) -> void:
 	# Swap with the last enemy so removal is O(1).
 	var last := _pos.size() - 1
 	_kind[index] = _kind[last]
+	_uid[index] = _uid[last]
+	_max_hp[index] = _max_hp[last]
 	_pos[index] = _pos[last]
 	_hp[index] = _hp[last]
 	_flash[index] = _flash[last]
@@ -426,6 +499,8 @@ func _remove(index: int) -> void:
 	_yaw[index] = _yaw[last]
 	_cool[index] = _cool[last]
 	_kind.resize(last)
+	_uid.resize(last)
+	_max_hp.resize(last)
 	_pos.resize(last)
 	_hp.resize(last)
 	_flash.resize(last)

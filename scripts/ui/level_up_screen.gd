@@ -1,17 +1,20 @@
-## Level-up choice: the game pauses and a few random boosts are offered as cards.
-## Click a card or press 1/2/3. Several level-ups in a row open it again.
+## Level-up choice: the game pauses and a few random cards are offered (stat
+## boosts, new weapons or weapon upgrades). Click a card or press 1/2/3.
+## Several level-ups in a row open it again. The game decides what is offered
+## (`roll`) and what picking does (`apply`); a choice is a dictionary with
+## id, type ("boost" or "weapon"), def (the data entry), now and max (levels).
 extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
-const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 
-## Emitted after a boost is added, so stats can be recalculated.
+## Emitted after a choice is applied.
 signal chosen(id: String)
 ## Emitted when the last pending choice is made and the game resumes.
 signal closed
 
-var boosts: RunBoosts
+var roll: Callable
+var apply: Callable
 var pending := 0
 
 var _choices: Array = []
@@ -19,8 +22,9 @@ var _title: Label
 var _cards: HBoxContainer
 
 
-func setup(p_boosts: RunBoosts) -> void:
-	boosts = p_boosts
+func setup(p_roll: Callable, p_apply: Callable) -> void:
+	roll = p_roll
+	apply = p_apply
 	layer = 6
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
@@ -40,7 +44,7 @@ func setup(p_boosts: RunBoosts) -> void:
 	_title = UiTheme.label("", UiTheme.label_settings(46, UiTheme.ACCENT, 10))
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_title)
-	var sub := UiTheme.label("Bir güçlendirme seç  (1 · 2 · 3)", UiTheme.label_settings(22, UiTheme.MUTED, 5))
+	var sub := UiTheme.label("Bir silah ya da güçlendirme seç  (1 · 2 · 3)", UiTheme.label_settings(22, UiTheme.MUTED, 5))
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(sub)
 
@@ -61,10 +65,10 @@ func queue_level_up(level: int) -> void:
 func pick(index: int) -> void:
 	if not visible or index < 0 or index >= _choices.size():
 		return
-	var id: String = _choices[index].id
-	boosts.add(id)
+	var choice: Dictionary = _choices[index]
+	apply.call(choice)
 	pending -= 1
-	chosen.emit(id)
+	chosen.emit(str(choice.id))
 	if pending > 0:
 		_open()
 	else:
@@ -83,7 +87,7 @@ func close() -> void:
 
 
 func _open() -> void:
-	_choices = boosts.roll_choices()
+	_choices = roll.call()
 	if _choices.is_empty():
 		# Everything is maxed out; nothing to choose.
 		pending = 0
@@ -107,10 +111,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func _card(d: Dictionary, index: int) -> Button:
+func _card(choice: Dictionary, index: int) -> Button:
+	var d: Dictionary = choice.def
+	var now := int(choice.now)
+	var is_weapon: bool = choice.type == "weapon"
 	var color := Color(str(d.color))
 	var card := Button.new()
-	card.custom_minimum_size = Vector2(250, 300)
+	card.custom_minimum_size = Vector2(250, 350)
 	for state: String in ["normal", "hover", "pressed"]:
 		var style := UiTheme.box(UiTheme.PANEL if state == "normal" else Color(0.14, 0.18, 0.23, 0.97), 14, 16)
 		style.set_border_width_all(4 if state == "hover" else 3)
@@ -121,7 +128,7 @@ func _card(d: Dictionary, index: int) -> Button:
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 18)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 12)
+	box.add_theme_constant_override("separation", 8)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(box)
 
@@ -138,10 +145,13 @@ func _card(d: Dictionary, index: int) -> Button:
 	icon.add_child(key)
 	box.add_child(icon)
 
+	var tag := "YENİ SİLAH!" if is_weapon and now == 0 else ("SİLAH" if is_weapon else "GÜÇLENDİRME")
+	box.add_child(_centered(tag, UiTheme.label_settings(14, UiTheme.ACCENT if is_weapon else UiTheme.MUTED, 4)))
+
 	box.add_child(_centered(str(d.name), UiTheme.label_settings(28, color.lightened(0.25), 6)))
-	box.add_child(_centered(str(d.desc), UiTheme.label_settings(22)))
-	var now := boosts.count(d.id)
-	box.add_child(_centered("Seviye %d → %d  (en fazla %d)" % [now, now + 1, int(d.maxStacks)], UiTheme.label_settings(16, UiTheme.MUTED, 4)))
+	var desc := str(d.upgrade) if is_weapon and now > 0 else str(d.desc)
+	box.add_child(_centered(desc, UiTheme.label_settings(20)))
+	box.add_child(_centered("Seviye %d → %d  (en fazla %d)" % [now, now + 1, int(choice.max)], UiTheme.label_settings(16, UiTheme.MUTED, 4)))
 	return card
 
 

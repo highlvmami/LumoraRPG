@@ -6,6 +6,7 @@ extends CanvasLayer
 const UiTheme := preload("res://scripts/ui/theme.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const EnemyManager := preload("res://scripts/enemies/enemy_manager.gd")
+const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 
 signal restart_requested
 signal menu_requested
@@ -21,6 +22,10 @@ var world_scale := 1.0
 var _root: Control
 var _account: Label
 var _account_bar: ProgressBar
+var _weapon_row: HBoxContainer
+var _boss_box: VBoxContainer
+var _boss_name: Label
+var _boss_bar: ProgressBar
 var _name: Label
 var _portrait_letter: Label
 var _level: Label
@@ -66,6 +71,22 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	top_left.add_child(_account)
 	_account_bar = _bar(Color("#9fd3ff"), Vector2(220, 6))
 	top_left.add_child(_account_bar)
+	_weapon_row = HBoxContainer.new()
+	_weapon_row.add_theme_constant_override("separation", 6)
+	top_left.add_child(_weapon_row)
+
+	_boss_box = VBoxContainer.new()
+	_boss_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 14)
+	_boss_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_boss_box.add_theme_constant_override("separation", 2)
+	_boss_box.visible = false
+	_root.add_child(_boss_box)
+	_boss_name = UiTheme.label("", UiTheme.label_settings(18, Color("#ff8a8a"), 5))
+	_boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_box.add_child(_boss_name)
+	_boss_bar = _bar(Color("#c0392b"), Vector2(460, 14))
+	_boss_bar.max_value = 1.0
+	_boss_box.add_child(_boss_bar)
 
 	var top_right := VBoxContainer.new()
 	top_right.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
@@ -110,6 +131,8 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 
 	progression.account_level_up.connect(func(lv: int) -> void: _show_toast("HESAP SEVİYESİ %d!" % lv))
 	enemies.kind_unlocked.connect(func(kind_name: String) -> void: _show_toast("YENİ DÜŞMAN: %s" % kind_name.to_upper()))
+	enemies.boss_spawned.connect(func(boss_name: String) -> void: _show_toast("BOSS GELDİ: %s!" % boss_name.to_upper()))
+	enemies.boss_defeated.connect(func(_boss_name: String) -> void: _show_toast("BOSS YENİLDİ!"))
 	enemies.enemy_killed.connect(_on_enemy_killed)
 
 
@@ -120,6 +143,23 @@ func show_death(level: int, kills: int, gold: int, seconds: float) -> void:
 
 func hide_death() -> void:
 	_death.visible = false
+
+
+## Weapon icons with their level under the account line; `weapons` is [def, level].
+func set_weapons(weapons: Array) -> void:
+	for child in _weapon_row.get_children():
+		child.queue_free()
+	for pair: Array in weapons:
+		var slot := PanelContainer.new()
+		slot.add_theme_stylebox_override("panel", UiTheme.box(Color(0, 0, 0, 0.5), 6, 3))
+		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon := PixelIcons.rect(str(pair[0].get("icon", "")), 30)
+		slot.add_child(icon)
+		var lv := UiTheme.label(str(pair[1]), UiTheme.label_settings(12, UiTheme.ACCENT, 3))
+		lv.size_flags_horizontal = Control.SIZE_SHRINK_END
+		lv.size_flags_vertical = Control.SIZE_SHRINK_END
+		slot.add_child(lv)
+		_weapon_row.add_child(slot)
 
 
 ## Updates the stat grid in the character panel; `stats` is a list of [name, value].
@@ -167,6 +207,11 @@ func _process(_delta: float) -> void:
 	_hp_bar.value = hp
 	_hp_text.text = "%d / %d" % [ceili(hp), int(max_hp)]
 	_gold.text = "%d altın" % progression.gold()
+	var boss := enemies.boss_index()
+	_boss_box.visible = boss >= 0
+	if boss >= 0:
+		_boss_name.text = enemies.kind_name(boss).to_upper()
+		_boss_bar.value = enemies.health_ratio(boss)
 	var t := int(enemies.run_time)
 	_stats.text = "%d:%02d   ·   %d canavar   ·   FPS %d" % [t / 60, t % 60, enemies.kills, Engine.get_frames_per_second()]
 

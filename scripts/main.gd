@@ -14,6 +14,7 @@ const EnemyManager := preload("res://scripts/enemies/enemy_manager.gd")
 const AutoBow := preload("res://scripts/combat/auto_bow.gd")
 const RangeRing := preload("res://scripts/combat/range_ring.gd")
 const LootOrbs := preload("res://scripts/combat/loot_orbs.gd")
+const WeaponSet := preload("res://scripts/combat/weapon_set.gd")
 const ProfileStore := preload("res://scripts/progression/profile_store.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const Shop := preload("res://scripts/progression/shop.gd")
@@ -38,6 +39,7 @@ var enemies: EnemyManager
 var bow: AutoBow
 var range_ring: RangeRing
 var loot_orbs: LootOrbs
+var weapons: WeaponSet
 var progression: Progression
 var shop: Shop
 var boosts := RunBoosts.new()
@@ -129,6 +131,11 @@ func login(username: String) -> void:
 	bow.setup(player, enemies)
 	bow.fired.connect(player.play_attack)
 
+	weapons = WeaponSet.new()
+	weapons.name = "Weapons"
+	world.add_child(weapons)
+	weapons.setup(player, enemies, bow, terrain)
+
 	loot_orbs = LootOrbs.new()
 	loot_orbs.name = "LootOrbs"
 	world.add_child(loot_orbs)
@@ -148,11 +155,11 @@ func login(username: String) -> void:
 	hud.restart_requested.connect(start_run)
 	hud.menu_requested.connect(show_menu)
 	bow.hit_landed.connect(hud.show_hit)
+	weapons.hit_landed.connect(hud.show_hit)
 
 	level_up_screen = LevelUpScreen.new()
 	add_child(level_up_screen)
-	level_up_screen.setup(boosts)
-	level_up_screen.chosen.connect(func(_id: String) -> void: _apply_stats())
+	level_up_screen.setup(roll_level_up_choices, apply_level_up_choice)
 	level_up_screen.closed.connect(_on_popup_closed)
 
 	pause_menu = PauseMenu.new()
@@ -160,6 +167,7 @@ func login(username: String) -> void:
 	pause_menu.setup(boosts, str(profile.get("quality", DEFAULT_QUALITY)))
 	pause_menu.can_pause = _can_pause
 	pause_menu.stats_source = stat_list
+	pause_menu.weapons_source = weapon_list
 	pause_menu.resumed.connect(_on_popup_closed)
 	pause_menu.menu_requested.connect(leave_run)
 	pause_menu.quality_selected.connect(set_quality)
@@ -196,6 +204,8 @@ func show_menu() -> void:
 	enemies.active = false
 	bow.clear()
 	bow.active = false
+	weapons.active = false
+	weapons.reset()
 	player.visible = false
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	range_ring.visible = false
@@ -216,6 +226,7 @@ func start_run() -> void:
 	main_menu.visible = false
 	progression.start_run()
 	boosts.reset()
+	weapons.reset()
 	enemies.clear()
 	bow.clear()
 	loot_orbs.clear()
@@ -230,6 +241,8 @@ func start_run() -> void:
 
 	enemies.active = true
 	bow.active = true
+	weapons.active = true
+	hud.set_weapons(weapon_list())
 	camera_rig.capture_enabled = true
 	camera_rig.camera.current = true
 	hud.visible = true
@@ -248,6 +261,41 @@ func _apply_stats() -> void:
 	bow.crit_multiplier = bow.base_crit_multiplier + _extra("critDamage")
 	range_ring.radius = bow.attack_range()
 	hud.set_stats(stat_list())
+
+
+## Level-up cards: random boosts and weapons (new or upgrades). When any
+## weapon can be offered, at least one card is a weapon.
+func roll_level_up_choices() -> Array:
+	var boost_cards: Array = []
+	for d: Dictionary in boosts.defs:
+		if boosts.count(d.id) < int(d.maxStacks):
+			boost_cards.append({"id": d.id, "type": "boost", "def": d, "now": boosts.count(d.id), "max": int(d.maxStacks)})
+	var weapon_cards: Array = []
+	for d: Dictionary in weapons.available_choices():
+		weapon_cards.append({"id": d.id, "type": "weapon", "def": d, "now": weapons.level(d.id), "max": int(d.maxLevel)})
+	weapon_cards.shuffle()
+	var pool: Array = boost_cards + weapon_cards.slice(1)
+	pool.shuffle()
+	var picks: Array = []
+	if not weapon_cards.is_empty():
+		picks.append(weapon_cards[0])
+	picks.append_array(pool.slice(0, boosts.choices_per_level - picks.size()))
+	picks.shuffle()
+	return picks
+
+
+func apply_level_up_choice(choice: Dictionary) -> void:
+	if choice.type == "weapon":
+		weapons.add(str(choice.id))
+		hud.set_weapons(weapon_list())
+	else:
+		boosts.add(str(choice.id))
+	_apply_stats()
+
+
+## Weapons carried this run as [def, level], the bow first.
+func weapon_list() -> Array:
+	return [[bow.data(), 1]] + weapons.owned()
 
 
 ## The stats shown in the character panel and the pause menu, as [name, value].
@@ -298,6 +346,14 @@ func cheat(id: String) -> void:
 			around.call(3, "thrower")
 		"time":
 			enemies.run_time += 60.0
+		"boss":
+			enemies.spawn("boss", player.global_position + Vector3(0, 0, 14), true)
+			enemies.boss_spawned.emit(enemies.kind_name(enemies.boss_index()))
+		"weapons":
+			for d: Dictionary in weapons.defs:
+				while weapons.level(d.id) < int(d.maxLevel):
+					weapons.add(str(d.id))
+			hud.set_weapons(weapon_list())
 
 
 func _can_pause() -> bool:
@@ -340,6 +396,7 @@ func _on_level_up(level: int) -> void:
 func _on_player_died() -> void:
 	enemies.active = false
 	bow.active = false
+	weapons.active = false
 	progression.end_run(enemies.kills)
 	camera_rig.capture_enabled = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

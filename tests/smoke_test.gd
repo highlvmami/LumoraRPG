@@ -1,7 +1,7 @@
 ## Headless smoke test: logs in, uses the main menu, drives the player with
 ## simulated input and checks movement, enemies, auto-attack, exp/gold/levels,
-## level-up boost choices, the pause menu, enemy kinds, loot orbs, the cheat
-## menu, saving and the death flow.
+## level-up choices, weapons, the boss, the pause menu, enemy kinds, loot orbs,
+## the cheat menu, saving and the death flow.
 ## Run: godot --headless --path . -s res://tests/smoke_test.gd
 extends SceneTree
 
@@ -100,24 +100,28 @@ func _run() -> void:
 	_check(int(profile.gold) > 60, "kills give gold (%d)" % int(profile.gold))
 	_check(orbs_seen > 0, "killed enemies drop exp/gold orbs (%d seen)" % orbs_seen)
 
-	# Level-up: the game pauses and offers 3 boosts; picking one applies it.
+	# Level-up: the game pauses and offers 3 cards; picking one applies it.
+	var weapons: Node = main.get("weapons")
 	level_up.call("close")
 	boosts.call("reset")
+	weapons.call("reset")
 	main.call("_apply_stats")
 	var crit_before := float(bow.get("crit_chance"))
 	progression.call("add_exp", int(progression.call("exp_to_next_level")))
 	await _frames(1)
-	_check(bool(level_up.get("visible")) and paused, "level-up opens the boost choice and pauses")
+	_check(bool(level_up.get("visible")) and paused, "level-up opens the choice and pauses")
 	var choices: Array = level_up.get("_choices")
-	_check(choices.size() == 3, "three boosts are offered (%d)" % choices.size())
+	_check(choices.size() == 3, "three cards are offered (%d)" % choices.size())
+	_check(choices.any(func(c: Dictionary) -> bool: return c.type == "weapon"), "a weapon card is offered")
 	var crit_index := -1
 	for c in choices.size():
 		if choices[c].id == "crit_chance":
 			crit_index = c
 	level_up.call("pick", maxi(crit_index, 0))
 	await _frames(1)
-	_check(not bool(level_up.get("visible")) and not paused, "picking a boost resumes the game")
-	_check((boosts.call("picked") as Array).size() == 1, "picked boost is recorded")
+	_check(not bool(level_up.get("visible")) and not paused, "picking a card resumes the game")
+	var picked_count := (boosts.call("picked") as Array).size() + (weapons.call("owned") as Array).size()
+	_check(picked_count == 1, "picked card is recorded")
 	if crit_index >= 0:
 		_check(float(bow.get("crit_chance")) > crit_before, "crit boost raises crit chance")
 	var hud: Node = main.get("hud")
@@ -151,8 +155,40 @@ func _run() -> void:
 	_check(int(enemies.get("shots_fired")) > 0, "goblin throws at the player")
 	enemies.set("run_time", 95.0)
 	await _frames(2)
-	_check((enemies.get("_announced") as Dictionary).size() == 4, "all enemy kinds unlock as time goes on")
+	_check((enemies.get("_announced") as Dictionary).size() == 5, "all enemy kinds unlock as time goes on")
 	_check(float(enemies.call("growth", "hpGrowthPerMinute")) > 1.4, "enemies get tougher over time")
+
+	# Every extra weapon damages enemies around the player.
+	main.call("cheat", "clear")
+	for id: String in ["orbit", "fireball", "lightning", "aura"]:
+		weapons.call("add", id)
+	_check((weapons.call("owned") as Array).size() == 4, "all four weapons can be carried")
+	var dealt: Dictionary = weapons.get("damage_dealt")
+	for i in 400:
+		if i % 40 == 0:
+			for n in 6:
+				var a := TAU * n / 6.0
+				enemies.call("spawn", "slime", player.global_position + Vector3(cos(a), 0, sin(a)) * 4.0)
+		await physics_frame
+		if bool(level_up.get("visible")):
+			level_up.call("pick", 0)
+		if dealt.size() == 4:
+			break
+	for id: String in ["orbit", "fireball", "lightning", "aura"]:
+		_check(float(dealt.get(id, 0.0)) > 0.0, "%s deals damage (%.0f)" % [id, float(dealt.get(id, 0.0))])
+
+	# Boss: spawns with a health bar and announces its defeat.
+	var defeated: Array = []
+	enemies.connect("boss_defeated", func(boss_name: String) -> void: defeated.append(boss_name))
+	main.call("cheat", "boss")
+	await _frames(2)
+	var boss := int(enemies.call("boss_index"))
+	_check(boss >= 0, "boss spawns")
+	_check(bool(hud.get("_boss_box").get("visible")), "boss health bar is shown")
+	if boss >= 0:
+		enemies.call("damage", boss, 1000000.0)
+	await _frames(2)
+	_check(defeated.size() == 1 and int(enemies.call("boss_index")) < 0, "boss can be defeated")
 
 	# Developer cheat menu: stat bonuses, god mode, actions.
 	var dmg_before := float(bow.get("damage_multiplier"))

@@ -78,6 +78,11 @@ func _physics_process(delta: float) -> void:
 	_update_arrows(delta)
 
 
+## The bow's entry in data/weapons.json (name, icon, numbers).
+func data() -> Dictionary:
+	return _w
+
+
 func attack_range() -> float:
 	return float(_w["range"]) + range_bonus
 
