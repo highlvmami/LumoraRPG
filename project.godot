@@ -13,18 +13,16 @@ config/icon="res://icon.svg"
 
 [display]
 
-; The game renders at 480x270 and is scaled up to the window: this is the "3D pixel" look.
-window/size/viewport_width=480
-window/size/viewport_height=270
-window/size/window_width_override=1440
-window/size/window_height_override=810
-window/stretch/mode="viewport"
+; The UI is laid out at 1280x720 and scales smoothly with the window (sharp text).
+; The 3D world renders at half resolution inside a SubViewport for the pixel look (see main.gd).
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
 [rendering]
 
 ; Browsers only support the Compatibility renderer.
 renderer/rendering_method.web="gl_compatibility"
-textures/canvas_textures/default_texture_filter=0
 anti_aliasing/quality/msaa_3d=0
 anti_aliasing/quality/screen_space_aa=0

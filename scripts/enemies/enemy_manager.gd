@@ -7,10 +7,11 @@ const Config := preload("res://scripts/core/config.gd")
 const Toon := preload("res://scripts/core/toon.gd")
 const Terrain := preload("res://scripts/world/terrain.gd")
 
-signal enemy_killed(at_position: Vector3, exp_amount: int)
+signal enemy_killed(at_position: Vector3, exp_amount: int, gold_amount: int)
 
 const GRID_CELL := 2.0
 const HIT_FLASH_TIME := 0.12
+const KNOCKBACK := 0.7
 
 var terrain: Terrain
 var player: CharacterBody3D
@@ -164,6 +165,9 @@ func _update_render() -> void:
 		# Squash-and-stretch bounce reads as a hopping slime.
 		var bounce := absf(sin(_phase[i]))
 		var squash := Vector3(1.0 + 0.12 * (1.0 - bounce), 0.85 + 0.3 * bounce, 1.0 + 0.12 * (1.0 - bounce))
+		if _flash[i] > 0.0:
+			# Squashed flat for a moment when hit.
+			squash *= Vector3(1.25, 0.7, 1.25)
 		var origin := _pos[i] + Vector3.UP * (float(_type.radius) * 0.6 + bounce * 0.35)
 		_mm.set_instance_transform(i, Transform3D(Basis.from_scale(squash), origin))
 		_mm.set_instance_color(i, Color.WHITE if _flash[i] > 0.0 else _base_color)
@@ -194,14 +198,20 @@ func hit_test(point: Vector3, hit_radius: float) -> int:
 	return -1
 
 
-func damage(index: int, amount: float) -> void:
+func damage(index: int, amount: float, push_dir := Vector3.ZERO) -> void:
 	_hp[index] -= amount
 	_flash[index] = HIT_FLASH_TIME
+	# Small knockback so hits feel punchy.
+	var p := _pos[index]
+	p.x = clampf(p.x + push_dir.x * KNOCKBACK, -_bounds, _bounds)
+	p.z = clampf(p.z + push_dir.z * KNOCKBACK, -_bounds, _bounds)
+	p.y = terrain.height_at(p.x, p.z)
+	_pos[index] = p
 	if _hp[index] <= 0.0:
 		var where := position_of(index)
 		_remove(index)
 		kills += 1
-		enemy_killed.emit(where, int(_type.xp))
+		enemy_killed.emit(where, int(_type.xp), int(_type.get("gold", 0)))
 
 
 func _remove(index: int) -> void:

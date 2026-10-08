@@ -1,5 +1,6 @@
-## Headless smoke test: logs in, drives the player with simulated input and
-## checks movement, enemies, auto-attack, exp/levels, saving and the death flow.
+## Headless smoke test: logs in, uses the main menu, drives the player with
+## simulated input and checks movement, enemies, auto-attack, exp/gold/levels,
+## saving and the death flow.
 ## Run: godot --headless --path . -s res://tests/smoke_test.gd
 extends SceneTree
 
@@ -23,10 +24,31 @@ func _run() -> void:
 	_check(main.get("login_screen") != null, "login screen is shown")
 	main.get("store").path = TEST_SAVE
 	main.get("login_screen").login("ci_test")
+	await _frames(5)
+
+	# Main menu: sections, friends and buying from the market.
+	var menu: Node = main.get("main_menu")
+	_check(menu != null and bool(menu.get("visible")), "main menu opens after login")
+	for section_id: String in ["friends", "backpack", "market", "profile"]:
+		menu.call("open_section", section_id)
+		await _frames(1)
+	_check(bool(menu.call("add_friend", "arkadas1")), "a friend can be added")
+	var shop: RefCounted = main.get("shop")
+	var profile0: Dictionary = main.get("progression").get("profile")
+	_check(not bool(menu.call("buy", "sharp_arrows")), "cannot buy without gold")
+	profile0.gold = 100
+	_check(bool(menu.call("buy", "sharp_arrows")), "buying an item with gold works")
+	_check(int(profile0.gold) == 60 and bool(shop.call("owns", "sharp_arrows")), "gold is spent and item is in the backpack")
+
+	menu.call("emit_signal", "play_pressed")
 	await _frames(60)
+	_check(not bool(menu.get("visible")), "play hides the main menu")
+	var bow: Node = main.get("bow")
+	_check(absf(float(bow.get("damage_multiplier")) - 1.15) < 0.001, "owned item boosts damage (x%.2f)" % float(bow.get("damage_multiplier")))
+	_check(absf(float(main.get("range_ring").get("radius")) - 10.0) < 0.001, "range ring matches the attack range")
 
 	var player: CharacterBody3D = main.get("player")
-	_check(player != null, "player is spawned after login")
+	_check(player != null, "player is spawned")
 	if player == null:
 		_finish()
 		return
@@ -66,6 +88,7 @@ func _run() -> void:
 	_check(level > 1 or level_exp > 0, "kills give character exp (level %d, exp %d)" % [level, level_exp])
 	var profile: Dictionary = progression.get("profile")
 	_check(int(profile.accountExp) > 0 or int(profile.accountLevel) > 1, "kills give account exp")
+	_check(int(profile.gold) > 60, "kills give gold (%d)" % int(profile.gold))
 
 	# Death ends the run and saves the account; restarting resets the character.
 	player.call("take_damage", 100000.0)
@@ -84,6 +107,10 @@ func _run() -> void:
 	_check(not bool(player.get("dead")), "restart revives the player")
 	_check(int(progression.get("level")) == 1, "restart resets character level")
 	_check(int(enemies.get("kills")) == 0, "restart clears enemies")
+
+	main.call("show_menu")
+	await _frames(2)
+	_check(bool(menu.get("visible")) and not bool(main.get("in_run")), "can go back to the main menu")
 
 	_finish()
 

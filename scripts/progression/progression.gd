@@ -9,6 +9,7 @@ const ProfileStore := preload("res://scripts/progression/profile_store.gd")
 signal exp_gained(amount: int)
 signal level_up(level: int)
 signal account_level_up(level: int)
+signal gold_changed(gold: int)
 
 var store: ProfileStore
 var profile: Dictionary
@@ -70,6 +71,15 @@ func add_exp(amount: int) -> void:
 		account_level_up.emit(account_level())
 		store.save_to_disk()
 	exp_gained.emit(amount)
+
+
+func gold() -> int:
+	return int(profile.gold)
+
+
+func add_gold(amount: int) -> void:
+	profile.gold = gold() + amount
+	gold_changed.emit(gold())
 
 
 ## Records the finished run in the profile and saves it.

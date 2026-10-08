@@ -13,6 +13,8 @@ var camera_yaw := 0.0
 var max_hp := 100.0
 var hp := 100.0
 var dead := false
+## 1.0 = base move speed (items can raise it).
+var speed_multiplier := 1.0
 ## Direction the character faces, in radians around Y (0 = +Z).
 var facing := 0.0
 
@@ -22,6 +24,9 @@ var _jump_buffer := 0.0
 var _model: PlayerModel
 var _spawn_point := Vector3.ZERO
 var _invulnerable := 0.0
+## While > 0 the character faces its last shot instead of its movement.
+var _aim_time := 0.0
+var _aim_facing := 0.0
 
 
 func _ready() -> void:
@@ -60,6 +65,13 @@ func set_max_hp(value: float) -> void:
 	hp += value - max_hp
 	max_hp = value
 	health_changed.emit(hp, max_hp)
+
+
+## Plays the bow animation and turns toward the shot for a moment.
+func play_attack(direction: Vector3) -> void:
+	_model.attack()
+	_aim_facing = atan2(direction.x, direction.z)
+	_aim_time = 0.3
 
 
 func take_damage(amount: float) -> void:
@@ -101,7 +113,7 @@ func step(delta: float, move: Vector2, jump_pressed: bool) -> void:
 
 	# Accelerate toward the target velocity (less control in the air).
 	var horiz := Vector2(velocity.x, velocity.z)
-	var target: Vector2 = move * t.moveSpeed
+	var target: Vector2 = move * float(t.moveSpeed) * speed_multiplier
 	var accel: float = t.groundAccel if on_floor else t.airAccel
 	horiz = horiz.move_toward(target, accel * delta)
 
@@ -118,7 +130,10 @@ func step(delta: float, move: Vector2, jump_pressed: bool) -> void:
 	velocity = Vector3(horiz.x, vy, horiz.y)
 	move_and_slide()
 
-	if horiz.length_squared() > 0.25:
+	_aim_time = maxf(0.0, _aim_time - delta)
+	if _aim_time > 0.0:
+		facing = lerp_angle(facing, _aim_facing, minf(1.0, delta * 20.0))
+	elif horiz.length_squared() > 0.25:
 		var target_facing := atan2(horiz.x, horiz.y)
 		facing = lerp_angle(facing, target_facing, minf(1.0, delta * 14.0))
 

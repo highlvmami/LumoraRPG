@@ -16,7 +16,9 @@ https://highlvmami.github.io/LumoraRPG/ — `main` dalına her birleştirmede ot
 
 ## Oynanış
 
-Girişte bir kullanıcı adı yaz (yeni ad = yeni hesap; hesap bu cihazda saklanır). Canavarlar etrafında doğar, karakterin en yakındakine otomatik ok atar. Her ölen canavar EXP verir: **karakter seviyesi** her oyunda 1'den başlar ve seni güçlendirir, **hesap seviyesi** kalıcıdır.
+Girişte bir kullanıcı adı yaz (yeni ad = yeni hesap; hesap bu cihazda saklanır). Ana menüde hesap seviyeni görürsün; **Oyna**, **Arkadaşlar**, **Çanta** ve **Market** bölümleri vardır.
+
+Oyunda canavarlar etrafında doğar, karakterin menzil çemberine giren en yakın canavara otomatik ok atar. Her ölen canavar EXP ve altın verir: **karakter seviyesi** her oyunda 1'den başlar ve seni güçlendirir, **hesap seviyesi** kalıcıdır. Altınla Market'ten eşya alırsın; çantandaki eşyalar her oyunda bonus verir.
 
 ## Kontroller
 

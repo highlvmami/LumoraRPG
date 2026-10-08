@@ -8,11 +8,17 @@ const EnemyManager := preload("res://scripts/enemies/enemy_manager.gd")
 
 const MAX_ARROWS := 64
 
+## Emitted when an arrow is shot, so the character can play its attack animation.
+signal fired(direction: Vector3)
+
 var player: CharacterBody3D
 var enemies: EnemyManager
 var active := false
-## Multiplier from character level; 1.0 = base damage.
+## Multiplier from character level and items; 1.0 = base damage.
 var damage_multiplier := 1.0
+## 1.0 = base attack speed; 1.15 = 15% faster.
+var attack_speed_multiplier := 1.0
+var range_bonus := 0.0
 
 var _w: Dictionary
 var _cooldown := 0.0
@@ -59,16 +65,21 @@ func _physics_process(delta: float) -> void:
 	_update_arrows(delta)
 
 
+func attack_range() -> float:
+	return float(_w["range"]) + range_bonus
+
+
 func _try_fire() -> void:
 	var origin := player.global_position + Vector3.UP * 1.3
-	var target := enemies.nearest(origin, float(_w["range"]))
+	var target := enemies.nearest(origin, attack_range())
 	if target < 0 or _arrow_pos.size() >= MAX_ARROWS:
 		return
 	var dir := (enemies.position_of(target) - origin).normalized()
 	_arrow_pos.append(origin)
 	_arrow_vel.append(dir * float(_w.projectileSpeed))
 	_arrow_life.append(_w.projectileLifetime)
-	_cooldown = _w.cooldown
+	_cooldown = float(_w.cooldown) / attack_speed_multiplier
+	fired.emit(dir)
 
 
 func _update_arrows(delta: float) -> void:
@@ -78,7 +89,7 @@ func _update_arrows(delta: float) -> void:
 		_arrow_life[i] -= delta
 		var hit := enemies.hit_test(_arrow_pos[i], _w.hitRadius)
 		if hit >= 0:
-			enemies.damage(hit, float(_w.damage) * damage_multiplier)
+			enemies.damage(hit, float(_w.damage) * damage_multiplier, _arrow_vel[i].normalized())
 		if hit >= 0 or _arrow_life[i] <= 0.0:
 			_remove(i)
 		else:
