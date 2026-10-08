@@ -1,15 +1,16 @@
-## Blocky placeholder character built from boxes (real voxel models come in M5).
-## Faces +Z. Animates legs/arms from movement speed, plays a bow shot, blinks when hurt.
+## Blocky character built from boxes. Faces +Z. The look depends on the class
+## (tunic, hair, held weapon) and on the equipped gear: better weapon rarities
+## get bigger, more detailed and glowing weapons, and a helmet shows when worn.
+## Animates legs/arms from movement speed, plays the class attack, blinks when hurt.
 extends Node3D
 
 const Toon := preload("res://scripts/core/toon.gd")
 
 const SKIN := Color("#f1c27d")
-const TUNIC := Color("#3a6ea5")
 const PANTS := Color("#3b2f2a")
-const HAIR := Color("#5a3820")
 const EYES := Color("#1a1a1a")
-const BOW := Color("#8a5a2b")
+const WOOD := Color("#8a5a2b")
+const STEEL := Color("#c9d4e0")
 const ATTACK_TIME := 0.28
 
 var _visual: Node3D
@@ -20,31 +21,122 @@ var _arm_r: Node3D
 var _phase := 0.0
 var _flash_time := 0.0
 var _attack_time := 0.0
-var _torso: Node3D
+var _class := "archer"
 
 
 func _ready() -> void:
+	build({})
+
+
+## Rebuilds the character. `look` keys (all optional):
+##   class ("warrior"/"archer"/"mage"), tunic, hair (colors as strings),
+##   weapon_tier (0-2, -1 = nothing equipped), weapon_color (rarity color),
+##   helmet_color (empty = no helmet).
+func build(look: Dictionary) -> void:
+	if _visual:
+		_visual.queue_free()
+	_class = str(look.get("class", "archer"))
+	var tunic := Color(str(look.get("tunic", "#3a6ea5")))
+	var hair := Color(str(look.get("hair", "#5a3820")))
+	var tier := int(look.get("weapon_tier", -1))
+	var glow := Color(str(look.get("weapon_color", "#ffffff")))
+	var helmet := str(look.get("helmet_color", ""))
+
 	_visual = Node3D.new()
 	add_child(_visual)
-	_box(_visual, Vector3(0.7, 0.75, 0.4), Vector3(0, 1.1, 0), TUNIC)
+	_box(_visual, Vector3(0.7, 0.75, 0.4), Vector3(0, 1.1, 0), tunic)
+	_box(_visual, Vector3(0.74, 0.1, 0.44), Vector3(0, 0.8, 0), tunic.darkened(0.45))
 	_box(_visual, Vector3(0.5, 0.5, 0.5), Vector3(0, 1.75, 0), SKIN)
-	_box(_visual, Vector3(0.54, 0.16, 0.54), Vector3(0, 2.02, -0.02), HAIR)
 	_box(_visual, Vector3(0.08, 0.08, 0.02), Vector3(-0.12, 1.78, 0.26), EYES)
 	_box(_visual, Vector3(0.08, 0.08, 0.02), Vector3(0.12, 1.78, 0.26), EYES)
+	if helmet != "":
+		var hc := Color(helmet)
+		_box(_visual, Vector3(0.58, 0.24, 0.58), Vector3(0, 2.0, 0), hc)
+		_box(_visual, Vector3(0.6, 0.06, 0.6), Vector3(0, 1.9, 0), hc.darkened(0.3))
+	elif _class == "mage":
+		# Pointed wizard hat.
+		_box(_visual, Vector3(0.7, 0.06, 0.7), Vector3(0, 2.02, 0), tunic.darkened(0.2))
+		_box(_visual, Vector3(0.42, 0.3, 0.42), Vector3(0, 2.18, 0), tunic.darkened(0.2))
+		var tip := _box(_visual, Vector3(0.22, 0.28, 0.22), Vector3(0, 2.42, -0.06), tunic.darkened(0.2))
+		tip.rotation.x = -0.35
+	else:
+		_box(_visual, Vector3(0.54, 0.16, 0.54), Vector3(0, 2.02, -0.02), hair)
+	if _class == "mage":
+		# Robe skirt and a beard.
+		_box(_visual, Vector3(0.74, 0.4, 0.44), Vector3(0, 0.6, 0), tunic.darkened(0.1))
+		_box(_visual, Vector3(0.3, 0.2, 0.06), Vector3(0, 1.55, 0.26), hair)
+	elif _class == "warrior":
+		# Shoulder plates.
+		_box(_visual, Vector3(0.3, 0.14, 0.34), Vector3(-0.47, 1.5, 0), STEEL)
+		_box(_visual, Vector3(0.3, 0.14, 0.34), Vector3(0.47, 1.5, 0), STEEL)
+
 	_leg_l = _limb(Vector3(-0.17, 0.72, 0), Vector3(0.24, 0.72, 0.26), PANTS)
 	_leg_r = _limb(Vector3(0.17, 0.72, 0), Vector3(0.24, 0.72, 0.26), PANTS)
-	_arm_l = _limb(Vector3(-0.47, 1.45, 0), Vector3(0.2, 0.65, 0.22), TUNIC)
-	_arm_r = _limb(Vector3(0.47, 1.45, 0), Vector3(0.2, 0.65, 0.22), TUNIC)
-	# Bow held in the left hand: a curved limb (three boxes) plus the string.
+	_arm_l = _limb(Vector3(-0.47, 1.45, 0), Vector3(0.2, 0.65, 0.22), tunic)
+	_arm_r = _limb(Vector3(0.47, 1.45, 0), Vector3(0.2, 0.65, 0.22), tunic)
+	match _class:
+		"warrior":
+			_build_sword(tier, glow)
+		"mage":
+			_build_staff(tier, glow)
+		_:
+			_build_bow(tier, glow)
+
+
+## Sword in the right hand. Tier 1 adds a cross guard and a longer blade,
+## tier 2 a wide glowing blade and a gem.
+func _build_sword(tier: int, glow: Color) -> void:
+	var hand := Node3D.new()
+	hand.position = Vector3(0, -0.62, 0.05)
+	_arm_r.add_child(hand)
+	var length := 0.8 + 0.2 * maxi(tier, 0)
+	var width := 0.1 + (0.05 if tier >= 2 else 0.0)
+	_box(hand, Vector3(0.06, 0.2, 0.06), Vector3(0, 0, 0), WOOD)
+	_box(hand, Vector3(0.3 if tier >= 1 else 0.2, 0.06, 0.08), Vector3(0, 0.12, 0), STEEL.darkened(0.3) if tier < 1 else glow)
+	var blade := _box(hand, Vector3(width, length, 0.04), Vector3(0, 0.15 + length * 0.5, 0), STEEL)
+	if tier >= 1:
+		_glow(blade, glow, 0.25 if tier == 1 else 0.7)
+	if tier >= 2:
+		_glow(_box(hand, Vector3(0.1, 0.1, 0.1), Vector3(0, 0.12, 0.05), glow), glow, 1.5)
+
+
+## Bow in the left hand. Higher tiers: longer limbs, colored tips, a glowing string.
+func _build_bow(tier: int, glow: Color) -> void:
 	var bow := Node3D.new()
 	bow.position = Vector3(0, -0.62, 0.08)
 	_arm_l.add_child(bow)
-	_box(bow, Vector3(0.06, 0.5, 0.06), Vector3(0, 0, 0.12), BOW)
-	var tip_top := _box(bow, Vector3(0.06, 0.3, 0.06), Vector3(0, 0.36, 0.04), BOW)
+	var wood := WOOD if tier < 2 else glow.darkened(0.4)
+	var tip_len := 0.3 + 0.08 * maxi(tier, 0)
+	_box(bow, Vector3(0.06, 0.5, 0.06), Vector3(0, 0, 0.12), wood)
+	var tip_top := _box(bow, Vector3(0.06, tip_len, 0.06), Vector3(0, 0.36, 0.04), wood)
 	tip_top.rotation.x = -0.5
-	var tip_bottom := _box(bow, Vector3(0.06, 0.3, 0.06), Vector3(0, -0.36, 0.04), BOW)
+	var tip_bottom := _box(bow, Vector3(0.06, tip_len, 0.06), Vector3(0, -0.36, 0.04), wood)
 	tip_bottom.rotation.x = 0.5
-	_box(bow, Vector3(0.02, 0.95, 0.02), Vector3(0, 0, -0.04), Color("#e8e2d0"))
+	var string := _box(bow, Vector3(0.02, 0.95 + 0.1 * maxi(tier, 0), 0.02), Vector3(0, 0, -0.04), Color("#e8e2d0"))
+	if tier >= 1:
+		_glow(_box(bow, Vector3(0.1, 0.1, 0.1), Vector3(0, 0.5, -0.04), glow), glow, 0.8)
+		_glow(_box(bow, Vector3(0.1, 0.1, 0.1), Vector3(0, -0.5, -0.04), glow), glow, 0.8)
+	if tier >= 2:
+		_glow(string, glow, 1.2)
+
+
+## Staff in the right hand with an orb on top; the orb grows and glows with the tier.
+func _build_staff(tier: int, glow: Color) -> void:
+	var hand := Node3D.new()
+	hand.position = Vector3(0, -0.62, 0.05)
+	_arm_r.add_child(hand)
+	var orb_color := Color("#b98cff") if tier < 0 else glow
+	_box(hand, Vector3(0.07, 1.5, 0.07), Vector3(0, 0.3, 0), WOOD)
+	var orb_size := 0.18 + 0.06 * maxi(tier, 0)
+	_glow(_box(hand, Vector3.ONE * orb_size, Vector3(0, 1.1, 0), orb_color), orb_color, 0.6 + 0.5 * maxi(tier, 0))
+	if tier >= 1:
+		# Prongs holding the orb.
+		_box(hand, Vector3(0.05, 0.25, 0.05), Vector3(-0.12, 1.05, 0), STEEL)
+		_box(hand, Vector3(0.05, 0.25, 0.05), Vector3(0.12, 1.05, 0), STEEL)
+	if tier >= 2:
+		var ring := _box(hand, Vector3(0.5, 0.04, 0.5), Vector3(0, 1.1, 0), glow)
+		ring.rotation.y = 0.78
+		_glow(ring, glow, 1.2)
 
 
 ## Called every frame by the player with its current movement state.
@@ -59,19 +151,30 @@ func animate(delta: float, speed: float, on_floor: bool) -> void:
 	_leg_r.rotation.x = -swing - leg_tuck * 0.4
 	_arm_l.rotation.x = -swing
 	_arm_r.rotation.x = swing
+	_arm_r.rotation.z = 0.0
+	_arm_r.position.z = 0.0
+	_visual.rotation.x = 0.0
 
-	# Bow shot: raise the bow arm forward, pull the string arm back, then release.
 	_attack_time = maxf(0.0, _attack_time - delta)
 	if _attack_time > 0.0:
 		var t := 1.0 - _attack_time / ATTACK_TIME
 		var pull := sin(t * PI)
-		_arm_l.rotation.x = -1.5
-		_arm_r.rotation.x = -1.5 + pull * 0.5
-		_arm_r.position.z = -0.25 * pull
-		_visual.rotation.x = -0.08 * pull
-	else:
-		_arm_r.position.z = 0.0
-		_visual.rotation.x = 0.0
+		match _class:
+			"warrior":
+				# Overhead swing across the body.
+				_arm_r.rotation.x = lerpf(-2.6, -0.4, t)
+				_arm_r.rotation.z = lerpf(0.4, -0.6, t)
+				_visual.rotation.x = 0.12 * pull
+			"mage":
+				# Thrust the staff forward.
+				_arm_r.rotation.x = -1.3 - 0.3 * pull
+				_visual.rotation.x = -0.05 * pull
+			_:
+				# Bow shot: raise the bow arm, pull the string arm back, release.
+				_arm_l.rotation.x = -1.5
+				_arm_r.rotation.x = -1.5 + pull * 0.5
+				_arm_r.position.z = -0.25 * pull
+				_visual.rotation.x = -0.08 * pull
 
 	# Blink while invulnerable after taking a hit.
 	_flash_time = maxf(0.0, _flash_time - delta)
@@ -84,6 +187,13 @@ func flash() -> void:
 
 func attack() -> void:
 	_attack_time = ATTACK_TIME
+
+
+func _glow(instance: MeshInstance3D, color: Color, energy: float) -> void:
+	var mat := instance.material_override as StandardMaterial3D
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = energy
 
 
 func _box(parent: Node3D, box_size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:

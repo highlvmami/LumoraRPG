@@ -71,7 +71,12 @@ func set_max_hp(value: float) -> void:
 	health_changed.emit(hp, max_hp)
 
 
-## Plays the bow animation and turns toward the shot for a moment.
+## Rebuilds the character's look (class, weapon, helmet); see PlayerModel.build.
+func set_look(look: Dictionary) -> void:
+	_model.build(look)
+
+
+## Plays the attack animation and turns toward the shot for a moment.
 func play_attack(direction: Vector3) -> void:
 	_model.attack()
 	_aim_facing = atan2(direction.x, direction.z)

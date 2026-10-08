@@ -13,6 +13,20 @@
 	"slots": 4,
 	"extra": [
 		{
+			"id": "slash", "name": "Kılıç Savuruşu", "desc": "Önündeki düşmanları biçer", "icon": "sword", "color": "#e0e6ee",
+			"starter": true, "class": "warrior",
+			"maxLevel": 5, "damage": 9.0, "damagePerLevel": 0.25,
+			"cooldown": 0.9, "radius": 3.2, "radiusPerLevel": 0.25, "arcDegrees": 150.0,
+			"upgrade": "+25% hasar, daha geniş savuruş"
+		},
+		{
+			"id": "magic", "name": "Büyü Küresi", "desc": "En yakın düşmana büyülü küre fırlatır", "icon": "staff", "color": "#b98cff",
+			"starter": true, "class": "mage",
+			"maxLevel": 5, "damage": 8.0, "damagePerLevel": 0.25,
+			"cooldown": 0.8, "range": 13.0, "speed": 20.0, "shotsPerLevel": 0.5,
+			"upgrade": "+25% hasar, daha fazla küre"
+		},
+		{
 			"id": "orbit", "name": "Dönen Kılıçlar", "desc": "Etrafında dönen kılıçlar", "icon": "blades", "color": "#c9d4e0",
 			"maxLevel": 5, "damage": 5.0, "damagePerLevel": 0.25,
 			"count": 2, "countPerLevel": 1, "radius": 2.6, "spin": 3.4, "hitCooldown": 0.5,

@@ -18,6 +18,9 @@ var camera: Camera3D
 ## The 3D view renders at a lower resolution than the UI; screen positions
 ## from the camera are multiplied by this to land in UI space.
 var world_scale := 1.0
+## Shown in the character panel; set when a run starts.
+var character_name := ""
+var class_name_text := ""
 
 var _root: Control
 var _account: Label
@@ -136,8 +139,11 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	enemies.enemy_killed.connect(_on_enemy_killed)
 
 
-func show_death(level: int, kills: int, gold: int, seconds: float) -> void:
+## `loot` lists the items and chests found this run (already in the backpack).
+func show_death(level: int, kills: int, gold: int, seconds: float, loot: PackedStringArray = PackedStringArray()) -> void:
 	_death_text.text = "ÖLDÜN\n\nSeviye %d   ·   %d canavar   ·   +%d altın   ·   %d:%02d" % [level, kills, gold, int(seconds) / 60, int(seconds) % 60]
+	if not loot.is_empty():
+		_death_text.text += "\n\nBulunanlar (çantaya eklendi):\n" + ", ".join(loot)
 	_death.visible = true
 
 
@@ -195,9 +201,11 @@ func _process(_delta: float) -> void:
 	_account.text = "%s   ·   Hesap Sv. %d" % [progression.profile.name, progression.account_level()]
 	_account_bar.max_value = progression.exp_to_next_account_level()
 	_account_bar.value = progression.account_exp()
-	_name.text = str(progression.profile.name)
+	_name.text = character_name if character_name != "" else str(progression.profile.name)
 	_portrait_letter.text = _name.text.left(1).to_upper()
 	_level.text = "Sv. %d" % progression.level
+	if class_name_text != "":
+		_level.text += "  ·  " + class_name_text
 	_exp_bar.max_value = progression.exp_to_next_level()
 	_exp_bar.value = progression.level_exp
 	_exp_text.text = "%d / %d EXP" % [progression.level_exp, progression.exp_to_next_level()]
@@ -234,6 +242,11 @@ func _float_text(text: String, settings: LabelSettings, at: Vector2) -> void:
 	tween.tween_property(label, "position:y", at.y - 44.0, 0.9)
 	tween.tween_property(label, "modulate:a", 0.0, 0.9).set_delay(0.35)
 	tween.chain().tween_callback(label.queue_free)
+
+
+## A short message in the middle of the screen (new enemy, loot, ...).
+func toast(text: String) -> void:
+	_show_toast(text)
 
 
 func _show_toast(text: String) -> void:

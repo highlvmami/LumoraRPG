@@ -1,6 +1,7 @@
-## Extra weapons picked on level-up (the bow is always equipped). Each weapon has
-## a level from 1 to maxLevel (data/weapons.json). They share the bow's damage,
-## crit and attack-speed stats, and their areas grow with the range stat.
+## Every weapon except the archer's bow: the warrior's sword swing and the
+## mage's magic orb (class starter weapons) plus the extras picked on level-up.
+## Each weapon has a level from 1 to maxLevel (data/weapons.json). They share
+## the bow's damage, crit and attack-speed stats, and areas grow with range.
 extends Node3D
 
 const Config := preload("res://scripts/core/config.gd")
@@ -12,6 +13,8 @@ const RangeRing := preload("res://scripts/combat/range_ring.gd")
 
 ## Same as the bow's signal, for damage numbers.
 signal hit_landed(at_position: Vector3, amount: float, crit: bool)
+## A starter weapon attacked in this direction (plays the character animation).
+signal attacked(direction: Vector3)
 
 const MAX_BLADES := 8
 const MAX_FIREBALLS := 32
@@ -22,8 +25,10 @@ var bow: AutoBow
 var terrain: Terrain
 var active := false
 var defs: Array = []
-## Weapon slots including the bow.
+## Weapon slots including the starter weapon (or the bow).
 var slots := 4
+## True when the bow (outside this node) takes the first slot.
+var uses_bow := true
 ## Weapon id -> level (only weapons picked this run).
 var levels := {}
 ## Weapon id -> total damage dealt this run.
@@ -40,7 +45,10 @@ var _blades: MultiMesh
 var _fb_pos := PackedVector3Array()
 var _fb_vel := PackedVector3Array()
 var _fb_life := PackedFloat32Array()
+## 0 = fireball (explodes), 1 = magic orb (single target).
+var _fb_kind := PackedInt32Array()
 var _fb_mm: MultiMesh
+var _orb_mm: MultiMesh
 var _aura_ring: RangeRing
 var _rng := RandomNumberGenerator.new()
 
@@ -64,6 +72,12 @@ func setup(p_player: CharacterBody3D, p_enemies: EnemyManager, p_bow: AutoBow, p
 	ball.radial_segments = 8
 	ball.rings = 4
 	_fb_mm = _multimesh(ball, MAX_FIREBALLS, Color("#ffb347"), Color("#ff5a1f"))
+	var orb := SphereMesh.new()
+	orb.radius = 0.22
+	orb.height = 0.44
+	orb.radial_segments = 8
+	orb.rings = 4
+	_orb_mm = _multimesh(orb, MAX_FIREBALLS, Color("#d8b8ff"), Color("#8a4dff"))
 
 	_aura_ring = RangeRing.new()
 	_aura_ring.terrain = terrain
@@ -83,6 +97,7 @@ func reset() -> void:
 	_fb_pos.clear()
 	_fb_vel.clear()
 	_fb_life.clear()
+	_fb_kind.clear()
 	_aura_ring.visible = false
 
 
@@ -107,15 +122,36 @@ func owned() -> Array:
 
 
 ## Weapons that can be offered on level-up: new ones while a slot is free,
-## and upgrades of owned ones below max level.
+## and upgrades of owned ones below max level. Class starter weapons are only
+## ever upgraded, never offered as new.
 func available_choices() -> Array:
-	var free_slot := levels.size() + 1 < slots
+	var free_slot := levels.size() + (1 if uses_bow else 0) < slots
 	var out: Array = []
 	for d: Dictionary in defs:
 		var lv := level(d.id)
-		if (lv == 0 and free_slot) or (lv > 0 and lv < int(d.maxLevel)):
+		var is_new_ok: bool = free_slot and not d.get("starter", false)
+		if (lv == 0 and is_new_ok) or (lv > 0 and lv < int(d.maxLevel)):
 			out.append(d)
 	return out
+
+
+## Damage of one hit of an owned weapon with the current stats (no crit).
+func hit_damage(id: String) -> float:
+	return _base_damage(def(id), maxi(level(id), 1)) * bow.damage_multiplier
+
+
+## Attacks per second of a weapon with the current attack speed.
+func attacks_per_second(id: String) -> float:
+	return bow.attack_speed_multiplier / float(def(id).cooldown)
+
+
+## How far a weapon reaches (swing radius or shot range).
+func reach(id: String) -> float:
+	var d := def(id)
+	var lv := maxi(level(id), 1)
+	if d.has("radius"):
+		return (float(d.radius) + float(d.get("radiusPerLevel", 0.0)) * (lv - 1)) * _area()
+	return float(d.get("range", 0.0)) + bow.range_bonus
 
 
 func add(id: String) -> void:
@@ -132,6 +168,10 @@ func _physics_process(delta: float) -> void:
 	for id: String in levels:
 		var d := def(id)
 		match id:
+			"slash":
+				_update_slash(delta, d, level(id))
+			"magic":
+				_update_magic(delta, d, level(id))
 			"orbit":
 				_update_orbit(delta, d, level(id))
 			"fireball":
@@ -212,9 +252,70 @@ func _update_fireball(delta: float, d: Dictionary, _lv: int) -> void:
 	if target < 0 or _fb_pos.size() >= MAX_FIREBALLS:
 		_timers["fireball"] = 0.2
 		return
+	_launch(origin, enemies.position_of(target), float(d.speed), 0)
+
+
+func _launch(origin: Vector3, at: Vector3, speed: float, kind: int) -> void:
+	if _fb_pos.size() >= MAX_FIREBALLS:
+		return
 	_fb_pos.append(origin)
-	_fb_vel.append((enemies.position_of(target) - origin).normalized() * float(d.speed))
+	_fb_vel.append((at - origin).normalized() * speed)
 	_fb_life.append(2.0)
+	_fb_kind.append(kind)
+
+
+## Warrior: a wide swing toward the nearest enemy that hits everything in the arc.
+func _update_slash(delta: float, d: Dictionary, lv: int) -> void:
+	if not _ready_to_fire("slash", delta, float(d.cooldown)):
+		return
+	var radius := (float(d.radius) + float(d.radiusPerLevel) * (lv - 1)) * _area()
+	var center := player.global_position
+	var target := enemies.nearest(center, radius + 0.5)
+	if target < 0:
+		_timers["slash"] = 0.15
+		return
+	var dir := enemies.position_of(target) - center
+	dir.y = 0.0
+	dir = dir.normalized() if dir.length_squared() > 0.0001 else Vector3.BACK
+	var min_dot := cos(deg_to_rad(float(d.arcDegrees)) * 0.5)
+	var arc := PackedInt32Array()
+	for i in enemies.in_range(center, radius):
+		var to := enemies.position_of(i) - center
+		to.y = 0.0
+		if to.length() < 0.9 or to.normalized().dot(dir) >= min_dot:
+			arc.append(i)
+	_hit_all(arc, _base_damage(d, lv), center, "slash", true)
+	attacked.emit(dir)
+	var swoosh := BoxMesh.new()
+	swoosh.size = Vector3(radius * 1.7, 0.05, radius)
+	var facing := Basis.looking_at(-dir, Vector3.UP)
+	_flash(swoosh, center + dir * radius * 0.5 + Vector3.UP * 0.9, Color(1, 1, 1, 0.45), 0.15, facing)
+
+
+## Mage: magic orbs at the nearest enemies (more orbs at higher levels).
+func _update_magic(delta: float, d: Dictionary, lv: int) -> void:
+	if not _ready_to_fire("magic", delta, float(d.cooldown)):
+		return
+	var origin := player.global_position + Vector3.UP * 1.4
+	var reach := float(d.range) + bow.range_bonus
+	var first := enemies.nearest(origin, reach)
+	if first < 0:
+		_timers["magic"] = 0.15
+		return
+	var shots := 1 + int(float(d.shotsPerLevel) * (lv - 1))
+	var targets := [first]
+	var others := Array(enemies.in_range(player.global_position, reach))
+	others.shuffle()
+	for i: int in others:
+		if targets.size() >= shots:
+			break
+		if i != first:
+			targets.append(i)
+	for i: int in targets:
+		_launch(origin, enemies.position_of(i), float(d.speed), 1)
+	var aim := enemies.position_of(first) - origin
+	aim.y = 0.0
+	attacked.emit(aim.normalized())
 
 
 func _update_fireballs(delta: float) -> void:
@@ -225,7 +326,10 @@ func _update_fireballs(delta: float) -> void:
 		_fb_pos[i] += _fb_vel[i] * delta
 		_fb_life[i] -= delta
 		var hit := enemies.hit_test(_fb_pos[i], 0.3)
-		if hit >= 0:
+		if hit >= 0 and _fb_kind[i] == 1:
+			var m := def("magic")
+			_hit(hit, _base_damage(m, maxi(level("magic"), 1)), _fb_vel[i].normalized(), "magic")
+		elif hit >= 0:
 			var blast := (float(d.blast) + float(d.blastPerLevel) * (lv - 1)) * _area()
 			var at := _fb_pos[i]
 			_hit_all(enemies.in_range(at, blast), _base_damage(d, lv), at, "fireball", true)
@@ -235,9 +339,11 @@ func _update_fireballs(delta: float) -> void:
 			_fb_pos[i] = _fb_pos[last]
 			_fb_vel[i] = _fb_vel[last]
 			_fb_life[i] = _fb_life[last]
+			_fb_kind[i] = _fb_kind[last]
 			_fb_pos.resize(last)
 			_fb_vel.resize(last)
 			_fb_life.resize(last)
+			_fb_kind.resize(last)
 		else:
 			i += 1
 
@@ -279,14 +385,18 @@ func _process(_delta: float) -> void:
 		var at := center + Vector3(cos(a), 0.0, sin(a)) * _orbit_radius
 		# Long axis points away from the player.
 		_blades.set_instance_transform(n, Transform3D(Basis(Vector3.UP, -a), at))
-	var balls := _fb_pos.size()
-	_fb_mm.visible_instance_count = balls
-	for i in balls:
-		_fb_mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, _fb_pos[i]))
+	var counts := [0, 0]
+	var mms := [_fb_mm, _orb_mm]
+	for i in _fb_pos.size():
+		var k := _fb_kind[i]
+		(mms[k] as MultiMesh).set_instance_transform(counts[k], Transform3D(Basis.IDENTITY, _fb_pos[i]))
+		counts[k] += 1
+	_fb_mm.visible_instance_count = counts[0]
+	_orb_mm.visible_instance_count = counts[1]
 
 
 ## A short-lived glowing shape (explosions, lightning bolts) that fades out.
-func _flash(mesh: Mesh, at: Vector3, color: Color, duration: float) -> void:
+func _flash(mesh: Mesh, at: Vector3, color: Color, duration: float, facing := Basis.IDENTITY) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -296,7 +406,7 @@ func _flash(mesh: Mesh, at: Vector3, color: Color, duration: float) -> void:
 	fx.material_override = mat
 	fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(fx)
-	fx.global_position = at
+	fx.global_transform = Transform3D(facing, at)
 	var tween := create_tween()
 	tween.tween_property(mat, "albedo_color:a", 0.0, duration)
 	tween.tween_callback(fx.queue_free)

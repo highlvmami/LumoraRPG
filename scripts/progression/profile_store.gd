@@ -55,6 +55,11 @@ static func _fill_defaults(profile: Dictionary) -> void:
 		"gold": 0,
 		"items": [],
 		"friends": [],
+		"characters": [],
+		"activeCharacter": -1,
+		"stash": [],
+		"chests": [],
+		"nextUid": 1,
 	}
 	for key: String in defaults:
 		if not profile.has(key):
