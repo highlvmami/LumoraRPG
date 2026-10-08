@@ -25,13 +25,15 @@ var _class := "archer"
 
 
 func _ready() -> void:
-	build({})
+	if _visual == null:
+		build({})
 
 
 ## Rebuilds the character. `look` keys (all optional):
 ##   class ("warrior"/"archer"/"mage"), tunic, hair (colors as strings),
 ##   weapon_tier (0-2, -1 = nothing equipped), weapon_color (rarity color),
-##   helmet_color (empty = no helmet).
+##   helmet_color / armor_color / gloves_color / boots_color (worn gear, in its
+##   rarity color; missing = not worn) and the matching *_tier (0-2) for detail.
 func build(look: Dictionary) -> void:
 	if _visual:
 		_visual.queue_free()
@@ -51,8 +53,18 @@ func build(look: Dictionary) -> void:
 	_box(_visual, Vector3(0.08, 0.08, 0.02), Vector3(0.12, 1.78, 0.26), EYES)
 	if helmet != "":
 		var hc := Color(helmet)
-		_box(_visual, Vector3(0.58, 0.24, 0.58), Vector3(0, 2.0, 0), hc)
-		_box(_visual, Vector3(0.6, 0.06, 0.6), Vector3(0, 1.9, 0), hc.darkened(0.3))
+		var helmet_tier := int(look.get("helmet_tier", 0))
+		_box(_visual, Vector3(0.58, 0.24, 0.58), Vector3(0, 2.0, 0), hc.darkened(0.15))
+		_box(_visual, Vector3(0.6, 0.06, 0.6), Vector3(0, 1.9, 0), hc.darkened(0.45))
+		if helmet_tier >= 1:
+			# Crest on top.
+			_glow(_box(_visual, Vector3(0.08, 0.16, 0.5), Vector3(0, 2.18, -0.02), hc), hc, 0.4)
+		if helmet_tier >= 2:
+			# Horns.
+			var horn_l := _box(_visual, Vector3(0.08, 0.3, 0.08), Vector3(-0.32, 2.15, 0), Color("#f4f1e6"))
+			horn_l.rotation.z = 0.5
+			var horn_r := _box(_visual, Vector3(0.08, 0.3, 0.08), Vector3(0.32, 2.15, 0), Color("#f4f1e6"))
+			horn_r.rotation.z = -0.5
 	elif _class == "mage":
 		# Pointed wizard hat.
 		_box(_visual, Vector3(0.7, 0.06, 0.7), Vector3(0, 2.02, 0), tunic.darkened(0.2))
@@ -74,6 +86,7 @@ func build(look: Dictionary) -> void:
 	_leg_r = _limb(Vector3(0.17, 0.72, 0), Vector3(0.24, 0.72, 0.26), PANTS)
 	_arm_l = _limb(Vector3(-0.47, 1.45, 0), Vector3(0.2, 0.65, 0.22), tunic)
 	_arm_r = _limb(Vector3(0.47, 1.45, 0), Vector3(0.2, 0.65, 0.22), tunic)
+	_build_gear(look)
 	match _class:
 		"warrior":
 			_build_sword(tier, glow)
@@ -81,6 +94,36 @@ func build(look: Dictionary) -> void:
 			_build_staff(tier, glow)
 		_:
 			_build_bow(tier, glow)
+
+
+## Worn armor, gloves and boots drawn over the body in their rarity color.
+func _build_gear(look: Dictionary) -> void:
+	var armor := str(look.get("armor_color", ""))
+	if armor != "":
+		var ac := Color(armor)
+		var armor_tier := int(look.get("armor_tier", 0))
+		_box(_visual, Vector3(0.74, 0.5, 0.44), Vector3(0, 1.22, 0), ac.darkened(0.25))
+		_box(_visual, Vector3(0.12, 0.42, 0.46), Vector3(0, 1.22, 0), ac.darkened(0.5))
+		if armor_tier >= 1:
+			_box(_visual, Vector3(0.32, 0.12, 0.38), Vector3(-0.48, 1.52, 0), ac)
+			_box(_visual, Vector3(0.32, 0.12, 0.38), Vector3(0.48, 1.52, 0), ac)
+		if armor_tier >= 2:
+			_glow(_box(_visual, Vector3(0.14, 0.14, 0.04), Vector3(0, 1.3, 0.23), ac), ac, 1.4)
+	var gloves := str(look.get("gloves_color", ""))
+	if gloves != "":
+		var gc := Color(gloves)
+		for arm: Node3D in [_arm_l, _arm_r]:
+			_box(arm, Vector3(0.26, 0.2, 0.28), Vector3(0, -0.56, 0), gc.darkened(0.2))
+			if int(look.get("gloves_tier", 0)) >= 2:
+				_glow(_box(arm, Vector3(0.28, 0.05, 0.3), Vector3(0, -0.44, 0), gc), gc, 0.8)
+	var boots := str(look.get("boots_color", ""))
+	if boots != "":
+		var bc := Color(boots)
+		for leg: Node3D in [_leg_l, _leg_r]:
+			_box(leg, Vector3(0.28, 0.24, 0.34), Vector3(0, -0.6, 0.03), bc.darkened(0.3))
+			if int(look.get("boots_tier", 0)) >= 2:
+				var wing := _box(leg, Vector3(0.04, 0.16, 0.22), Vector3(0.16 if leg == _leg_r else -0.16, -0.5, -0.08), bc)
+				_glow(wing, bc, 0.9)
 
 
 ## Sword in the right hand. Tier 1 adds a cross guard and a longer blade,

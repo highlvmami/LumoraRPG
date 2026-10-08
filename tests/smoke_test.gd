@@ -77,6 +77,16 @@ func _run() -> void:
 		menu.call("select_item", int(bow_item.uid))
 		menu.call("open_section", section_id)
 		await _frames(1)
+	menu.call("open_section", "equipment")
+	await _frames(2)
+	_check(menu.find_children("*", "SubViewportContainer", true, false).size() >= 1, "equipment shows the character in 3D")
+	var slots := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return b.get("tooltip_builder") is Callable and (b.get("tooltip_builder") as Callable).is_valid())
+	_check(not slots.is_empty(), "equipped items sit in slots")
+	if not slots.is_empty():
+		var tip: Object = slots[0].call("_make_custom_tooltip", "")
+		_check(tip is Control, "hovering a slot shows the item's stats")
+		if tip:
+			tip.free()
 	var look: Dictionary = main.call("character_look", archer)
 	_check(int(look.weapon_tier) >= 0, "the equipped weapon changes the character look")
 	inv.call("unequip", int(archer.id), "weapon")
