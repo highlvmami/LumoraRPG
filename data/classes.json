@@ -1,0 +1,23 @@
+{
+	"warrior": {
+		"name": "Savaşçı", "icon": "cls_warrior", "color": "#d9534f",
+		"desc": "Yakın dövüşçü. Kılıcıyla önündeki düşmanları biçer, canı yüksektir.",
+		"weapon": "slash", "maxHp": 140.0,
+		"bonus": { "damage": 0.1, "regen": 0.5 },
+		"tunic": "#9b3b32", "hair": "#3b2516"
+	},
+	"archer": {
+		"name": "Okçu", "icon": "cls_archer", "color": "#5fcf6a",
+		"desc": "Uzaktan en yakın düşmana ok atar. Hızlı ve isabetlidir.",
+		"weapon": "bow", "maxHp": 100.0,
+		"bonus": { "attackSpeed": 0.1, "critChance": 0.03 },
+		"tunic": "#3a6ea5", "hair": "#5a3820"
+	},
+	"mage": {
+		"name": "Büyücü", "icon": "cls_mage", "color": "#b65cff",
+		"desc": "Büyülü küreler fırlatır. Canı az ama kritik vuruşları çok güçlüdür.",
+		"weapon": "magic", "maxHp": 85.0,
+		"bonus": { "critChance": 0.05, "critDamage": 0.3 },
+		"tunic": "#6b3fa0", "hair": "#d9d4c7"
+	}
+}

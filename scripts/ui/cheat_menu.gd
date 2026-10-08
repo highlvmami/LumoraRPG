@@ -5,7 +5,7 @@ extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
 
-## [stat key, label, step per click, display format, display multiplier]
+## [stat key, label, step per click, display format, display multiplier, (display offset)]
 const STATS := [
 	["damage", "Hasar", 0.25, "+%d%%", 100.0],
 	["attackSpeed", "Saldırı Hızı", 0.25, "+%d%%", 100.0],
@@ -15,6 +15,8 @@ const STATS := [
 	["maxHp", "Maks. Can", 25.0, "+%.0f", 1.0],
 	["moveSpeed", "Hareket Hızı", 0.1, "+%d%%", 100.0],
 	["regen", "Can Yenileme", 1.0, "+%.0f", 1.0],
+	["expGain", "EXP Çarpanı", 1.0, "x%.0f", 1.0, 1.0],
+	["goldGain", "Altın Çarpanı", 1.0, "x%.0f", 1.0, 1.0],
 ]
 ## [action id, button text]
 const ACTIONS := [
@@ -28,6 +30,8 @@ const ACTIONS := [
 	["time", "+1 dakika (zorluk)"],
 	["boss", "Boss çağır"],
 	["weapons", "Tüm silahlar max"],
+	["item", "Rastgele eşya"],
+	["chest", "Rastgele kasa"],
 ]
 
 ## A stat bonus changed; recalculate stats.
@@ -157,7 +161,7 @@ func _on_god_toggled(on: bool) -> void:
 
 func _refresh() -> void:
 	for st: Array in STATS:
-		var v := total(st[0]) * float(st[4])
+		var v := total(st[0]) * float(st[4]) + (float(st[5]) if st.size() > 5 else 0.0)
 		var text: String = st[3] % (roundi(v) if "%d" in st[3] else v)
 		(_values[st[0]] as Label).text = text
 	_god_button.text = "Ölümsüzlük: %s" % ("AÇIK" if god_mode else "kapalı")

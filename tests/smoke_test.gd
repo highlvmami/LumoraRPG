@@ -1,7 +1,8 @@
 ## Headless smoke test: logs in, uses the main menu, drives the player with
 ## simulated input and checks movement, enemies, auto-attack, exp/gold/levels,
 ## level-up choices, weapons, the boss, the pause menu, enemy kinds, loot orbs,
-## the cheat menu, saving and the death flow.
+## the cheat menu, saving and the death flow, characters and classes, items,
+## equipment, chests and the chest wheel.
 ## Run: godot --headless --path . -s res://tests/smoke_test.gd
 extends SceneTree
 
@@ -30,7 +31,7 @@ func _run() -> void:
 	# Main menu: sections, friends and buying from the market.
 	var menu: Node = main.get("main_menu")
 	_check(menu != null and bool(menu.get("visible")), "main menu opens after login")
-	for section_id: String in ["friends", "backpack", "market", "profile"]:
+	for section_id: String in ["characters", "create", "equipment", "friends", "backpack", "market", "profile"]:
 		menu.call("open_section", section_id)
 		await _frames(1)
 	_check(bool(menu.call("add_friend", "arkadas1")), "a friend can be added")
@@ -40,6 +41,64 @@ func _run() -> void:
 	profile0.gold = 100
 	_check(bool(menu.call("buy", "sharp_arrows")), "buying an item with gold works")
 	_check(int(profile0.gold) == 60 and bool(shop.call("owns", "sharp_arrows")), "gold is spent and item is in the backpack")
+
+	# Characters: play asks for one first; up to 3, each with a class.
+	var inv: RefCounted = main.get("inventory")
+	menu.call("play")
+	_check(str(menu.get("section")) == "create" and not bool(main.get("in_run")), "play without a character opens character creation")
+	_check(not bool(menu.call("create_character", "x", "warrior")), "a too short name is refused")
+	_check(bool(menu.call("create_character", "Kilicci", "warrior")), "a warrior can be created")
+	_check(bool(menu.call("create_character", "Buyucu", "mage")), "a mage can be created")
+	_check(bool(menu.call("create_character", "Okcu", "archer")), "an archer can be created")
+	_check(not bool(menu.call("create_character", "Fazla", "archer")), "at most 3 characters")
+	var archer: Dictionary = inv.call("active_character")
+	_check(str(archer["class"]) == "archer", "the new character becomes active")
+	var warrior: Dictionary = (inv.call("characters") as Array)[0]
+
+	# Items: rarities, stats, equipping (class rules), selling.
+	var divine: Dictionary = inv.call("add_random_item", 5)
+	_check(int(divine.rarity) == 5 and (divine.stats as Dictionary).size() >= 6, "a divine item has many stats (%d)" % (divine.stats as Dictionary).size())
+	var wearable: Dictionary = {}
+	var bow_item: Dictionary = {}
+	for i in 50:
+		if not wearable.is_empty() and not bow_item.is_empty():
+			break
+		var it: Dictionary = inv.call("add_random_item", i % 6)
+		var cls := str(inv.get("gear").call("item_class", it))
+		if wearable.is_empty() and cls == "":
+			wearable = it
+		if bow_item.is_empty() and cls == "archer":
+			bow_item = it
+	_check(not wearable.is_empty() and not bow_item.is_empty(), "random items of every kind drop")
+	_check(not bool(inv.call("can_wear", warrior, bow_item)), "a warrior cannot wear a bow")
+	_check(bool(menu.call("equip", int(bow_item.uid))), "the archer can equip a bow")
+	_check(int((inv.call("equipped", archer, "weapon") as Dictionary).get("uid", -1)) == int(bow_item.uid), "the bow is in the weapon slot")
+	for section_id: String in ["characters", "equipment", "backpack"]:
+		menu.call("select_item", int(bow_item.uid))
+		menu.call("open_section", section_id)
+		await _frames(1)
+	var look: Dictionary = main.call("character_look", archer)
+	_check(int(look.weapon_tier) >= 0, "the equipped weapon changes the character look")
+	inv.call("unequip", int(archer.id), "weapon")
+	var stash_before := (inv.call("items") as Array).size()
+	var gold_before_sell := int(profile0.gold)
+	_check(int(menu.call("sell", int(wearable.uid))) > 0 and (inv.call("items") as Array).size() == stash_before - 1, "selling an item removes it")
+	_check(int(profile0.gold) > gold_before_sell, "selling gives gold")
+
+	# Chests: buying and opening with the wheel.
+	profile0.gold = int(profile0.gold) + 120
+	_check(bool(menu.call("buy_chest", 0)), "a chest can be bought")
+	var chest: Dictionary = (inv.call("chests") as Array)[0]
+	stash_before = (inv.call("items") as Array).size()
+	var prize: Dictionary = main.call("open_chest", int(chest.uid))
+	var wheel: Node = main.get("chest_wheel")
+	_check(not prize.is_empty() and bool(wheel.get("visible")) and bool(wheel.get("spinning")), "opening a chest spins the wheel")
+	await _frames(20)
+	wheel.call("finish")
+	_check(not bool(wheel.get("spinning")) and (wheel.get("result") as Dictionary) == prize, "the wheel stops on the prize")
+	wheel.call("close")
+	_check((inv.call("chests") as Array).is_empty() and (inv.call("items") as Array).size() == stash_before + 1, "the prize is in the backpack")
+	_check(not bool(wheel.get("visible")), "the wheel closes")
 
 	menu.call("emit_signal", "play_pressed")
 	await _frames(60)
@@ -189,6 +248,10 @@ func _run() -> void:
 		enemies.call("damage", boss, 1000000.0)
 	await _frames(2)
 	_check(defeated.size() == 1 and int(enemies.call("boss_index")) < 0, "boss can be defeated")
+	_check((inv.call("chests") as Array).size() == 1, "the boss drops a chest")
+	var stash_now := (inv.call("items") as Array).size()
+	main.call("_drop_item", 3)
+	_check((inv.call("items") as Array).size() == stash_now + 1, "enemy item drops go to the backpack")
 
 	# Developer cheat menu: stat bonuses, god mode, actions.
 	var dmg_before := float(bow.get("damage_multiplier"))
@@ -203,6 +266,12 @@ func _run() -> void:
 	_check(int(profile.gold) == gold_before + 100, "cheat gives gold")
 	main.call("cheat", "clear")
 	_check(int(enemies.call("count")) == 0, "cheat clears enemies")
+	cheats.call("_step", "expGain", 1)
+	cheats.call("_step", "goldGain", 1)
+	var gold_mid := int(profile.gold)
+	main.call("_on_enemy_killed", player.global_position, 0, 5)
+	_check(int(profile.gold) == gold_mid + 10, "cheat gold multiplier doubles gold")
+	_check(float(main.call("_extra", "expGain")) >= 1.0, "cheat exp multiplier is applied")
 	cheats.call("reset_all")
 	_check(not bool(player.get("god_mode")) and absf(float(bow.get("damage_multiplier")) - dmg_before) < 0.001, "cheat reset restores stats")
 
@@ -233,6 +302,36 @@ func _run() -> void:
 	await _frames(2)
 	_check(bool(menu.get("visible")) and not bool(main.get("in_run")) and not paused, "pause menu can go back to the main menu")
 	_check(int(profile.runs) == 2, "leaving the run records it (runs=%d)" % int(profile.runs))
+
+	# Warrior and mage start with their own weapon instead of the bow.
+	for pair: Array in [[warrior, "slash"], [(inv.call("characters") as Array)[1], "magic"]]:
+		menu.call("select_character", int(pair[0].id))
+		main.call("start_run")
+		await _frames(2)
+		cheats.call("_on_god_toggled", true)
+		var id: String = pair[1]
+		_check(int(weapons.call("level", id)) == 1 and not bool(bow.get("active")), "%s starts with %s" % [str(pair[0]["class"]), id])
+		var dealt_by: Dictionary = weapons.get("damage_dealt")
+		for i in 300:
+			if i % 40 == 0:
+				for n in 4:
+					var a := TAU * n / 4.0
+					enemies.call("spawn", "slime", player.global_position + Vector3(cos(a), 0, sin(a)) * 2.5)
+			await physics_frame
+			if bool(level_up.get("visible")):
+				level_up.call("pick", 0)
+			if float(dealt_by.get(id, 0.0)) > 0.0:
+				break
+		_check(float(dealt_by.get(id, 0.0)) > 0.0, "%s deals damage" % id)
+		# Worn gear adds its stats.
+		var gear_item: Dictionary = inv.call("add_random_item", 4)
+		var c: Dictionary = inv.call("active_character")
+		if bool(inv.call("equip", int(c.id), int(gear_item.uid))):
+			var stat: String = (gear_item.stats as Dictionary).keys()[0]
+			_check(float(main.call("_extra", stat)) >= float(gear_item.stats[stat]) - 0.0001, "worn gear adds %s" % stat)
+		cheats.call("reset_all")
+		main.call("leave_run")
+		await _frames(2)
 
 	_finish()
 

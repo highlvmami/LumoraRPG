@@ -11,6 +11,8 @@ const PALETTE := {
 	"o": Color("#a8672e"),
 	"g": Color("#5fcf6a"),
 	"b": Color("#4fb8ff"),
+	"p": Color("#b65cff"),
+	"x": Color("#e8f4ff"),
 }
 
 const GRIDS := {
@@ -196,15 +198,227 @@ const GRIDS := {
 		"..kkyyyykk..",
 		"....kkkk....",
 	],
+	"sword_t1": [
+		".........kkk",
+		"........kwwk",
+		".......kwwsk",
+		"......kwwsk.",
+		".....kwwsk..",
+		".k..kwwsk...",
+		".kkkwwsk....",
+		"..kxxsk.....",
+		".kxkkkk.....",
+		"kook.kk.....",
+		"kok.........",
+		"kk..........",
+	],
+	"sword_t2": [
+		"........kkkk",
+		".......kwxwk",
+		"......kwxwsk",
+		".....kwxwsk.",
+		"....kwxwsk..",
+		"kk.kwxwsk...",
+		"kxkkwxsk....",
+		".kxxxsk.....",
+		".kyxkxk.....",
+		"kyyk.kxk....",
+		"kyk...kk....",
+		"kk..........",
+	],
+	"bow_t1": [
+		"...kk.......",
+		"...kxk......",
+		"....kok.....",
+		"....k.okw...",
+		".....k.ow...",
+		".....k..w...",
+		".....kxxyk..",
+		".....k..w...",
+		".....k.ow...",
+		"....k.okw...",
+		"....kxk.....",
+		"...kk.......",
+	],
+	"bow_t2": [
+		"..kkx.......",
+		"...kxk......",
+		"...kxok.....",
+		"....kxokw...",
+		".....kxow...",
+		".....kx.w...",
+		"....kxxxyk..",
+		".....kx.w...",
+		".....kxow...",
+		"....kxokw...",
+		"...kxok.....",
+		"..kkx.......",
+	],
+	"staff": [
+		".........kk.",
+		"........kbbk",
+		"........kbbk",
+		".........kk.",
+		"........kok.",
+		".......kok..",
+		"......kok...",
+		".....kok....",
+		"....kok.....",
+		"...kok......",
+		"..kok.......",
+		"..kk........",
+	],
+	"staff_t1": [
+		"........kkkk",
+		".......kxbbk",
+		".......kbbxk",
+		"........kkk.",
+		"........kok.",
+		".......kok..",
+		"......kxk...",
+		".....kok....",
+		"....kok.....",
+		"...kok......",
+		"..kok.......",
+		"..kk........",
+	],
+	"staff_t2": [
+		".......k.kk.",
+		"......kxkxxk",
+		".......kxbbk",
+		"......kxbbxk",
+		".......kkkxk",
+		"........kok.",
+		".......kxk..",
+		"......kok...",
+		".....kxk....",
+		"....kok.....",
+		"...kxk......",
+		"...kk.......",
+	],
+	"helmet": [
+		"............",
+		"....kkkk....",
+		"..kkssssk...",
+		".ksssssssk..",
+		".ksxssssssk.",
+		"ksssssssssk.",
+		"ksskkkkkssk.",
+		"kssk...kssk.",
+		"kssk...kssk.",
+		".kk.....kk..",
+		"............",
+		"............",
+	],
+	"armor": [
+		"............",
+		".kkk....kkk.",
+		"kssskkkksssk",
+		"ksssssssssk.",
+		".kssxsssssk.",
+		"..ksssssk...",
+		"..ksssssk...",
+		"..kssxssk...",
+		"..ksssssk...",
+		"..kkkkkkk...",
+		"............",
+		"............",
+	],
+	"gloves": [
+		"............",
+		"..k.k.k.....",
+		".kokokok....",
+		".kokokok....",
+		".kooooook...",
+		".kooooookk..",
+		".kooooookok.",
+		".koooooooook",
+		"..kooooooook",
+		"..kxxxxxxk..",
+		"..kkkkkkkk..",
+		"............",
+	],
+	"ring": [
+		"............",
+		".....kk.....",
+		"....kxxk....",
+		"....kxxk....",
+		"...kkkkkk...",
+		"..kyyk.kyk..",
+		".kyk....kyk.",
+		".kyk....kyk.",
+		".kyk....kyk.",
+		"..kyk..kyk..",
+		"...kyyyyk...",
+		"....kkkk....",
+	],
+	"chest": [
+		"............",
+		"..kkkkkkkk..",
+		".kooooooook.",
+		"kooooooooook",
+		"kkkkkkkkkkkk",
+		"kxkooxxookxk",
+		"kxkooxxookxk",
+		"kokooooookok",
+		"kokooooookok",
+		"kokooooookok",
+		"kkkkkkkkkkkk",
+		"............",
+	],
+	"cls_warrior": [
+		"....kkkk....",
+		"...ksssk....",
+		"..ksssssk...",
+		"..kskkksk...",
+		"..kswwwsk...",
+		"...kwkwk....",
+		"..kkwwwkk...",
+		".krrrrrrrk..",
+		".krrkxkrrk..",
+		".krrrrrrrk..",
+		"..krrrrrk...",
+		"...kkkkk....",
+	],
+	"cls_archer": [
+		"...kkkkk....",
+		"..kgggggk...",
+		".kggggggk...",
+		"..kkwwwk....",
+		"...kwkwk....",
+		"...kwwwk....",
+		"..kkkkkkk...",
+		".kgggggggk.k",
+		".kgokogggkxk",
+		".kgggggggk.k",
+		"..kgggggk...",
+		"...kkkkk....",
+	],
+	"cls_mage": [
+		".....k......",
+		"....kbk.....",
+		"...kbbbk....",
+		"..kbbxbbk...",
+		".kbbbbbbbk..",
+		"..kkwwwkk...",
+		"...kwkwk....",
+		"...kwwwk....",
+		"..kbbbbbk...",
+		".kbbbbbbbk..",
+		".kbbkkkbbk..",
+		"..kk...kk...",
+	],
 }
 
 static var _cache := {}
 
 
 ## Texture for icon `name` (cached); falls back to a blank square.
-static func texture(name: String) -> ImageTexture:
-	if _cache.has(name):
-		return _cache[name]
+## `accent` (if set) replaces the "x" pixels, e.g. with an item's rarity color.
+static func texture(name: String, accent := Color(0, 0, 0, 0)) -> ImageTexture:
+	var key := "%s/%s" % [name, accent.to_html()]
+	if _cache.has(key):
+		return _cache[key]
 	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	var rows: Array = GRIDS.get(name, [])
@@ -212,20 +426,37 @@ static func texture(name: String) -> ImageTexture:
 		var row: String = rows[y]
 		for x in row.length():
 			var c := row[x]
-			if PALETTE.has(c):
+			if c == "x" and accent.a > 0.0:
+				img.set_pixel(x, y, accent)
+			elif PALETTE.has(c):
 				img.set_pixel(x, y, PALETTE[c])
 	var tex := ImageTexture.create_from_image(img)
-	_cache[name] = tex
+	_cache[key] = tex
 	return tex
 
 
 ## A TextureRect showing the icon scaled up with crisp pixels.
-static func rect(name: String, size: float) -> TextureRect:
+static func rect(name: String, size: float, accent := Color(0, 0, 0, 0)) -> TextureRect:
 	var r := TextureRect.new()
-	r.texture = texture(name)
+	r.texture = texture(name, accent)
 	r.custom_minimum_size = Vector2(size, size)
 	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return r
+
+
+## Icon for a gear item: rarer weapons use more detailed drawings
+## (name_t1 from "Çok Nadir", name_t2 from "Efsanevi"), tinted by rarity.
+## Detail tier of an item's picture/model: 0 common-rare, 1 very rare-epic, 2 legendary+.
+static func tier(rarity_index: int) -> int:
+	return 0 if rarity_index < 2 else (1 if rarity_index < 4 else 2)
+
+
+static func item_rect(icon: String, rarity_index: int, accent: Color, size: float) -> TextureRect:
+	var t := tier(rarity_index)
+	var icon_name := icon
+	if t > 0 and GRIDS.has("%s_t%d" % [icon, t]):
+		icon_name = "%s_t%d" % [icon, t]
+	return rect(icon_name, size, accent)
