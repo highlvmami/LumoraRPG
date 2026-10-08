@@ -19,6 +19,7 @@ const TooltipCard := preload("res://scripts/ui/tooltip_card.gd")
 const PetIcons := preload("res://scripts/ui/pet_icons.gd")
 const TavernView := preload("res://scripts/ui/tavern_view.gd")
 const Config := preload("res://scripts/core/config.gd")
+const Screen := preload("res://scripts/core/screen.gd")
 
 signal play_pressed
 ## The player wants to open this chest (the game shows the wheel).
@@ -93,6 +94,7 @@ var _root: Control
 var _account_label: Label
 var _account_bar: ProgressBar
 var _gold_label: Label
+var _fullscreen_button: Button
 var _notice: Label
 var _content: VBoxContainer
 var _section_title: Label
@@ -184,6 +186,7 @@ func refresh() -> void:
 	_account_bar.value = progression.account_exp()
 	_account_bar.tooltip_text = "%d / %d EXP" % [progression.account_exp(), progression.exp_to_next_account_level()]
 	_gold_label.text = "Altın: %d" % progression.gold()
+	_sync_fullscreen_button()
 	_sync_look()
 	open_section(section)
 
@@ -462,9 +465,21 @@ func _build_top_bar() -> Control:
 	left.add_child(_account_bar)
 	var right := VBoxContainer.new()
 	bar.add_child(right)
+	# Gold with the full screen button beside it.
+	var gold_row := HBoxContainer.new()
+	gold_row.alignment = BoxContainer.ALIGNMENT_END
+	gold_row.add_theme_constant_override("separation", 14)
+	right.add_child(gold_row)
+	var full := Button.new()
+	full.text = "Pencere (F11)" if Screen.is_fullscreen() else "Tam ekran (F11)"
+	full.add_theme_font_size_override("font_size", 14)
+	full.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	full.pressed.connect(toggle_fullscreen)
+	gold_row.add_child(full)
+	_fullscreen_button = full
 	_gold_label = UiTheme.label("", UiTheme.label_settings(26, UiTheme.ACCENT))
 	_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	right.add_child(_gold_label)
+	gold_row.add_child(_gold_label)
 	_notice = UiTheme.label("", UiTheme.label_settings(18, Color("#8fe3ff"), 4))
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	right.add_child(_notice)
@@ -482,12 +497,18 @@ func _build_top_bar() -> Control:
 	return bar
 
 
+## The left column: Play and the section buttons. It scrolls when the window
+## is too short for all of them, so nothing ends up off screen.
 func _build_nav() -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(230, 0)
 	var nav := VBoxContainer.new()
-	nav.custom_minimum_size = Vector2(230, 0)
+	nav.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nav.add_theme_constant_override("separation", 4)
+	scroll.add_child(nav)
 	var play_button := UiTheme.primary_button("OYNA")
-	play_button.custom_minimum_size = Vector2(0, 58)
+	play_button.custom_minimum_size = Vector2(0, 52)
 	play_button.pressed.connect(play)
 	nav.add_child(play_button)
 	for entry: Array in NAV:
@@ -495,8 +516,8 @@ func _build_nav() -> Control:
 		button.text = "  " + str(entry[1])
 		button.toggle_mode = true
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(0, 34)
-		button.add_theme_font_size_override("font_size", 17)
+		button.custom_minimum_size = Vector2(0, 31)
+		button.add_theme_font_size_override("font_size", 16)
 		button.icon = PixelIcons.texture(str(entry[2]), UiTheme.ACCENT)
 		button.expand_icon = true
 		button.add_theme_constant_override("icon_max_width", 22)
@@ -513,10 +534,13 @@ func _build_nav() -> Control:
 		on.border_color = UiTheme.ACCENT
 		button.add_theme_stylebox_override("pressed", on)
 		button.add_theme_stylebox_override("hover_pressed", on)
+		for style: StyleBoxFlat in [normal, hover, on]:
+			style.content_margin_top = 3
+			style.content_margin_bottom = 3
 		button.pressed.connect(open_section.bind(str(entry[0])))
 		_tab_buttons[entry[0]] = button
 		nav.add_child(button)
-	return nav
+	return scroll
 
 
 ## Side-by-side character cards: the 3D character with its gear, name, class,
@@ -902,6 +926,7 @@ func hatch_pet() -> Dictionary:
 	if p.is_empty():
 		notify("Yeterli altının yok." if progression.gold() < pets.egg_price() else "Pet yerin dolu. Önce birini serbest bırak.")
 		return {}
+	_check_achievements()
 	refresh()
 	_reveal_pet(p)
 	return p
@@ -911,6 +936,7 @@ func equip_pet(uid: int) -> bool:
 	var ok: bool = pets.equip(uid)
 	if not ok:
 		notify("Boş pet slotu yok. Slotlar hesap seviyesi %s'da açılır." % ", ".join((pets.cfg.slotLevels as Array).map(func(v: Variant) -> String: return str(int(v)))))
+	_check_achievements()
 	refresh()
 	return ok
 
@@ -924,6 +950,7 @@ func release_pet(uid: int) -> int:
 	var gold: int = pets.release(uid)
 	if gold > 0:
 		notify("Pet serbest bırakıldı (+%d altın)." % gold)
+	_check_achievements()
 	refresh()
 	return gold
 
@@ -1221,7 +1248,7 @@ func _build_skills() -> void:
 			refresh()))
 	head.add_child(reset)
 	var key := HFlowContainer.new()
-	key.add_theme_constant_override("h_separation", 18)
+	key.add_theme_constant_override("h_separation", 12)
 	_content.add_child(key)
 	for b: Dictionary in skill_tree.branches:
 		var chip := HBoxContainer.new()
@@ -1232,11 +1259,35 @@ func _build_skills() -> void:
 		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		chip.add_child(dot)
 		chip.add_child(UiTheme.label(str(b.name), UiTheme.label_settings(15, Color(str(b.color)).lightened(0.2), 2)))
-		chip.add_child(UiTheme.label(str(b.get("desc", "")), UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+		chip.add_child(UiTheme.label(str(b.get("desc", "")), UiTheme.label_settings(12, UiTheme.MUTED, 0)))
 		key.add_child(chip)
 	var view: Control = SkillTreeView.new()
 	view.call("setup", skill_tree, learn_skill)
-	_content.add_child(view)
+	var holder := Control.new()
+	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	holder.add_child(view)
+	_content.add_child(holder)
+	# Fit again whenever the page is laid out (window resized, text wrapped).
+	var refit := func() -> void: _fit_tree(holder, view)
+	_content.sort_children.connect(refit)
+	holder.tree_exiting.connect(func() -> void:
+		if _content.sort_children.is_connected(refit):
+			_content.sort_children.disconnect(refit))
+
+
+## Shrinks the skill tree to fit the page, so the whole tree shows without scrolling.
+func _fit_tree(holder: Control, view: Control) -> void:
+	if not is_instance_valid(holder) or not holder.is_inside_tree():
+		return
+	var scroll := _content.get_parent() as Control
+	var full: Vector2 = SkillTreeView.VIEW_SIZE
+	var room := Vector2(_content.size.x, scroll.size.y - holder.position.y - 6.0)
+	var k := clampf(minf(room.x / full.x, room.y / full.y), 0.5, 1.0)
+	view.scale = Vector2(k, k)
+	view.size = full
+	view.position = Vector2(maxf(0.0, (room.x - full.x * k) * 0.5), 0)
+	if not is_equal_approx(holder.custom_minimum_size.y, full.y * k):
+		holder.custom_minimum_size = Vector2(0, full.y * k)
 
 
 ## Every achievement with its progress and reward; finished ones glow gold.
@@ -1933,6 +1984,12 @@ func _build_settings() -> void:
 		q_row.add_child(b)
 	_content.add_child(q_row)
 	_text("Düşük kalite daha hızlı çalışır (piksel daha iri).", 13, UiTheme.MUTED)
+	var full := CheckBox.new()
+	full.text = "Tam ekran (F11 ile de açılıp kapanır)"
+	full.button_pressed = Screen.is_fullscreen()
+	full.add_theme_font_size_override("font_size", 17)
+	full.toggled.connect(func(on: bool) -> void: Screen.set_fullscreen(on))
+	_content.add_child(full)
 
 	_header("Kamera")
 	_content.add_child(_slider_row("Kamera uzaklığı", "cameraZoom", 3.5, 16.0, 0.5, 7.0))
@@ -1985,6 +2042,18 @@ func _build_settings() -> void:
 	acc_row.add_child(reset)
 	_content.add_child(acc_row)
 	_text("Hesabı sıfırlamak karakterleri, eşyaları, kasaları, altını, seviyeleri, yetenekleri ve başarımları siler. Geri alınamaz.", 13, Color("#ff8a8a"))
+
+
+## Switches full screen on or off.
+func toggle_fullscreen() -> void:
+	Screen.toggle()
+	refresh()
+
+
+## Keeps the full screen button's text in step with the window.
+func _sync_fullscreen_button() -> void:
+	if _fullscreen_button:
+		_fullscreen_button.text = "Pencere (F11)" if Screen.is_fullscreen() else "Tam ekran (F11)"
 
 
 func change_password(password: String) -> bool:

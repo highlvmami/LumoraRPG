@@ -17,7 +17,7 @@ const SPREAD := 62.0
 const TITLE_RADIUS := 420.0
 ## The tree is drawn a little wider than tall to fit the screen.
 const STRETCH := Vector2(1.2, 0.82)
-const VIEW_SIZE := Vector2(920, 640)
+const VIEW_SIZE := Vector2(900, 600)
 
 ## The skill tree (scripts/progression/skill_tree.gd).
 var tree: RefCounted
