@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  godot:
+    name: Godot smoke test
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.5.1-stable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot ${{ env.GODOT_VERSION }}
+        run: |
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}_linux.x86_64" "$RUNNER_TEMP/godot"
+          rm godot.zip
+
+      - name: Import project
+        run: |
+          "$RUNNER_TEMP/godot" --headless --path . --import 2>&1 | tee import.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" import.log
+
+      - name: Run smoke test
+        run: |
+          timeout 120 "$RUNNER_TEMP/godot" --headless --path . -s res://tests/smoke_test.gd 2>&1 | tee test.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" test.log
