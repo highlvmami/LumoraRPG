@@ -2,7 +2,8 @@
 ## simulated input and checks movement, enemies, auto-attack, exp/gold/levels,
 ## level-up choices, weapons, the boss, the pause menu, enemy kinds, loot orbs,
 ## the cheat menu, saving and the death flow, characters and classes, items,
-## equipment, chests and the chest wheel.
+## equipment, chests and the chest wheel, the skill tree, item comparison
+## tooltips and angry / enraged boss phases.
 ## Run: godot --headless --path . -s res://tests/smoke_test.gd
 extends SceneTree
 
@@ -47,16 +48,36 @@ func _run() -> void:
 	await _frames(1)
 	var ach: RefCounted = main.get("achievements")
 	_check((ach.get("defs") as Array).size() >= 10, "there are many achievements")
-	var shop: RefCounted = main.get("shop")
+	var shop: RefCounted = main.get("skill_tree")
 	var profile0: Dictionary = main.get("progression").get("profile")
-	_check(not bool(menu.call("buy", "power")), "cannot buy without gold")
+	_check(not bool(menu.call("learn_skill", "power")), "cannot learn a skill without gold")
 	profile0.gold = 100
 	var first_price := int(shop.call("price", "power"))
-	_check(bool(menu.call("buy", "power")), "buying an upgrade level with gold works")
+	_check(bool(menu.call("learn_skill", "power")), "learning a skill level with gold works")
 	_check(int(profile0.gold) == 100 - first_price and int(shop.call("level", "power")) == 1, "gold is spent and the upgrade gains a level")
 	_check(int(shop.call("price", "power")) > first_price, "the next level costs more")
 	_check(is_equal_approx(float(shop.call("total", "damage")), 0.01), "one level gives a small bonus (+1% damage)")
-	_check((shop.get("items") as Dictionary).size() >= 8, "the market has many kinds of upgrades")
+	_check((shop.get("nodes") as Dictionary).size() >= 15 and (shop.get("branches") as Array).size() == 3, "the skill tree has three branches with many skills")
+	var gold_keep := int(profile0.gold)
+	profile0.gold = 100000
+	_check(not bool(shop.call("is_unlocked", "haste")) and not bool(menu.call("learn_skill", "haste")), "a skill below stays locked until the one above levels up")
+	menu.call("learn_skill", "power")
+	menu.call("learn_skill", "power")
+	_check(bool(shop.call("is_unlocked", "haste")) and bool(menu.call("learn_skill", "haste")), "power level 3 opens the next skills")
+	menu.call("open_section", "skills")
+	await _frames(2)
+	var skill_buttons := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return b.get("tooltip_builder") is Callable and (b.get("tooltip_builder") as Callable).is_valid())
+	_check(skill_buttons.size() == (shop.get("nodes") as Dictionary).size(), "the skill tree shows every skill (%d)" % skill_buttons.size())
+	if not skill_buttons.is_empty():
+		var skill_tip: Object = skill_buttons[0].call("_make_custom_tooltip", "")
+		_check(skill_tip is Control, "hovering a skill shows what it gives")
+		if skill_tip:
+			skill_tip.free()
+	(profile0.upgrades as Dictionary).erase("haste")
+	profile0.upgrades.power = 1
+	profile0.gold = gold_keep
+	var migrated: RefCounted = load("res://scripts/progression/skill_tree.gd").new({"gold": 0, "upgrades": {"brutality": 4, "greed": 2}}, main.get("store"))
+	_check(int(migrated.call("level", "brutality")) == 4 and bool(migrated.call("is_unlocked", "brutality")) and is_equal_approx(float(migrated.call("total", "goldGain")), 0.04), "old market upgrades carry over into the skill tree")
 
 	# Characters: play asks for one first; up to 3, each with a class.
 	var inv: RefCounted = main.get("inventory")
@@ -112,6 +133,20 @@ func _run() -> void:
 		_check(card_tip is Control, "hovering an item card shows its stats")
 		if card_tip:
 			card_tip.free()
+	var other_bow: Dictionary = {}
+	for i in 60:
+		var it2: Dictionary = inv.get("gear").call("roll_item", 4, -5)
+		if str(it2.base) == "bow":
+			other_bow = it2
+			break
+	if not other_bow.is_empty():
+		var cmp: Dictionary = menu.call("compare_info", other_bow)
+		_check(int((cmp.get("worn", {}) as Dictionary).get("uid", -1)) == int(bow_item.uid), "an item is compared with the one worn in its slot")
+		var cmp_tip: Control = load("res://scripts/ui/item_art.gd").tooltip(inv.get("gear"), other_bow, {}, cmp)
+		var arrows := cmp_tip.find_children("*", "Label", true, false).filter(func(l: Label) -> bool: return l.text.begins_with("▲") or l.text.begins_with("▼"))
+		_check(not arrows.is_empty(), "the tooltip shows + / - differences to the worn item")
+		cmp_tip.free()
+	_check((menu.call("compare_info", bow_item) as Dictionary).is_empty(), "the worn item is not compared with itself")
 	var look: Dictionary = main.call("character_look", archer)
 	_check(int(look.weapon_tier) >= 0, "the equipped weapon changes the character look")
 	inv.call("unequip", int(archer.id), "weapon")
@@ -321,6 +356,36 @@ func _run() -> void:
 			if bool(level_up.get("visible")):
 				level_up.call("pick", 0)
 	_check(int(enemies.get("boss_attacks_started")) >= 3, "the forest giant uses different attacks")
+	boss = int(enemies.call("boss_index"))
+	var tempo_start := float(enemies.call("boss_tempo"))
+	var phases: Array = []
+	enemies.connect("boss_phase_changed", func(_n: String, ph: int) -> void: phases.append(ph))
+	var boss_max := float((enemies.get("_max_hp") as PackedFloat32Array)[boss])
+	enemies.call("damage", boss, boss_max * 0.45)
+	await _frames(3)
+	_check(int(enemies.call("boss_phase")) == 2 and phases == [2] and float(enemies.call("boss_tempo")) > tempo_start, "below 2/3 health the boss gets angry and attacks faster")
+	_check(str(hud.get("_boss_name").text).contains("ÖFKELİ"), "the boss bar shows the boss is angry")
+	for attack: String in ["quake", "nova"]:
+		player.set("hp", float(player.get("max_hp")))
+		var zones_before := int(enemies.get("attacks").call("active_count"))
+		enemies.call("start_boss_attack", int(enemies.call("boss_index")), attack)
+		_check(int(enemies.get("attacks").call("active_count")) > zones_before + 2, "the angry boss uses a new attack: %s" % attack)
+		for n in 120:
+			await physics_frame
+			if bool(level_up.get("visible")):
+				level_up.call("pick", 0)
+	boss = int(enemies.call("boss_index"))
+	enemies.call("damage", boss, boss_max * 0.3)
+	await _frames(3)
+	_check(int(enemies.call("boss_phase")) == 3 and int(enemies.call("boss_style")) == 3 and phases == [2, 3], "below 1/3 health the boss is enraged")
+	player.set("hp", float(player.get("max_hp")))
+	var zones_cross := int(enemies.get("attacks").call("active_count"))
+	enemies.call("start_boss_attack", int(enemies.call("boss_index")), "cross")
+	_check(int(enemies.get("attacks").call("active_count")) >= zones_cross + 8, "the enraged boss fires a star of 8 beams")
+	for n in 120:
+		await physics_frame
+		if bool(level_up.get("visible")):
+			level_up.call("pick", 0)
 	player.set("hp", float(player.get("max_hp")))
 	boss = int(enemies.call("boss_index"))
 	if boss >= 0:

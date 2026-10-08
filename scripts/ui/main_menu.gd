@@ -1,13 +1,13 @@
 ## Main menu after login: account level, Play, and the sections
 ## Characters (with their worn items), new character, Equipment, Backpack
-## (shared items and chests), Market (chests and permanent upgrades),
-## Profile and Friends.
+## (shared items and chests), Skill Tree (permanent upgrades), Market
+## (chests), Profile and Friends.
 extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
 const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
-const Shop := preload("res://scripts/progression/shop.gd")
+const SkillTree := preload("res://scripts/progression/skill_tree.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const ItemArt := preload("res://scripts/ui/item_art.gd")
 const ItemSlot := preload("res://scripts/ui/item_slot.gd")
@@ -25,17 +25,16 @@ const NAV := [
 	["characters", "Karakterler", "cls_warrior"],
 	["equipment", "Ekipman", "armor"],
 	["backpack", "Çanta", "chest"],
+	["skills", "Yetenek Ağacı", "storm"],
 	["market", "Market", "clover"],
 	["achievements", "Başarımlar", "skull"],
 	["profile", "Profil", "eye"],
 	["friends", "Arkadaşlar", "heart"],
 ]
-## Detail tier of the chest drawing per chest tier.
-const CHEST_ART_TIER := [0, 1, 1, 2]
 const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü"}
 
 var progression: Progression
-var shop: Shop
+var skill_tree: SkillTree
 var inventory: Inventory
 ## Achievements (set by the game after setup).
 var achievements: RefCounted
@@ -56,9 +55,9 @@ var _tab_buttons := {}
 var _name_edit: LineEdit
 
 
-func setup(p_progression: Progression, p_shop: Shop, p_inventory: Inventory) -> void:
+func setup(p_progression: Progression, p_skill_tree: SkillTree, p_inventory: Inventory) -> void:
 	progression = p_progression
-	shop = p_shop
+	skill_tree = p_skill_tree
 	inventory = p_inventory
 	layer = 5
 
@@ -142,6 +141,9 @@ func open_section(id: String) -> void:
 		"backpack":
 			_section_title.text = "Çanta (tüm karakterler ortak)"
 			_build_backpack()
+		"skills":
+			_section_title.text = "Yetenek Ağacı"
+			_build_skills()
 		"market":
 			_section_title.text = "Market"
 			_build_market()
@@ -180,9 +182,14 @@ func play() -> void:
 
 # --- Actions (also used by tests) --------------------------------------------
 
-## Buys a permanent market upgrade. Returns true on success.
-func buy(id: String) -> bool:
-	var ok := shop.buy(id)
+## Learns the next level of a skill tree node. Returns true on success.
+func learn_skill(id: String) -> bool:
+	var ok := skill_tree.buy(id)
+	if not ok and skill_tree.nodes.has(id):
+		if not skill_tree.is_unlocked(id):
+			notify("Önce: %s" % skill_tree.requirement_text(id))
+		elif not skill_tree.is_maxed(id):
+			notify("Yeterli altının yok.")
 	_check_achievements()
 	refresh()
 	return ok
@@ -569,7 +576,7 @@ func _build_backpack() -> void:
 			var box := VBoxContainer.new()
 			box.add_theme_constant_override("separation", 2)
 			card.add_child(box)
-			var art := ItemArt.make({"base": "chest"}, chest_color, CHEST_ART_TIER[int(ch.tier)], 76)
+			var art := ItemArt.chest(int(ch.tier), chest_color, 84)
 			art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			box.add_child(art)
 			box.add_child(_centered(str(cd.name), UiTheme.label_settings(13, chest_color, 3)))
@@ -602,7 +609,7 @@ func _build_market() -> void:
 		var color := Color(str(cd.color))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
-		row.add_child(ItemArt.make({"base": "chest"}, color, CHEST_ART_TIER[tier], 64))
+		row.add_child(ItemArt.chest(tier, color, 76))
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_child(UiTheme.label(str(cd.name), UiTheme.label_settings(21, color, 0)))
@@ -623,69 +630,151 @@ func _build_market() -> void:
 		row.add_child(button)
 		_content.add_child(row)
 
-	_header("Kalıcı Geliştirmeler (tüm karakterler)")
-	_text("Her seviye küçük ama kalıcı bir bonus verir; fiyatı her seviyede artar.", 14, UiTheme.MUTED)
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
-	_content.add_child(grid)
-	for id: String in shop.items:
-		grid.add_child(_upgrade_card(id))
+	_text("Kalıcı geliştirmeler Yetenek Ağacı bölümüne taşındı.", 14, UiTheme.MUTED)
 
 
-## One market upgrade: icon, name and level, what it gives now, level pips
-## and a button with the next level's bonus and price.
-func _upgrade_card(id: String) -> Control:
-	var d: Dictionary = shop.items[id]
-	var color := Color(str(d.color))
-	var lv := shop.level(id)
-	var top := shop.max_level(id)
-	var card := PanelContainer.new()
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.add_theme_stylebox_override("panel", _card_style(color if lv > 0 else color.darkened(0.55), 2))
+const SKILL_NODE := 58.0
+const SKILL_COL := 92.0
+const SKILL_ROW := 84.0
+const SKILL_TOP := 40.0
+
+
+## The skill tree: three branches side by side. Each node is a round button
+## (click to learn the next level, hover for details); lines join a node to
+## the nodes it needs and light up once those reach the required level.
+func _build_skills() -> void:
+	_text("Altınla kalıcı yetenekler öğren (tüm karakterler). Alttaki yetenekler, üstündekiler yeterli seviyeye gelince açılır.  ·  Öğrenilen seviye: %d" % skill_tree.points_spent(), 14, UiTheme.MUTED)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	card.add_child(row)
-	var icon_box := PanelContainer.new()
-	icon_box.add_theme_stylebox_override("panel", UiTheme.box(color.darkened(0.72), 8, 6))
-	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	icon_box.add_child(PixelIcons.rect(str(d.icon), 36))
-	row.add_child(icon_box)
+	row.add_theme_constant_override("separation", 12)
+	_content.add_child(row)
+	for b: Dictionary in skill_tree.branches:
+		row.add_child(_skill_branch(b))
 
-	var info := VBoxContainer.new()
-	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 3)
-	var title := HBoxContainer.new()
-	var name_label := UiTheme.label(str(d.name), UiTheme.label_settings(18, color.lightened(0.25), 3))
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_child(name_label)
-	title.add_child(UiTheme.label("Sv. %d/%d" % [lv, top], UiTheme.label_settings(13, UiTheme.MUTED, 2)))
-	info.add_child(title)
-	info.add_child(UiTheme.label("Şu an: " + (shop.effect_text(id, lv) if lv > 0 else "yok"), UiTheme.label_settings(13, Color("#8fe39a") if lv > 0 else UiTheme.MUTED, 2)))
-	var pips := HBoxContainer.new()
-	pips.add_theme_constant_override("separation", 2)
-	for i in top:
-		var pip := ColorRect.new()
-		pip.custom_minimum_size = Vector2(floorf(170.0 / top) - 2.0, 6)
-		pip.color = color if i < lv else Color(1, 1, 1, 0.12)
-		pips.add_child(pip)
-	info.add_child(pips)
-	row.add_child(info)
 
-	var button := Button.new()
-	button.custom_minimum_size = Vector2(118, 0)
-	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	button.add_theme_font_size_override("font_size", 13)
-	if shop.is_maxed(id):
-		button.text = "MAKS"
-		button.disabled = true
+func _skill_branch(b: Dictionary) -> Control:
+	var color := Color(str(b.color))
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := _card_style(color.darkened(0.45), 2)
+	style.bg_color = color.darkened(0.88)
+	panel.add_theme_stylebox_override("panel", style)
+	var canvas := Control.new()
+	canvas.custom_minimum_size = Vector2(SKILL_COL * 2.0 + SKILL_NODE + 16.0, SKILL_TOP + SKILL_ROW * 3.0 + SKILL_NODE + 30.0)
+	panel.add_child(canvas)
+	var title := UiTheme.label(str(b.name), UiTheme.label_settings(20, color.lightened(0.2), 4))
+	title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 4)
+	title.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	canvas.add_child(title)
+	var ids := skill_tree.branch_nodes(str(b.id))
+	# Connection lines, drawn under the nodes.
+	canvas.draw.connect(func() -> void:
+		var origin_x := (canvas.size.x - (SKILL_COL * 2.0 + SKILL_NODE)) * 0.5
+		for id: String in ids:
+			var req: Dictionary = skill_tree.nodes[id].get("requires", {})
+			for need: String in req:
+				var met := skill_tree.level(need) >= int(req[need])
+				var from := _skill_center(skill_tree.nodes[need], origin_x)
+				var to := _skill_center(skill_tree.nodes[id], origin_x)
+				canvas.draw_line(from, to, Color(0, 0, 0, 0.6), 7.0)
+				canvas.draw_line(from, to, color if met else Color(1, 1, 1, 0.14), 3.0 if met else 2.0))
+	var holder := Control.new()
+	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(holder)
+	holder.resized.connect(func() -> void:
+		var origin_x := (holder.size.x - (SKILL_COL * 2.0 + SKILL_NODE)) * 0.5
+		for child: Control in holder.get_children():
+			var d: Dictionary = skill_tree.nodes[str(child.get_meta("skill"))]
+			child.position = _skill_center(d, origin_x) - Vector2(SKILL_NODE * 0.5, SKILL_NODE * 0.5)
+		canvas.queue_redraw())
+	for id: String in ids:
+		holder.add_child(_skill_node(id, color))
+	return panel
+
+
+func _skill_center(d: Dictionary, origin_x: float) -> Vector2:
+	return Vector2(origin_x + float(d.col) * SKILL_COL + SKILL_NODE * 0.5, SKILL_TOP + float(d.row) * SKILL_ROW + SKILL_NODE * 0.5)
+
+
+## One round skill button with its icon and a level badge below.
+func _skill_node(id: String, color: Color) -> Control:
+	var d: Dictionary = skill_tree.nodes[id]
+	var lv := skill_tree.level(id)
+	var open := skill_tree.is_unlocked(id)
+	var maxed := skill_tree.is_maxed(id)
+	var ready := skill_tree.can_buy(id)
+	var box := Control.new()
+	box.set_meta("skill", id)
+	box.size = Vector2(SKILL_NODE, SKILL_NODE + 22.0)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var button: Button = ItemSlot.new()
+	button.size = Vector2(SKILL_NODE, SKILL_NODE)
+	button.tooltip_text = str(d.name)
+	button.set("tooltip_builder", func() -> Control: return _skill_tooltip(id, color))
+	var border := UiTheme.ACCENT if maxed else (color if lv > 0 else (color.darkened(0.2) if ready else Color(1, 1, 1, 0.18)))
+	for state: String in ["normal", "hover", "pressed", "disabled"]:
+		var style := UiTheme.box(color.darkened(0.6 if lv > 0 else 0.82), int(SKILL_NODE * 0.5), 6)
+		style.set_border_width_all(4 if maxed or ready else 3)
+		style.border_color = border.lightened(0.3) if state == "hover" else border
+		if maxed or lv > 0:
+			style.shadow_color = Color(border, 0.55)
+			style.shadow_size = 8 if maxed else 4
+		button.add_theme_stylebox_override(state, style)
+	button.pressed.connect(learn_skill.bind(id))
+	var icon := PixelIcons.rect(str(d.icon), 34)
+	icon.position = Vector2((SKILL_NODE - 34.0) * 0.5, (SKILL_NODE - 34.0) * 0.5)
+	icon.size = Vector2(34, 34)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not open:
+		icon.modulate = Color(0.3, 0.3, 0.3, 0.8)
+	button.add_child(icon)
+	box.add_child(button)
+	if ready:
+		# A soft pulse on nodes that can be learned right now.
+		var tween := button.create_tween().set_loops()
+		tween.tween_property(button, "self_modulate", Color(1.35, 1.35, 1.35), 0.6)
+		tween.tween_property(button, "self_modulate", Color.WHITE, 0.6)
+	var badge := UiTheme.label("KİLİTLİ" if not open else ("MAKS" if maxed else "%d/%d" % [lv, skill_tree.max_level(id)]),
+		UiTheme.label_settings(12, UiTheme.ACCENT if maxed else (UiTheme.MUTED if not open else color.lightened(0.3)), 3))
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.position = Vector2(-20, SKILL_NODE + 1.0)
+	badge.size = Vector2(SKILL_NODE + 40.0, 18)
+	box.add_child(badge)
+	return box
+
+
+func _skill_tooltip(id: String, color: Color) -> Control:
+	var d: Dictionary = skill_tree.nodes[id]
+	var lv := skill_tree.level(id)
+	var panel := PanelContainer.new()
+	var style := UiTheme.box(Color(0.05, 0.07, 0.1, 0.97), 8, 12)
+	style.set_border_width_all(2)
+	style.border_color = color
+	panel.add_theme_stylebox_override("panel", style)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 3)
+	panel.add_child(col)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	head.add_child(PixelIcons.rect(str(d.icon), 40))
+	var names := VBoxContainer.new()
+	names.add_child(UiTheme.label(str(d.name), UiTheme.label_settings(20, color.lightened(0.2), 4)))
+	names.add_child(UiTheme.label("Seviye %d / %d" % [lv, skill_tree.max_level(id)], UiTheme.label_settings(13, UiTheme.MUTED, 3)))
+	head.add_child(names)
+	col.add_child(head)
+	col.add_child(HSeparator.new())
+	col.add_child(UiTheme.label("Şu an: " + (skill_tree.effect_text(id, lv) if lv > 0 else "yok"), UiTheme.label_settings(15, Color("#8fe39a") if lv > 0 else UiTheme.MUTED, 3)))
+	if skill_tree.is_maxed(id):
+		col.add_child(UiTheme.label("En yüksek seviyede", UiTheme.label_settings(14, UiTheme.ACCENT, 3)))
 	else:
-		button.text = "%s\n%d altın" % [shop.effect_text(id, 1), shop.price(id)]
-		button.disabled = not shop.can_buy(id)
-		button.pressed.connect(buy.bind(id))
-	row.add_child(button)
-	return card
+		col.add_child(UiTheme.label("Sonraki seviye: " + skill_tree.effect_text(id, 1), UiTheme.label_settings(15, UiTheme.TEXT, 3)))
+		var afford := progression.gold() >= skill_tree.price(id)
+		col.add_child(UiTheme.label("Fiyat: %d altın" % skill_tree.price(id), UiTheme.label_settings(14, UiTheme.ACCENT if afford else Color("#ff6b6b"), 3)))
+	if not skill_tree.is_unlocked(id):
+		col.add_child(UiTheme.label("Gerekli: " + skill_tree.requirement_text(id), UiTheme.label_settings(14, Color("#ff6b6b"), 3)))
+	elif not skill_tree.is_maxed(id):
+		col.add_child(UiTheme.label("Öğrenmek için tıkla", UiTheme.label_settings(12, UiTheme.MUTED, 2)))
+	return panel
 
 
 ## Every achievement with its progress and reward; finished ones glow gold.
@@ -860,7 +949,7 @@ func _item_card(it: Dictionary, equip_only: bool) -> Control:
 	card.custom_minimum_size = Vector2(128, 0)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.tooltip_text = gear.item_name(it)
-	card.set("tooltip_builder", func() -> Control: return ItemArt.tooltip(gear, it, CLASS_NAMES))
+	card.set("tooltip_builder", func() -> Control: return ItemArt.tooltip(gear, it, CLASS_NAMES, compare_info(it)))
 	var style := _card_style(color, 3 if rarity >= 4 else 2)
 	style.bg_color = color.darkened(0.82)
 	style.set_content_margin_all(6)
@@ -917,6 +1006,19 @@ func _item_card(it: Dictionary, equip_only: bool) -> Control:
 		buttons.add_child(sell_button)
 	col.add_child(buttons)
 	return card
+
+
+## What an item is compared with in its tooltip: the item the active
+## character wears in the same slot. Empty (no comparison) when there is no
+## active character or the item is the one it wears.
+func compare_info(it: Dictionary) -> Dictionary:
+	var c := inventory.active_character()
+	if c.is_empty():
+		return {}
+	var worn := inventory.equipped(c, inventory.gear.item_slot(it))
+	if not worn.is_empty() and int(worn.uid) == int(it.uid):
+		return {}
+	return {"worn": worn, "who": str(c.name), "can_wear": inventory.can_wear(c, it)}
 
 
 ## A square equipment slot: the worn item's drawing (hover for its stats), or

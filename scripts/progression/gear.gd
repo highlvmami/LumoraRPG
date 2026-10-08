@@ -121,15 +121,52 @@ func stat_lines(item: Dictionary) -> PackedStringArray:
 
 
 func stat_text(stat: String, value: float) -> String:
+	return signed_text(stat, value)
+
+
+## Like stat_text but with a minus sign for negative values ("-4% Hasar"),
+## used to compare an item with the one worn.
+func signed_text(stat: String, value: float) -> String:
+	var prefix := "-" if value < 0.0 else "+"
+	var v := absf(value)
 	for a: Dictionary in affixes:
 		if a.stat == stat:
 			match str(a.format):
 				"percent":
-					return "+%d%% %s" % [roundi(value * 100.0), a.label]
+					return "%s%d%% %s" % [prefix, roundi(v * 100.0), a.label]
 				"perSecond":
-					return "+%.1f/sn %s" % [value, a.label]
+					return "%s%.1f/sn %s" % [prefix, v, a.label]
 				_:
-					if value >= 3.0:
-						return "+%d %s" % [roundi(value), a.label]
-					return "+%.1f %s" % [value, a.label]
-	return "+%.2f %s" % [value, stat]
+					if v >= 3.0:
+						return "%s%d %s" % [prefix, roundi(v), a.label]
+					return "%s%.1f %s" % [prefix, v, a.label]
+	return "%s%.2f %s" % [prefix, v, stat]
+
+
+## True when a stat difference is too small to show once rounded.
+func is_tiny(stat: String, value: float) -> bool:
+	for a: Dictionary in affixes:
+		if a.stat == stat:
+			match str(a.format):
+				"percent":
+					return roundi(absf(value) * 100.0) == 0
+				"perSecond":
+					return absf(value) < 0.05
+				_:
+					return absf(value) < 0.05
+	return absf(value) < 0.005
+
+
+func stat_label(stat: String) -> String:
+	for a: Dictionary in affixes:
+		if a.stat == stat:
+			return str(a.label)
+	return stat
+
+
+## Stat ids in the order the affix list gives them (for tidy tooltips).
+func stat_order() -> Array:
+	var out: Array = []
+	for a: Dictionary in affixes:
+		out.append(str(a.stat))
+	return out

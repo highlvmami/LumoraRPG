@@ -50,6 +50,19 @@ func circle(center: Vector3, radius: float, time: float, color: Color, rock := f
 	_zones.append({"root": root, "fill": fill, "time": time, "total": time, "kind": "circle", "rock": falling, "radius": radius, "color": color})
 
 
+## A ring-shaped zone (a shockwave) between `inner` and `outer` around `center`.
+func ring(center: Vector3, inner: float, outer: float, time: float, color: Color) -> void:
+	var root := _zone_root(center)
+	var edge := _annulus(inner, outer, Color(color, 0.35))
+	root.add_child(edge)
+	root.add_child(_ring(outer, Color(color, 0.9)))
+	if inner > 0.2:
+		root.add_child(_ring(inner + 0.12, Color(color, 0.6)))
+	var fill := _annulus(inner, outer, Color(color, 0.0))
+	root.add_child(fill)
+	_zones.append({"root": root, "fill": fill, "time": time, "total": time, "kind": "ring", "rock": null, "radius": outer, "inner": inner, "color": color})
+
+
 ## A straight zone from `from` to `to` (a charge or a web line).
 func line(from: Vector3, to: Vector3, width: float, time: float, color: Color) -> void:
 	var root := _zone_root(from)
@@ -73,6 +86,9 @@ func _process(delta: float) -> void:
 		var fill: Node3D = z.fill
 		if z.kind == "circle":
 			fill.scale = Vector3(maxf(f, 0.01), 1, maxf(f, 0.01))
+		elif z.kind == "ring":
+			# Rings brighten instead of growing.
+			((fill as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.a = 0.65 * f * f
 		else:
 			fill.scale = Vector3(1, 1, maxf(f, 0.01))
 		var rock: MeshInstance3D = z.rock
@@ -92,7 +108,9 @@ func _process(delta: float) -> void:
 func _impact(z: Dictionary) -> void:
 	var root := z.root as Node3D
 	var flash: Node3D
-	if z.kind == "circle":
+	if z.kind == "ring":
+		flash = _annulus(float(z.inner), float(z.radius), Color.WHITE)
+	elif z.kind == "circle":
 		var s := SphereMesh.new()
 		s.radius = float(z.radius)
 		s.height = float(z.radius) * 0.6
@@ -108,6 +126,8 @@ func _impact(z: Dictionary) -> void:
 	flash.global_transform = root.global_transform
 	if z.kind == "line":
 		flash.scale = Vector3(1.0, 10.0, 1.0)
+	elif z.kind == "ring":
+		flash.scale = Vector3(1.0, 0.8 / maxf(float(z.radius) - float(z.inner), 0.1), 1.0)
 	var tween := create_tween()
 	tween.tween_property(mat, "albedo_color:a", 0.0, 0.35)
 	tween.tween_callback(flash.queue_free)
@@ -130,6 +150,21 @@ func _disc(radius: float, color: Color) -> MeshInstance3D:
 	c.rings = 1
 	var m := MeshInstance3D.new()
 	m.mesh = c
+	m.material_override = _material(color, true)
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return m
+
+
+## A flat band between `inner` and `outer` (a flattened torus).
+func _annulus(inner: float, outer: float, color: Color) -> MeshInstance3D:
+	var t := TorusMesh.new()
+	t.inner_radius = maxf(inner, 0.05)
+	t.outer_radius = outer
+	t.rings = 40
+	t.ring_segments = 6
+	var m := MeshInstance3D.new()
+	m.mesh = t
+	m.scale = Vector3(1.0, 0.02 / maxf(outer - inner, 0.1), 1.0)
 	m.material_override = _material(color, true)
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return m
