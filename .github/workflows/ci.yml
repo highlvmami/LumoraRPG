@@ -146,5 +146,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest LumoraRPG-windows.zip game.pck version.txt --target "$GITHUB_SHA" --title "LumoraRPG (Windows, son sürüm)" --notes "main dalının son hali. Zip'i aç, LumoraRPG.exe'ye çift tıkla. Windows uyarı verirse: Daha fazla bilgi → Yine de çalıştır. Oyun açılırken kendini otomatik günceller."
+          # Keep one published release on the "latest" tag: move the tag to
+          # this commit and swap the files. (Deleting and re-creating it left
+          # the release as an untagged draft, so the download links broke.)
+          for id in $(gh api "repos/$GH_REPO/releases" --jq '.[] | select(.draft) | .id'); do
+            gh api -X DELETE "repos/$GH_REPO/releases/$id"
+          done
+          if gh api "repos/$GH_REPO/releases/tags/latest" > /dev/null 2>&1; then
+            gh api -X PATCH "repos/$GH_REPO/git/refs/tags/latest" -f sha="$GITHUB_SHA" -F force=true > /dev/null
+          else
+            gh api -X DELETE "repos/$GH_REPO/git/refs/tags/latest" > /dev/null 2>&1 || true
+            gh release create latest --target "$GITHUB_SHA" --title "LumoraRPG (Windows, son sürüm)" --notes "main dalının son hali. Zip'i aç, LumoraRPG.exe'ye çift tıkla. Windows uyarı verirse: Daha fazla bilgi → Yine de çalıştır. Oyun açılırken kendini otomatik günceller."
+          fi
+          gh release upload latest LumoraRPG-windows.zip game.pck version.txt --clobber
+      - name: Check the game can download the update
+        run: |
+          want="$(cat version.txt)"
+          for i in $(seq 1 10); do
+            got="$(curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/download/latest/version.txt" || true)"
+            if [ "$got" = "$want" ]; then echo "latest = $got"; exit 0; fi
+            sleep 6
+          done
+          echo "::error::releases/download/latest/version.txt is '$got', expected '$want'"
+          exit 1
