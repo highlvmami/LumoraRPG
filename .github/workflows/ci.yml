@@ -37,12 +37,12 @@ jobs:
           timeout 120 "$RUNNER_TEMP/godot" --headless --path . -s res://tests/smoke_test.gd 2>&1 | tee test.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" test.log
 
-      - name: Install web export templates
+      - name: Install web and Windows export templates
         run: |
           curl -fsSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
           dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION/-/.}"
           mkdir -p "$dest"
-          unzip -j -q templates.tpz "templates/web_nothreads_release.zip" "templates/web_nothreads_debug.zip" "templates/version.txt" -d "$dest"
+          unzip -j -q templates.tpz "templates/web_nothreads_release.zip" "templates/web_nothreads_debug.zip" "templates/windows_release_x86_64.exe" "templates/windows_debug_x86_64.exe" "templates/version.txt" -d "$dest"
           rm templates.tpz
           ls "$dest"
 
@@ -60,6 +60,22 @@ jobs:
         with:
           path: build/web
 
+      - name: Export for Windows
+        run: |
+          mkdir -p build/windows
+          "$RUNNER_TEMP/godot" --headless --path . --export-release "Windows Desktop" build/windows/LumoraRPG.exe 2>&1 | tee export-win.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" export-win.log
+          test -f build/windows/LumoraRPG.exe
+          (cd build/windows && zip -q -9 ../LumoraRPG-windows.zip LumoraRPG.exe)
+          ls -la build build/windows
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumoraRPG-windows
+          path: build/LumoraRPG-windows.zip
+          retention-days: 7
+
   deploy:
     name: Publish to GitHub Pages
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -74,3 +90,22 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  release:
+    name: Publish Windows download
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: godot
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: LumoraRPG-windows
+      - name: Replace the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest LumoraRPG-windows.zip --target "$GITHUB_SHA" --title "LumoraRPG (Windows, son sürüm)" --notes "main dalının son hali. Zip'i aç, LumoraRPG.exe'ye çift tıkla. Windows uyarı verirse: Daha fazla bilgi → Yine de çalıştır."
