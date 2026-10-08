@@ -433,6 +433,11 @@ func uid_of(index: int) -> int:
 	return _uid[index]
 
 
+## Current index of the enemy with this uid, or -1 if it is gone.
+func index_of_uid(uid: int) -> int:
+	return _uid.find(uid)
+
+
 func radius_of(index: int) -> float:
 	return float(_kinds[_kind[index]].radius)
 

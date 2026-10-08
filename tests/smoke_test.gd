@@ -40,10 +40,14 @@ func _run() -> void:
 	_check(bool(menu.call("add_friend", "arkadas1")), "a friend can be added")
 	var shop: RefCounted = main.get("shop")
 	var profile0: Dictionary = main.get("progression").get("profile")
-	_check(not bool(menu.call("buy", "sharp_arrows")), "cannot buy without gold")
+	_check(not bool(menu.call("buy", "power")), "cannot buy without gold")
 	profile0.gold = 100
-	_check(bool(menu.call("buy", "sharp_arrows")), "buying an item with gold works")
-	_check(int(profile0.gold) == 60 and bool(shop.call("owns", "sharp_arrows")), "gold is spent and item is in the backpack")
+	var first_price := int(shop.call("price", "power"))
+	_check(bool(menu.call("buy", "power")), "buying an upgrade level with gold works")
+	_check(int(profile0.gold) == 100 - first_price and int(shop.call("level", "power")) == 1, "gold is spent and the upgrade gains a level")
+	_check(int(shop.call("price", "power")) > first_price, "the next level costs more")
+	_check(is_equal_approx(float(shop.call("total", "damage")), 0.01), "one level gives a small bonus (+1% damage)")
+	_check((shop.get("items") as Dictionary).size() >= 8, "the market has many kinds of upgrades")
 
 	# Characters: play asks for one first; up to 3, each with a class.
 	var inv: RefCounted = main.get("inventory")
@@ -90,6 +94,15 @@ func _run() -> void:
 		_check(tip is Control, "hovering a slot shows the item's stats")
 		if tip:
 			tip.free()
+	menu.call("open_section", "backpack")
+	await _frames(2)
+	var cards := menu.find_children("*", "PanelContainer", true, false).filter(func(n: Node) -> bool: return n.get("tooltip_builder") is Callable)
+	_check(not cards.is_empty(), "backpack shows item cards")
+	if not cards.is_empty():
+		var card_tip: Object = cards[0].call("_make_custom_tooltip", "")
+		_check(card_tip is Control, "hovering an item card shows its stats")
+		if card_tip:
+			card_tip.free()
 	var look: Dictionary = main.call("character_look", archer)
 	_check(int(look.weapon_tier) >= 0, "the equipped weapon changes the character look")
 	inv.call("unequip", int(archer.id), "weapon")
@@ -117,7 +130,7 @@ func _run() -> void:
 	await _frames(60)
 	_check(not bool(menu.get("visible")), "play hides the main menu")
 	var bow: Node = main.get("bow")
-	_check(absf(float(bow.get("damage_multiplier")) - 1.15) < 0.001, "owned item boosts damage (x%.2f)" % float(bow.get("damage_multiplier")))
+	_check(absf(float(bow.get("damage_multiplier")) - 1.01) < 0.001, "the market upgrade boosts damage (x%.2f)" % float(bow.get("damage_multiplier")))
 	_check(absf(float(main.get("range_ring").get("radius")) - 10.0) < 0.001, "range ring matches the attack range")
 
 	var player: CharacterBody3D = main.get("player")

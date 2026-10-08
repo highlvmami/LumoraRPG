@@ -12,6 +12,7 @@ const Inventory := preload("res://scripts/progression/inventory.gd")
 const ItemArt := preload("res://scripts/ui/item_art.gd")
 const ItemSlot := preload("res://scripts/ui/item_slot.gd")
 const CharacterPreview := preload("res://scripts/ui/character_preview.gd")
+const TooltipCard := preload("res://scripts/ui/tooltip_card.gd")
 
 signal play_pressed
 ## The player wants to open this chest (the game shows the wheel).
@@ -436,9 +437,11 @@ func _build_create() -> void:
 	_content.add_child(create)
 
 
-## Paper doll: the character in the middle; helmet, armor and boots stacked on
-## the left, weapon, gloves (at hand height) and ring on the right. Hover a
-## slot to see the item's stats. Below: gear totals and items to put on.
+## Equipment: the character standing at the top left with its slots beside
+## it at body height (helmet by the head, armor by the chest, boots by the
+## feet; ring, gloves at hand height and weapon in a second column), the
+## gear totals on the right and the items it can put on below. Hover a slot
+## or card to see the stats; click a worn slot to take it off.
 func _build_equipment() -> void:
 	var c := inventory.active_character()
 	if c.is_empty():
@@ -447,29 +450,32 @@ func _build_equipment() -> void:
 	var info := inventory.class_info(str(c["class"]))
 	var class_color := Color(str(info.color))
 
-	var doll := HBoxContainer.new()
-	doll.alignment = BoxContainer.ALIGNMENT_CENTER
-	doll.add_theme_constant_override("separation", 18)
-	_content.add_child(doll)
-	doll.add_child(_slot_column(c, ["helmet", "armor", "boots"], HORIZONTAL_ALIGNMENT_RIGHT))
-	var middle := VBoxContainer.new()
-	middle.add_theme_constant_override("separation", 2)
-	var stage := _stage(class_color)
-	stage.add_child(_preview(c, Vector2(250, 330)))
-	middle.add_child(stage)
-	middle.add_child(_centered("%s  ·  %s" % [c.name, info.name], UiTheme.label_settings(20, class_color.lightened(0.2), 4)))
-	doll.add_child(middle)
-	doll.add_child(_slot_column(c, ["weapon", "gloves", "ring"], HORIZONTAL_ALIGNMENT_LEFT))
-
-	var totals := PackedStringArray()
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 24)
+	_content.add_child(top)
+	top.add_child(_paper_doll(c, class_color))
+	var side := VBoxContainer.new()
+	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	side.add_theme_constant_override("separation", 4)
+	top.add_child(side)
+	side.add_child(UiTheme.label(str(c.name), UiTheme.label_settings(28, class_color.lightened(0.2), 5)))
+	side.add_child(UiTheme.label(str(info.name), UiTheme.label_settings(15, UiTheme.MUTED, 3)))
+	var gap := Control.new()
+	gap.custom_minimum_size.y = 10
+	side.add_child(gap)
+	side.add_child(UiTheme.label("Ekipman bonusu", UiTheme.label_settings(17, UiTheme.ACCENT, 3)))
+	var any := false
 	for a: Dictionary in inventory.gear.affixes:
 		var v := inventory.gear_total(c, str(a.stat))
 		if v > 0.0:
-			totals.append(inventory.gear.stat_text(str(a.stat), v))
-	var bonus := _centered("Ekipman bonusu: " + ("   ".join(totals) if not totals.is_empty() else "yok"), UiTheme.label_settings(15, Color("#8fe39a"), 3))
-	bonus.custom_minimum_size.x = 600
-	bonus.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_content.add_child(bonus)
+			any = true
+			side.add_child(UiTheme.label(inventory.gear.stat_text(str(a.stat), v), UiTheme.label_settings(15, Color("#8fe39a"), 3)))
+	if not any:
+		side.add_child(UiTheme.label("Henüz ekipman yok.", UiTheme.label_settings(15, UiTheme.MUTED, 3)))
+	var hint := UiTheme.label("Eşyanın üstüne gelince özellikleri görünür. Takılı eşyaya tıklayınca çıkar.", UiTheme.label_settings(12, UiTheme.MUTED, 2))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size.x = 220
+	side.add_child(hint)
 
 	_header("Kuşanabileceğin eşyalar")
 	var flow := HFlowContainer.new()
@@ -484,29 +490,51 @@ func _build_equipment() -> void:
 		_text("Bu karaktere uygun eşya yok. Canavarlar ve boss kasaları eşya düşürür.", 15, UiTheme.MUTED)
 
 
-## A column of big equipment slots with their names; filled slots get "Çıkar".
-func _slot_column(c: Dictionary, slot_ids: Array, align: HorizontalAlignment) -> VBoxContainer:
-	var col := VBoxContainer.new()
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_theme_constant_override("separation", 10)
-	for slot_id: String in slot_ids:
+const DOLL_SIZE := Vector2(210, 400)
+const DOLL_SLOT := 72.0
+## [slot, column (0 = next to the body, 1 = outer), body height it lines up with]
+const DOLL_SLOTS := [
+	["helmet", 0, 1.8], ["armor", 0, 1.1], ["boots", 0, 0.2],
+	["ring", 1, 1.8], ["gloves", 1, 0.95], ["weapon", 1, 0.2],
+]
+
+
+## The standing character with its equipment slots placed at body height.
+func _paper_doll(c: Dictionary, color: Color) -> Control:
+	var doll := Control.new()
+	var col_x := [DOLL_SIZE.x + 26.0, DOLL_SIZE.x + 26.0 + DOLL_SLOT + 14.0]
+	doll.custom_minimum_size = Vector2(col_x[1] + DOLL_SLOT, DOLL_SIZE.y)
+	var stage := _stage(color)
+	var view := DOLL_SIZE - Vector2(8, 8)
+	var preview: SubViewportContainer = CharacterPreview.new()
+	preview.call("setup", inventory.character_look(c), view, 2, true)
+	stage.add_child(preview)
+	doll.add_child(stage)
+	for entry: Array in DOLL_SLOTS:
+		var slot_id := str(entry[0])
+		var y := 4.0 + CharacterPreview.body_y(float(entry[2]), view.y)
+		var top_y := clampf(y - DOLL_SLOT * 0.5, 18.0, DOLL_SIZE.y - DOLL_SLOT)
+		var x: float = col_x[int(entry[1])]
+		if int(entry[1]) == 0:
+			# A faint line from the body part to its slot.
+			var line := ColorRect.new()
+			line.color = Color(color, 0.4)
+			line.position = Vector2(DOLL_SIZE.x * 0.5 + 34.0, top_y + DOLL_SLOT * 0.5 - 1.0)
+			line.size = Vector2(x - line.position.x, 2)
+			line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			doll.add_child(line)
+		var title := UiTheme.label(inventory.gear.slot_name(slot_id).to_upper(), UiTheme.label_settings(11, UiTheme.MUTED, 2))
+		title.position = Vector2(x, top_y - 16.0)
+		doll.add_child(title)
 		var it := inventory.equipped(c, slot_id)
-		var box := VBoxContainer.new()
-		box.add_theme_constant_override("separation", 2)
-		var title := UiTheme.label(inventory.gear.slot_name(slot_id).to_upper(), UiTheme.label_settings(13, UiTheme.MUTED, 3))
-		title.horizontal_alignment = align
-		box.add_child(title)
-		var slot := _slot_button(it, slot_id, 92)
-		slot.size_flags_horizontal = Control.SIZE_SHRINK_END if align == HORIZONTAL_ALIGNMENT_RIGHT else Control.SIZE_SHRINK_BEGIN
-		box.add_child(slot)
+		var slot := _slot_button(it, slot_id, DOLL_SLOT)
+		slot.position = Vector2(x, top_y)
+		slot.size = Vector2(DOLL_SLOT, DOLL_SLOT)
 		if not it.is_empty():
-			var item_name := UiTheme.label(inventory.gear.item_name(it), UiTheme.label_settings(13, inventory.gear.rarity_color(int(it.rarity)), 3))
-			item_name.horizontal_alignment = align
-			box.add_child(item_name)
 			slot.pressed.connect(unequip.bind(slot_id))
 			slot.tooltip_text += "\n(çıkarmak için tıkla)"
-		col.add_child(box)
-	return col
+		doll.add_child(slot)
+	return doll
 
 
 ## Chests (open with the wheel) and the shared items as cards.
@@ -583,32 +611,68 @@ func _build_market() -> void:
 		_content.add_child(row)
 
 	_header("Kalıcı Geliştirmeler (tüm karakterler)")
+	_text("Her seviye küçük ama kalıcı bir bonus verir; fiyatı her seviyede artar.", 14, UiTheme.MUTED)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	_content.add_child(grid)
 	for id: String in shop.items:
-		var item: Dictionary = shop.items[id]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		var icon := ColorRect.new()
-		icon.color = Color.html(str(item.color))
-		icon.custom_minimum_size = Vector2(36, 36)
-		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(icon)
-		var info := VBoxContainer.new()
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		info.add_child(UiTheme.label(str(item.name), UiTheme.label_settings(20, UiTheme.TEXT, 0)))
-		info.add_child(UiTheme.label(str(item.description), UiTheme.label_settings(14, UiTheme.MUTED, 0)))
-		row.add_child(info)
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(140, 0)
-		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		if shop.owns(id):
-			button.text = "Alındı"
-			button.disabled = true
-		else:
-			button.text = "%d altın" % shop.price(id)
-			button.disabled = not shop.can_buy(id)
-			button.pressed.connect(buy.bind(id))
-		row.add_child(button)
-		_content.add_child(row)
+		grid.add_child(_upgrade_card(id))
+
+
+## One market upgrade: icon, name and level, what it gives now, level pips
+## and a button with the next level's bonus and price.
+func _upgrade_card(id: String) -> Control:
+	var d: Dictionary = shop.items[id]
+	var color := Color(str(d.color))
+	var lv := shop.level(id)
+	var top := shop.max_level(id)
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_theme_stylebox_override("panel", _card_style(color if lv > 0 else color.darkened(0.55), 2))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	card.add_child(row)
+	var icon_box := PanelContainer.new()
+	icon_box.add_theme_stylebox_override("panel", UiTheme.box(color.darkened(0.72), 8, 6))
+	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon_box.add_child(PixelIcons.rect(str(d.icon), 36))
+	row.add_child(icon_box)
+
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 3)
+	var title := HBoxContainer.new()
+	var name_label := UiTheme.label(str(d.name), UiTheme.label_settings(18, color.lightened(0.25), 3))
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.add_child(name_label)
+	title.add_child(UiTheme.label("Sv. %d/%d" % [lv, top], UiTheme.label_settings(13, UiTheme.MUTED, 2)))
+	info.add_child(title)
+	info.add_child(UiTheme.label("Şu an: " + (shop.effect_text(id, lv) if lv > 0 else "yok"), UiTheme.label_settings(13, Color("#8fe39a") if lv > 0 else UiTheme.MUTED, 2)))
+	var pips := HBoxContainer.new()
+	pips.add_theme_constant_override("separation", 2)
+	for i in top:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(floorf(170.0 / top) - 2.0, 6)
+		pip.color = color if i < lv else Color(1, 1, 1, 0.12)
+		pips.add_child(pip)
+	info.add_child(pips)
+	row.add_child(info)
+
+	var button := Button.new()
+	button.custom_minimum_size = Vector2(118, 0)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.add_theme_font_size_override("font_size", 13)
+	if shop.is_maxed(id):
+		button.text = "MAKS"
+		button.disabled = true
+	else:
+		button.text = "%s\n%d altın" % [shop.effect_text(id, 1), shop.price(id)]
+		button.disabled = not shop.can_buy(id)
+		button.pressed.connect(buy.bind(id))
+	row.add_child(button)
+	return card
 
 
 func _build_profile() -> void:
@@ -662,49 +726,55 @@ func _build_friends() -> void:
 
 # --- Small widgets -------------------------------------------------------------
 
-## An item card: the detailed drawing on a rarity-colored stage, name, rarity
-## and slot, every stat, who wears it, and Kuşan / Sat buttons.
+## A small item card: the drawing on a rarity-colored stage, the name, who
+## wears it and Kuşan / Sat buttons. Hovering shows every stat.
 func _item_card(it: Dictionary, equip_only: bool) -> Control:
 	var gear := inventory.gear
 	var rarity := int(it.rarity)
 	var color := gear.rarity_color(rarity)
-	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(172, 0)
+	var card: PanelContainer = TooltipCard.new()
+	card.custom_minimum_size = Vector2(156, 0)
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	card.tooltip_text = gear.item_name(it)
+	card.set("tooltip_builder", func() -> Control: return ItemArt.tooltip(gear, it, CLASS_NAMES))
 	var style := _card_style(color, 3 if rarity >= 4 else 2)
 	style.bg_color = color.darkened(0.82)
+	style.set_content_margin_all(6)
 	card.add_theme_stylebox_override("panel", style)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 2)
+	col.add_theme_constant_override("separation", 3)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(col)
 
 	var stage := PanelContainer.new()
-	var stage_style := UiTheme.box(color.darkened(0.65), 6, 2)
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var stage_style := UiTheme.box(color.darkened(0.65), 6, 4)
 	stage_style.border_width_bottom = 3
 	stage_style.border_color = color.darkened(0.2)
 	stage.add_theme_stylebox_override("panel", stage_style)
-	var art := ItemArt.make(it, color, gear.tier(rarity), 100)
+	var art := ItemArt.make(it, color, gear.tier(rarity), 84)
 	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	art.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stage.add_child(art)
 	col.add_child(stage)
 
-	col.add_child(_centered(gear.item_name(it), UiTheme.label_settings(16, color.lightened(0.15), 4)))
-	var cls := gear.item_class(it)
-	var where := gear.slot_name(gear.item_slot(it)) + ("" if cls == "" else "  ·  " + str(inventory.class_info(cls).name))
-	col.add_child(_centered("%s  ·  %s" % [gear.rarity(rarity).name, where], UiTheme.label_settings(11, UiTheme.MUTED, 2)))
-	for line: String in gear.stat_lines(it):
-		col.add_child(_centered(line, UiTheme.label_settings(13, Color("#8fe39a"), 2)))
+	var name_label := _centered(gear.item_name(it), UiTheme.label_settings(13, color.lightened(0.15), 3))
+	name_label.custom_minimum_size.x = 140
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(name_label)
 	var w := inventory.wearer(int(it.uid))
 	if not w.is_empty():
-		col.add_child(_centered("Giyen: %s" % w.name, UiTheme.label_settings(12, UiTheme.ACCENT, 2)))
+		col.add_child(_centered("Giyen: %s" % w.name, UiTheme.label_settings(11, UiTheme.ACCENT, 2)))
 
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(spacer)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 4)
 	var on := Button.new()
 	on.text = "Kuşan"
-	on.add_theme_font_size_override("font_size", 14)
+	on.add_theme_font_size_override("font_size", 12)
 	on.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	on.disabled = not inventory.can_wear(inventory.active_character(), it)
 	on.pressed.connect(equip.bind(int(it.uid)))
@@ -712,7 +782,7 @@ func _item_card(it: Dictionary, equip_only: bool) -> Control:
 	if not equip_only:
 		var sell_button := Button.new()
 		sell_button.text = "Sat %d" % gear.sell_price(it)
-		sell_button.add_theme_font_size_override("font_size", 14)
+		sell_button.add_theme_font_size_override("font_size", 12)
 		sell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sell_button.pressed.connect(sell.bind(int(it.uid)))
 		buttons.add_child(sell_button)

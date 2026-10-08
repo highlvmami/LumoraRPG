@@ -322,13 +322,13 @@ func open_chest(uid: int) -> Dictionary:
 
 ## Combines base stats, class, gear, character level, market items and boosts.
 func _apply_stats() -> void:
-	player.speed_multiplier = 1.0 + shop.bonus("speedBonus") + _extra("moveSpeed")
+	player.speed_multiplier = 1.0 + _extra("moveSpeed")
 	player.regen = _extra("regen")
 	player.set_max_hp(_max_hp())
 	weapons.uses_bow = class_id() == "archer"
-	bow.damage_multiplier = progression.damage_multiplier() + shop.bonus("damageBonus") + _extra("damage")
-	bow.attack_speed_multiplier = 1.0 + shop.bonus("attackSpeedBonus") + _extra("attackSpeed")
-	bow.range_bonus = shop.bonus("rangeBonus") + _extra("range")
+	bow.damage_multiplier = progression.damage_multiplier() + _extra("damage")
+	bow.attack_speed_multiplier = 1.0 + _extra("attackSpeed")
+	bow.range_bonus = _extra("range")
 	bow.crit_chance = minf(1.0, bow.base_crit_chance + _extra("critChance"))
 	bow.crit_multiplier = bow.base_crit_multiplier + _extra("critDamage")
 	range_ring.radius = _attack_range()
@@ -398,12 +398,12 @@ func stat_list() -> Array:
 
 func _max_hp() -> float:
 	var base := float(inventory.class_info(class_id()).maxHp) if inventory else float(player.t.maxHp)
-	return base + progression.max_hp_bonus() + shop.bonus("maxHpBonus") + _extra("maxHp")
+	return base + progression.max_hp_bonus() + _extra("maxHp")
 
 
-## Run boosts, class bonus, worn gear and the developer cheat bonus for a stat.
+## Run boosts, market upgrades, class bonus, worn gear and the developer cheat bonus for a stat.
 func _extra(stat: String) -> float:
-	var sum := boosts.total(stat) + (cheat_menu.total(stat) if cheat_menu else 0.0)
+	var sum := boosts.total(stat) + (cheat_menu.total(stat) if cheat_menu else 0.0) + (shop.total(stat) if shop else 0.0)
 	if inventory and not _character.is_empty():
 		var bonus: Dictionary = inventory.class_info(class_id()).bonus
 		sum += float(bonus.get(stat, 0.0)) + inventory.gear_total(_character, stat)
