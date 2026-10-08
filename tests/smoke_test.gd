@@ -252,8 +252,12 @@ func _run() -> void:
 	# Boss: spawns with a health bar and announces its defeat.
 	var defeated: Array = []
 	enemies.connect("boss_defeated", func(boss_name: String) -> void: defeated.append(boss_name))
+	if bool(level_up.get("visible")):
+		level_up.call("pick", 0)
 	main.call("cheat", "boss")
 	await _frames(2)
+	await process_frame
+	await process_frame
 	var boss := int(enemies.call("boss_index"))
 	_check(boss >= 0, "boss spawns")
 	_check(bool(hud.get("_boss_box").get("visible")), "boss health bar is shown")
