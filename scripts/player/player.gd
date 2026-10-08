@@ -84,7 +84,7 @@ func step(delta: float, move: Vector2, jump_pressed: bool, slide_held: bool) -> 
 	elif on_floor or moving or horiz.length() <= t.moveSpeed:
 		# Accelerate toward the target velocity. (In the air with no input and extra
 		# momentum, e.g. after a slide jump, we coast instead of braking.)
-		var target := move * t.moveSpeed
+		var target: Vector2 = move * t.moveSpeed
 		var accel: float = t.groundAccel if on_floor else t.airAccel
 		horiz = horiz.move_toward(target, accel * delta)
 
