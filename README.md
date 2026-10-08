@@ -4,7 +4,11 @@ Megabonk tarzı, **3D pixel-art roguelike survivor** masaüstü oyunu. Godot 4 i
 
 Tasarım ve yol haritası: [docs/ROADMAP.md](docs/ROADMAP.md)
 
-## Çalıştırma
+## Tarayıcıda oyna
+
+https://highlvmami.github.io/LumoraRPG/ — `main` dalına her birleştirmede otomatik güncellenir.
+
+## Godot ile çalıştırma
 
 1. [Godot 4.5](https://godotengine.org/download) (standart sürüm, .NET gerekmez) indir.
 2. Godot'u aç → **Import** → bu klasördeki `project.godot` dosyasını seç.
