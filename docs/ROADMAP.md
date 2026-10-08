@@ -9,7 +9,7 @@
 
 Megabonk / Vampire Survivors tarzı **3D pixel-art roguelike survivor**.
 
-- Oyuncu karakterini **kendisi yürütür, zıplar ve kayar**; **saldırılar otomatik** yapılır.
+- Oyuncu karakterini **kendisi yürütür ve zıplar**; **saldırılar otomatik** yapılır.
 - Ormanlık haritada her yönden **dalga dalga, gittikçe kalabalıklaşan düşmanlar** gelir (aynı anda yüzlerce).
 - Ölen düşmanlar **EXP kristali** ve **altın** düşürür. Seviye atlayınca oyun durur, **3 yükseltmeden biri** seçilir (yeni silah, silah geliştirme veya pasif "tome").
 - Harita üzerinde **sandıklar**, **tapınaklar (shrine)** ve **elit düşmanlar** vardır.
@@ -46,7 +46,9 @@ Sahne gerçek 3D (low-poly/voxel), düşük çözünürlüğe (480×270) çizili
 ### Dahil
 - 1 harita: **Yeşil Orman** (sınırlı alan, tepeler, ağaçlar, rampalar) + **Bölge 2: Alacakaranlık Ormanı** (aynı yerleşim, farklı tema ve daha güçlü düşmanlar)
 - 3 karakter: **Savaşçı, Okçu, Büyücü** (Okçu ve Büyücü meta para ile açılır)
-- Hareket: koşma, zıplama, kayma (slide); kamera kontrolü
+- Hareket: koşma, zıplama; kamera kontrolü
+- Giriş ekranı: kullanıcı adıyla hesap (önce cihazda, M6'da çevrimiçi)
+- İki seviye: her koşuda sıfırlanan **karakter seviyesi** ve kalıcı **hesap seviyesi**
 - **6 silah** (her biri 5 seviye), **6 pasif tome**
 - Seviye atlayınca 3 seçenekten 1'ini seçme (+ 1 "yeniden çek" hakkı)
 - **4 düşman türü + 1 elit + 1 boss** (bölge başına)
@@ -126,7 +128,7 @@ Hasar, Saldırı Hızı, Mermi Sayısı, Alan Büyüklüğü, Hareket Hızı, M�
 | **Boss: Kadim Ağaç** | 3 saldırı deseni, alan uyarı daireleri, çağırdığı yardımcılar |
 
 ### 5.6 Harita
-- Yaklaşık 200×200 birimlik, kenarları dağ/ağaçla kapalı alan; tepeler, rampalar ve kayalar (zıplama/kayma işe yarasın diye).
+- Yaklaşık 200×200 birimlik, kenarları dağ/ağaçla kapalı alan; tepeler, rampalar ve kayalar (zıplama işe yarasın diye).
 - Her koşuda **sandık, tapınak ve elit konumları rastgele** dağıtılır (harita yerleşimi sabit).
 - Mini harita veya ekran kenarında ok işaretleri ile sandık/tapınak gösterimi.
 
@@ -157,7 +159,7 @@ Hasar, Saldırı Hızı, Mermi Sayısı, Alan Büyüklüğü, Hareket Hızı, M�
 - Ana menü: Oyna → Karakter Seç → Harita; Mağaza; Ayarlar (ses, hassasiyet, grafik kalitesi).
 
 ## 6. Kontroller
-- **WASD** hareket, **Boşluk** zıplama, **Shift** kayma, **fare** kamera.
+- **WASD** hareket, **Boşluk** zıplama, **fare** kamera.
 - Saldırı tamamen otomatik.
 - Gamepad desteği M5'te; dokunmatik kontroller MVP sonrası.
 
@@ -194,8 +196,8 @@ Her adım sonunda Godot'ta açılıp oynanabilir bir sürüm olur.
 
 ### M0 — Kurulum ve Hareket
 - Godot projesi, pixel görüntü ayarları, otomatik test (GitHub Actions).
-- Test arazisi, oyuncu kontrolcüsü: koşma, zıplama, kayma, eğimli zemin, üçüncü şahıs kamera.
-- **Bitti sayılır:** karakter tepeli bir alanda akıcı şekilde koşup zıplıyor ve kayıyor.
+- Test arazisi, oyuncu kontrolcüsü: koşma, zıplama, eğimli zemin, üçüncü şahıs kamera.
+- **Bitti sayılır:** karakter tepeli bir alanda akıcı şekilde koşup zıplıyor.
 
 ### M1 — Sürü Çekirdeği
 - Düşman doğma halkası, oyuncuyu takip, MultiMesh çizim, spatial hash çarpışma.

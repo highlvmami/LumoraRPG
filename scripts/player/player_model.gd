@@ -1,5 +1,5 @@
 ## Blocky placeholder character built from boxes (real voxel models come in M5).
-## Faces +Z. Animates legs/arms from movement speed and leans back while sliding.
+## Faces +Z. Animates legs/arms from movement speed and blinks when hurt.
 extends Node3D
 
 const Toon := preload("res://scripts/core/toon.gd")
@@ -16,7 +16,7 @@ var _leg_r: Node3D
 var _arm_l: Node3D
 var _arm_r: Node3D
 var _phase := 0.0
-var _lean := 0.0
+var _flash_time := 0.0
 
 
 func _ready() -> void:
@@ -34,7 +34,7 @@ func _ready() -> void:
 
 
 ## Called every frame by the player with its current movement state.
-func animate(delta: float, speed: float, on_floor: bool, sliding: bool) -> void:
+func animate(delta: float, speed: float, on_floor: bool) -> void:
 	var amount := clampf(speed / 9.0, 0.0, 1.0)
 	_phase += delta * (4.0 + speed * 0.9)
 	var swing := sin(_phase) * 0.9 * amount
@@ -45,18 +45,14 @@ func animate(delta: float, speed: float, on_floor: bool, sliding: bool) -> void:
 	_leg_r.rotation.x = -swing - leg_tuck * 0.4
 	_arm_l.rotation.x = -swing
 	_arm_r.rotation.x = swing
-	if sliding:
-		_leg_l.rotation.x = -1.3
-		_leg_r.rotation.x = -1.3
-		_arm_l.rotation.x = 0.4
-		_arm_r.rotation.x = 0.4
 
-	# Lean back and drop down while sliding.
-	var target_lean := -1.1 if sliding else 0.0
-	_lean = lerpf(_lean, target_lean, minf(1.0, delta * 14.0))
-	_visual.rotation.x = _lean
-	_visual.position.y = _lean * 0.35
-	_visual.position.z = _lean * 0.25
+	# Blink while invulnerable after taking a hit.
+	_flash_time = maxf(0.0, _flash_time - delta)
+	_visual.visible = _flash_time <= 0.0 or fmod(_flash_time, 0.1) < 0.05
+
+
+func flash() -> void:
+	_flash_time = 0.5
 
 
 func _box(parent: Node3D, box_size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:

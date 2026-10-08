@@ -1,0 +1,10 @@
+{
+	"bow": {
+		"damage": 5.0,
+		"cooldown": 0.7,
+		"range": 16.0,
+		"projectileSpeed": 32.0,
+		"projectileLifetime": 1.2,
+		"hitRadius": 0.7
+	}
+}

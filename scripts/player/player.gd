@@ -1,14 +1,18 @@
-## Player movement: run, jump (with coyote time and jump buffering) and slide.
-## Sliding keeps momentum, speeds up downhill and can be chained into jumps.
-## Attacks are automatic (from M1), so movement is the player's whole job.
+## Player movement (run, jump with coyote time and jump buffering) and health.
+## Attacks are automatic, so moving and dodging is the player's whole job.
 extends CharacterBody3D
 
 const Config := preload("res://scripts/core/config.gd")
 const PlayerModel := preload("res://scripts/player/player_model.gd")
 
+signal health_changed(hp: float, max_hp: float)
+signal died
+
 ## Set by the camera rig every frame: movement input is relative to where the camera looks.
 var camera_yaw := 0.0
-var sliding := false
+var max_hp := 100.0
+var hp := 100.0
+var dead := false
 ## Direction the character faces, in radians around Y (0 = +Z).
 var facing := 0.0
 
@@ -17,6 +21,7 @@ var _since_grounded := 0.0
 var _jump_buffer := 0.0
 var _model: PlayerModel
 var _spawn_point := Vector3.ZERO
+var _invulnerable := 0.0
 
 
 func _ready() -> void:
@@ -36,6 +41,37 @@ func _ready() -> void:
 	_model = PlayerModel.new()
 	add_child(_model)
 	_spawn_point = global_position
+	max_hp = t.maxHp
+	hp = max_hp
+
+
+## Puts the player back at the spawn point with full health (new run).
+func reset(new_max_hp: float) -> void:
+	global_position = _spawn_point
+	velocity = Vector3.ZERO
+	max_hp = new_max_hp
+	hp = max_hp
+	dead = false
+	_invulnerable = 0.0
+	health_changed.emit(hp, max_hp)
+
+
+func set_max_hp(value: float) -> void:
+	hp += value - max_hp
+	max_hp = value
+	health_changed.emit(hp, max_hp)
+
+
+func take_damage(amount: float) -> void:
+	if dead or _invulnerable > 0.0:
+		return
+	hp = maxf(0.0, hp - amount)
+	_invulnerable = t.invulnerableTime
+	_model.flash()
+	health_changed.emit(hp, max_hp)
+	if hp <= 0.0:
+		dead = true
+		died.emit()
 
 
 func horizontal_speed() -> float:
@@ -43,50 +79,31 @@ func horizontal_speed() -> float:
 
 
 func _physics_process(delta: float) -> void:
+	_invulnerable = maxf(0.0, _invulnerable - delta)
+	if dead:
+		step(delta, Vector2.ZERO, false)
+		return
 	var raw := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var world := Vector3(raw.x, 0.0, raw.y).rotated(Vector3.UP, camera_yaw)
-	step(delta, Vector2(world.x, world.z), Input.is_action_just_pressed("jump"), Input.is_action_pressed("slide"))
+	step(delta, Vector2(world.x, world.z), Input.is_action_just_pressed("jump"))
 
 
 func _process(delta: float) -> void:
 	_model.rotation.y = facing
-	_model.animate(delta, horizontal_speed(), is_on_floor(), sliding)
+	_model.animate(delta, horizontal_speed(), is_on_floor())
 
 
 ## One movement tick. `move` is the desired ground direction in world space (length 0..1).
-func step(delta: float, move: Vector2, jump_pressed: bool, slide_held: bool) -> void:
+func step(delta: float, move: Vector2, jump_pressed: bool) -> void:
 	var on_floor := is_on_floor()
 	_jump_buffer = t.jumpBufferTime if jump_pressed else maxf(0.0, _jump_buffer - delta)
 	_since_grounded = 0.0 if on_floor else _since_grounded + delta
 
+	# Accelerate toward the target velocity (less control in the air).
 	var horiz := Vector2(velocity.x, velocity.z)
-	var moving := move.length_squared() > 0.01
-
-	# Start / stop sliding.
-	if slide_held and on_floor and not sliding and (moving or horiz.length() > 2.0):
-		sliding = true
-		var dir := move.normalized() if moving else horiz.normalized()
-		horiz = dir * maxf(horiz.length(), t.slideBoostSpeed)
-	if sliding and (not slide_held or (on_floor and horiz.length() < t.slideMinSpeed)):
-		sliding = false
-
-	if sliding:
-		if on_floor:
-			# Friction, plus gravity pulling the slide down the slope.
-			var speed := horiz.length()
-			if speed > 0.0:
-				horiz *= maxf(0.0, speed - t.slideFriction * delta) / speed
-			var n := get_floor_normal()
-			horiz += Vector2(n.x, n.z) * t.slideSlopeAccel * delta
-			if moving:
-				horiz += move * t.airAccel * 0.5 * delta
-			horiz = horiz.limit_length(t.maxSlideSpeed)
-	elif on_floor or moving or horiz.length() <= t.moveSpeed:
-		# Accelerate toward the target velocity. (In the air with no input and extra
-		# momentum, e.g. after a slide jump, we coast instead of braking.)
-		var target: Vector2 = move * t.moveSpeed
-		var accel: float = t.groundAccel if on_floor else t.airAccel
-		horiz = horiz.move_toward(target, accel * delta)
+	var target: Vector2 = move * t.moveSpeed
+	var accel: float = t.groundAccel if on_floor else t.airAccel
+	horiz = horiz.move_toward(target, accel * delta)
 
 	var vy := velocity.y
 	if _jump_buffer > 0.0 and _since_grounded <= t.coyoteTime:

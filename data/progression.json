@@ -1,0 +1,12 @@
+{
+	"character": {
+		"baseExp": 5,
+		"expPerLevel": 6,
+		"damageBonusPerLevel": 0.08,
+		"maxHpBonusPerLevel": 5.0
+	},
+	"account": {
+		"baseExp": 60,
+		"expPerLevel": 40
+	}
+}

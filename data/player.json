@@ -1,6 +1,8 @@
 {
 	"radius": 0.4,
 	"height": 1.8,
+	"maxHp": 100.0,
+	"invulnerableTime": 0.5,
 	"moveSpeed": 9.0,
 	"groundAccel": 70.0,
 	"airAccel": 18.0,
@@ -8,11 +10,6 @@
 	"jumpVelocity": 12.0,
 	"coyoteTime": 0.1,
 	"jumpBufferTime": 0.12,
-	"slideBoostSpeed": 17.0,
-	"slideMinSpeed": 5.0,
-	"slideFriction": 3.0,
-	"slideSlopeAccel": 30.0,
-	"maxSlideSpeed": 30.0,
 	"groundSnapDistance": 0.7,
 	"maxFloorAngleDeg": 50.0
 }

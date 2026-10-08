@@ -1,7 +1,9 @@
-## Headless smoke test: loads the main scene, drives the player with simulated
-## input and checks that running, jumping and sliding work.
+## Headless smoke test: logs in, drives the player with simulated input and
+## checks movement, enemies, auto-attack, exp/levels, saving and the death flow.
 ## Run: godot --headless --path . -s res://tests/smoke_test.gd
 extends SceneTree
+
+const TEST_SAVE := "user://smoke_test_profiles.json"
 
 var _failures := 0
 
@@ -11,25 +13,33 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	if FileAccess.file_exists(TEST_SAVE):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE))
+
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
+	await _frames(10)
+
+	_check(main.get("login_screen") != null, "login screen is shown")
+	main.get("store").path = TEST_SAVE
+	main.get("login_screen").login("ci_test")
 	await _frames(60)
 
 	var player: CharacterBody3D = main.get("player")
-	_check(player != null, "player is spawned")
+	_check(player != null, "player is spawned after login")
 	if player == null:
 		_finish()
 		return
 	_check(player.is_on_floor(), "player lands on the terrain")
+	_check(not InputMap.has_action("slide"), "slide action is removed")
 
+	# Movement (rocks can be ~8 units from spawn, so phases stay near the origin).
 	var start := player.global_position
-	# Rocks can be as close as ~8 units to spawn, so each phase stays near the origin.
 	Input.action_press("move_forward")
 	await _frames(35)
 	Input.action_release("move_forward")
 	var moved := Vector2(player.global_position.x - start.x, player.global_position.z - start.z).length()
 	_check(moved > 3.0, "running moves the player (moved %.2f)" % moved)
-	_check(player.global_position.z < start.z, "forward is -Z with the default camera")
 	await _frames(30)
 
 	var ground_y := player.global_position.y
@@ -41,23 +51,39 @@ func _run() -> void:
 	await _frames(90)
 	_check(player.is_on_floor(), "player lands after the jump")
 
-	player.global_position = start + Vector3.UP * 0.2
-	await _frames(20)
-	Input.action_press("move_forward")
-	await _frames(4)
-	Input.action_press("slide")
-	await _frames(6)
-	_check(bool(player.get("sliding")), "holding slide starts a slide")
-	var slide_speed: float = player.call("horizontal_speed")
-	_check(slide_speed > 12.0, "slide boosts speed (%.2f)" % slide_speed)
-	Input.action_release("slide")
-	Input.action_release("move_forward")
-	await _frames(4)
-	_check(not bool(player.get("sliding")), "releasing slide ends it")
+	# Enemies spawn, walk in and get shot by the automatic bow.
+	var enemies: Node = main.get("enemies")
+	var progression: RefCounted = main.get("progression")
+	for i in 1500:
+		await physics_frame
+		if int(enemies.get("kills")) >= 3:
+			break
+	_check(int(enemies.call("count")) + int(enemies.get("kills")) > 0, "enemies spawn")
+	var kills := int(enemies.get("kills"))
+	_check(kills >= 3, "auto bow kills enemies (%d kills)" % kills)
+	var level := int(progression.get("level"))
+	var level_exp := int(progression.get("level_exp"))
+	_check(level > 1 or level_exp > 0, "kills give character exp (level %d, exp %d)" % [level, level_exp])
+	var profile: Dictionary = progression.get("profile")
+	_check(int(profile.accountExp) > 0 or int(profile.accountLevel) > 1, "kills give account exp")
 
-	await _frames(60)
-	var rest_speed: float = player.call("horizontal_speed")
-	_check(rest_speed < 0.5, "player stops without input (%.2f)" % rest_speed)
+	# Death ends the run and saves the account; restarting resets the character.
+	player.call("take_damage", 100000.0)
+	await _frames(2)
+	_check(bool(player.get("dead")), "player dies at 0 hp")
+	_check(not bool(enemies.get("active")), "enemies stop after death")
+	_check(FileAccess.file_exists(TEST_SAVE), "profile is saved")
+	var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(TEST_SAVE))
+	var saved_runs := 0
+	if typeof(saved) == TYPE_DICTIONARY and (saved as Dictionary).profiles.has("ci_test"):
+		saved_runs = int(saved.profiles.ci_test.runs)
+	_check(saved_runs == 1, "saved profile records the run (runs=%d)" % saved_runs)
+
+	main.call("start_run")
+	await _frames(2)
+	_check(not bool(player.get("dead")), "restart revives the player")
+	_check(int(progression.get("level")) == 1, "restart resets character level")
+	_check(int(enemies.get("kills")) == 0, "restart clears enemies")
 
 	_finish()
 

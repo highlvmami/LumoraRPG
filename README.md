@@ -14,13 +14,16 @@ https://highlvmami.github.io/LumoraRPG/ — `main` dalına her birleştirmede ot
 2. Godot'u aç → **Import** → bu klasördeki `project.godot` dosyasını seç.
 3. **F5** (veya sağ üstteki ▶) ile oyunu başlat.
 
+## Oynanış
+
+Girişte bir kullanıcı adı yaz (yeni ad = yeni hesap; hesap bu cihazda saklanır). Canavarlar etrafında doğar, karakterin en yakındakine otomatik ok atar. Her ölen canavar EXP verir: **karakter seviyesi** her oyunda 1'den başlar ve seni güçlendirir, **hesap seviyesi** kalıcıdır.
+
 ## Kontroller
 
 | Tuş | Eylem |
 |---|---|
 | WASD / ok tuşları | Yürü |
 | Boşluk | Zıpla |
-| Shift (basılı tut) | Kay — yokuş aşağı hızlanır, kayarken zıplanabilir |
 | Fare | Kamerayı döndür (önce oyun penceresine tıkla) |
 | Esc | Fareyi serbest bırak |
 

@@ -10,6 +10,8 @@ const FOLLOW_SPEED := 18.0
 const HEAD_OFFSET := Vector3(0, 1.6, 0)
 
 var target: CharacterBody3D
+## When false (menus, death screen) clicks never grab the mouse.
+var capture_enabled := true
 var yaw := 0.0
 var pitch := deg_to_rad(-20.0)
 
@@ -43,7 +45,7 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseButton and event.pressed and capture_enabled and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event.is_action_pressed("release_mouse"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
