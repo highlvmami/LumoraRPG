@@ -41,6 +41,11 @@ var _stats_grid: GridContainer
 var _stat_values: Array[Label] = []
 var _stats: Label
 var _toast: Label
+var _title_box: VBoxContainer
+var _title: Label
+var _subtitle: Label
+## Floating damage numbers on hits (settings).
+var show_damage_numbers := true
 var _death: Control
 var _death_text: Label
 var _float_settings: LabelSettings
@@ -112,6 +117,21 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	_toast.position.y = 110
 	_toast.modulate.a = 0.0
 	_root.add_child(_toast)
+
+	_title_box = VBoxContainer.new()
+	_title_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_title_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_title_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_title_box.position.y -= 120
+	_title_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_box.visible = false
+	_root.add_child(_title_box)
+	_title = UiTheme.label("", UiTheme.label_settings(64, UiTheme.ACCENT, 12))
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_box.add_child(_title)
+	_subtitle = UiTheme.label("", UiTheme.label_settings(22, UiTheme.TEXT, 6))
+	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_box.add_child(_subtitle)
 
 	_death = _overlay()
 	var death_box := _death.get_child(0) as VBoxContainer
@@ -189,6 +209,8 @@ func set_stats(stats: Array) -> void:
 
 ## Damage number over an enemy that was hit; critical hits are bigger and orange.
 func show_hit(at_position: Vector3, amount: float, crit: bool) -> void:
+	if not show_damage_numbers:
+		return
 	if camera == null or not camera.is_inside_tree() or camera.is_position_behind(at_position):
 		return
 	var screen := camera.unproject_position(at_position + Vector3.UP * 1.4) * world_scale
@@ -249,6 +271,18 @@ func _float_text(text: String, settings: LabelSettings, at: Vector2) -> void:
 ## A short message in the middle of the screen (new enemy, loot, ...).
 func toast(text: String) -> void:
 	_show_toast(text)
+
+
+## Big map name in the middle of the screen when a run starts.
+func show_title(title: String, subtitle: String) -> void:
+	_title.text = title
+	_subtitle.text = subtitle
+	_title_box.modulate.a = 1.0
+	_title_box.visible = true
+	var tween := create_tween()
+	tween.tween_interval(2.2)
+	tween.tween_property(_title_box, "modulate:a", 0.0, 0.9)
+	tween.tween_callback(func() -> void: _title_box.visible = false)
 
 
 func _show_toast(text: String) -> void:

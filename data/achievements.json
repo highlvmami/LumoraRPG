@@ -14,8 +14,15 @@
 		{ "id": "rich", "name": "Zengin", "desc": "Toplam 1.000 altın kazan", "icon": "chest", "stat": "goldEarned", "target": 1000, "reward": 60 },
 		{ "id": "collector", "name": "Toplayıcı", "desc": "10 eşya bul", "icon": "armor", "stat": "itemsFound", "target": 10, "reward": 40 },
 		{ "id": "chest_hunter", "name": "Kasa Avcısı", "desc": "5 kasa aç", "icon": "chest", "stat": "chestsOpened", "target": 5, "reward": 60 },
-		{ "id": "investor", "name": "Yatırımcı", "desc": "Market'ten 10 seviye geliştirme al", "icon": "clover", "stat": "upgrades", "target": 10, "reward": 50 },
+		{ "id": "investor", "name": "Yatırımcı", "desc": "Yetenek Ağacı'nda 10 seviye öğren", "icon": "clover", "stat": "upgrades", "target": 10, "reward": 50 },
 		{ "id": "social", "name": "Sosyal", "desc": "3 arkadaş ekle", "icon": "heart", "stat": "friends", "target": 3, "reward": 20 },
+		{ "id": "walker", "name": "Gezgin", "desc": "1.000 adım at", "icon": "boot", "stat": "steps", "target": 1000, "reward": 20 },
+		{ "id": "wanderer", "name": "Yolcu", "desc": "10.000 adım at", "icon": "boot", "stat": "steps", "target": 10000, "reward": 80 },
+		{ "id": "marathon", "name": "Maratoncu", "desc": "50.000 adım at", "icon": "double_arrow", "stat": "steps", "target": 50000, "reward": 250 },
+		{ "id": "hitter", "name": "Vurucu", "desc": "Toplam 10.000 hasar ver", "icon": "sword", "stat": "damageDealt", "target": 10000, "reward": 30 },
+		{ "id": "destroyer", "name": "Yok Edici", "desc": "Toplam 100.000 hasar ver", "icon": "fire", "stat": "damageDealt", "target": 100000, "reward": 120 },
+		{ "id": "cataclysm", "name": "Kıyamet", "desc": "Toplam 1.000.000 hasar ver", "icon": "meteor", "stat": "damageDealt", "target": 1000000, "reward": 400 },
+		{ "id": "explorer", "name": "Kâşif", "desc": "Üç farklı haritada oyna", "icon": "eye", "stat": "mapsPlayed", "target": 3, "reward": 60 },
 		{ "id": "veteran", "name": "Usta", "desc": "Hesap seviyesi 10'a ulaş", "icon": "eye", "stat": "accountLevel", "target": 10, "reward": 100 }
 	]
 }

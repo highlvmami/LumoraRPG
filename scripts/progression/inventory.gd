@@ -62,6 +62,19 @@ func create_character(char_name: String, class_id: String) -> Dictionary:
 	return c
 
 
+## Deletes a character. The items it wore stay in the shared backpack.
+## Another character becomes active if it was the active one.
+func delete_character(id: int) -> bool:
+	var c := character(id)
+	if c.is_empty():
+		return false
+	characters().erase(c)
+	if int(profile.activeCharacter) == id:
+		profile.activeCharacter = int(characters()[0].id) if not characters().is_empty() else -1
+	save()
+	return true
+
+
 func set_active(id: int) -> void:
 	if not character(id).is_empty():
 		profile.activeCharacter = id

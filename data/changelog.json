@@ -1,0 +1,39 @@
+{
+	"versions": [
+		{ "version": "0.16", "date": "2026-10-08", "title": "Hesaplar, haritalar ve ayarlar", "notes": [
+			"Kayıt ol / giriş yap ekranı, şifreli hesaplar ve \"Beni hatırla\"",
+			"Rastgele seçilen yeni haritalar: Sakin Orman, Sahil Kasabası, Ölümcül Zindan",
+			"Ayarlar bölümü: grafik, kamera, arayüz ve hesap (çıkış yap, hesabı sıfırla)",
+			"Karakter silme (onaylı), Kayıtlar ve Sürümler sayfaları",
+			"Fare tekerleğiyle kamerayı yaklaştırma / uzaklaştırma",
+			"Adım ve hasar başarımları; Ateş Topu ve Yıldırım artık büyücüye özel" ] },
+		{ "version": "0.15", "date": "2026-10-08", "title": "Yetenek ağacı ve öfkeli boss'lar", "notes": [
+			"Kalıcı geliştirmeler Yetenek Ağacı'na taşındı (3 dal, 18 yetenek)",
+			"Boss'lar öfkelenip çıldırıyor, yeni saldırılar ve hızlanma",
+			"Ormana çalılar, çiçekler, göletler, kamp ateşleri, ateş böcekleri",
+			"Eşya karşılaştırma (yeşil ▲ / kırmızı ▼) ve nadirliğe göre kasa çizimleri" ] },
+		{ "version": "0.14", "date": "2026-10-08", "title": "Durmadan seviye seçimi", "notes": [
+			"Seviye seçimi oyunu durdurmuyor, tüm silahlar sığıyor, sınıf yetenekleri" ] },
+		{ "version": "0.13", "date": "2026-10-08", "title": "Boss savaşları ve başarımlar", "notes": [
+			"Kırmızı uyarı alanlı boss saldırıları, Örümcek Kraliçe",
+			"17 başarım ve arkadaş önerileri" ] },
+		{ "version": "0.12", "date": "2026-10-08", "title": "Market seviyeleri", "notes": [
+			"Seviyeli market geliştirmeleri, kompakt eşya kartları, yeni ekipman düzeni" ] },
+		{ "version": "0.10", "date": "2026-10-08", "title": "Windows sürümü", "notes": [
+			"İndirilebilir ve kendini güncelleyen Windows sürümü" ] },
+		{ "version": "0.9", "date": "2026-10-08", "title": "Eşya çizimleri", "notes": [
+			"Detaylı eşya çizimleri ve 3D karakterli ekipman ekranı" ] },
+		{ "version": "0.8", "date": "2026-10-08", "title": "Sınıflar ve eşyalar", "notes": [
+			"Savaşçı, Okçu, Büyücü; ortak çanta, 6 nadirlik, kasa çarkı" ] },
+		{ "version": "0.7", "date": "2026-10-08", "title": "Yeni silahlar", "notes": [
+			"Yeni silahlar ve Orman Devi boss'u" ] },
+		{ "version": "0.6", "date": "2026-10-08", "title": "Yeni düşmanlar", "notes": [
+			"Kurt, Taşçı Goblin, Dev Örümcek; ödül topları ve hile menüsü" ] },
+		{ "version": "0.5", "date": "2026-10-08", "title": "Duraklatma ve boost'lar", "notes": [
+			"ESC menüsü, seviye atlayınca boost seçimi, karakter paneli" ] },
+		{ "version": "0.4", "date": "2026-10-08", "title": "Ana menü", "notes": [
+			"Ana menü, market, çanta, arkadaşlar ve net arayüz" ] },
+		{ "version": "0.3", "date": "2026-10-08", "title": "İlk oynanış", "notes": [
+			"Canavarlar, otomatik ok, EXP, altın ve hesap seviyesi" ] }
+	]
+}

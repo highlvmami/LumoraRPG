@@ -1,0 +1,23 @@
+{
+	"forest": {
+		"name": "Sakin Orman", "subtitle": "Çam ağaçları, göletler ve ateş böcekleri",
+		"seed": 1337, "props": "forest", "amplitude": 9.0,
+		"ground": ["#4f9a3a", "#6cb446"], "slope": "#8a6a3f", "stone": "#7b7f86",
+		"sky": ["#4f97d6", "#d9ecf2", "#4f7a46"], "ambient": "#b7d3e6", "ambientEnergy": 0.55,
+		"fog": "#a9d1e8", "fogDensity": 0.012, "sun": "#fff1d6", "sunEnergy": 1.1
+	},
+	"beach": {
+		"name": "Sahil Kasabası", "subtitle": "Palmiyeler, kulübeler ve dalgalar",
+		"seed": 4242, "props": "beach", "amplitude": 4.0, "seaFrom": 22.0, "seaDepth": 3.0, "seaLevel": -0.6,
+		"ground": ["#bf9f62", "#c9ab6e"], "inland": "#7cbf4a", "inlandFrom": -30.0, "slope": "#c9a96b", "stone": "#9a8f80",
+		"sky": ["#3fa3e8", "#fbe7c6", "#2f6f8f"], "ambient": "#ffe3c2", "ambientEnergy": 0.42,
+		"fog": "#bfdcec", "fogDensity": 0.008, "sun": "#fff0d6", "sunEnergy": 0.95
+	},
+	"dungeon": {
+		"name": "Ölümcül Zindan", "subtitle": "Meşaleler, kemikler ve karanlık",
+		"seed": 666, "props": "dungeon", "amplitude": 1.2, "tiles": true,
+		"ground": ["#4a4654", "#57525f"], "slope": "#3a3640", "stone": "#2e2a33",
+		"sky": ["#0b0910", "#2a1a2e", "#0b0910"], "ambient": "#6a4f8a", "ambientEnergy": 0.45,
+		"fog": "#1a1420", "fogDensity": 0.03, "sun": "#b49cff", "sunEnergy": 0.35
+	}
+}

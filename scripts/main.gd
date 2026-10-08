@@ -1,4 +1,6 @@
-## Game flow: login → main menu → run → (death) → run again or back to the menu.
+## Game flow: login (or the account remembered on this device) → main menu →
+## run on a random map (forest, beach, dungeon) → (death) → run again or back
+## to the menu.
 ## During a run: level-ups pause for a boost choice, Esc opens the pause menu.
 ## The account has up to 3 characters (warrior, archer, mage) sharing one
 ## backpack of items and chests; the active character's class and gear decide
@@ -31,6 +33,7 @@ const Hud := preload("res://scripts/ui/hud.gd")
 const LevelUpScreen := preload("res://scripts/ui/level_up_screen.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 const CheatMenu := preload("res://scripts/ui/cheat_menu.gd")
+const UiTheme := preload("res://scripts/ui/theme.gd")
 
 ## How many screen pixels each 3D pixel covers, per graphics quality.
 const PIXEL_SCALES := {"low": 3, "medium": 2, "high": 1}
@@ -75,23 +78,31 @@ var _bosses_killed := 0
 var _character: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 var _menu_angle := 0.0
+## Maps from data/maps.json and the one the world is built for.
+var maps: Dictionary
+var map_id := ""
+## Map the next run uses instead of a random one (tests).
+var forced_map := ""
+var _sky_mat: ProceduralSkyMaterial
+var _env: Environment
+## Last player position, for the steps achievement.
+var _last_step_pos := Vector3.ZERO
 
 
 func _ready() -> void:
 	InputSetup.register()
 	_world_cfg = Config.load_json("res://data/world.json")
+	maps = Config.load_json("res://data/maps.json")
 	_build_world_viewport()
 	_build_environment()
 
 	terrain = Terrain.new()
 	terrain.name = "Terrain"
-	terrain.build(_world_cfg)
 	world.add_child(terrain)
-
 	var props := Props.new()
 	props.name = "Props"
 	world.add_child(props)
-	props.build(terrain, _world_cfg)
+	load_map("forest")
 
 	# A slowly circling camera shows the forest behind the menus.
 	menu_camera = Camera3D.new()
@@ -101,16 +112,52 @@ func _ready() -> void:
 	_update_menu_camera(0.0)
 
 	store.load_from_disk()
+	var remembered := store.remembered()
+	if remembered != "":
+		# This device remembers the account: straight to the menu.
+		login.call_deferred(remembered, true)
+		return
 	login_screen = LoginScreen.new()
-	login_screen.setup(store.last_name())
+	login_screen.setup(store)
 	login_screen.logged_in.connect(login)
 	add_child(login_screen)
 
+
+## Builds the world for a map from data/maps.json: ground, details, sky,
+## light and fog. Everything that holds the terrain keeps working.
+func load_map(id: String) -> void:
+	if not maps.has(id):
+		id = "forest"
+	map_id = id
+	var m: Dictionary = maps[id]
+	terrain.build(_world_cfg, m)
+	(world.get_node("Props") as Props).build(terrain, _world_cfg, m)
+	_sky_mat.sky_top_color = Color(str(m.sky[0]))
+	_sky_mat.sky_horizon_color = Color(str(m.sky[1]))
+	_sky_mat.ground_horizon_color = Color(str(m.sky[1])).darkened(0.1)
+	_sky_mat.ground_bottom_color = Color(str(m.sky[2]))
+	_env.ambient_light_color = Color(str(m.ambient))
+	_env.ambient_light_energy = float(m.ambientEnergy)
+	_env.fog_light_color = Color(str(m.fog))
+	_env.fog_density = float(m.fogDensity)
+	_sun.light_color = Color(str(m.sun))
+	_sun.light_energy = float(m.sunEnergy)
+	if player:
+		player.set("_spawn_point", Vector3(0, terrain.height_at(0, 0) + 0.5, 0))
+
+
+func map_name(id := "") -> String:
+	return str(maps.get(id if id != "" else map_id, {}).get("name", ""))
 
 func _process(delta: float) -> void:
 	if not in_run:
 		_update_menu_camera(delta)
 		return
+	if not player.dead and not get_tree().paused:
+		var moved := Vector2(player.global_position.x - _last_step_pos.x, player.global_position.z - _last_step_pos.z).length()
+		if moved < 5.0:
+			achievements.add("steps", moved)
+	_last_step_pos = player.global_position
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if _was_captured and not captured and not cheat_menu.is_open():
 		pause_menu.open()
@@ -118,8 +165,11 @@ func _process(delta: float) -> void:
 
 
 ## Logs in (creating the account if new) and opens the main menu.
-func login(username: String) -> void:
+## `remember`: log straight in on this device next time.
+func login(username: String, remember := false) -> void:
 	var profile := store.login(username)
+	if remember:
+		store.set_remember(username)
 	progression = Progression.new(store, profile)
 	skill_tree = SkillTree.new(profile, store)
 	inventory = Inventory.new(profile, store)
@@ -138,6 +188,8 @@ func login(username: String) -> void:
 	camera_rig.name = "CameraRig"
 	camera_rig.target = player
 	world.add_child(camera_rig)
+	camera_rig.zoom_changed.connect(func(distance: float) -> void:
+		(progression.profile.settings as Dictionary).cameraZoom = distance)
 
 	enemies = EnemyManager.new()
 	enemies.name = "Enemies"
@@ -178,6 +230,8 @@ func login(username: String) -> void:
 	hud.menu_requested.connect(show_menu)
 	bow.hit_landed.connect(hud.show_hit)
 	weapons.hit_landed.connect(hud.show_hit)
+	bow.hit_landed.connect(_on_hit_dealt)
+	weapons.hit_landed.connect(_on_hit_dealt)
 
 	level_up_screen = LevelUpScreen.new()
 	add_child(level_up_screen)
@@ -208,13 +262,56 @@ func login(username: String) -> void:
 	main_menu.achievements = achievements
 	main_menu.play_pressed.connect(start_run)
 	main_menu.chest_open_requested.connect(open_chest)
+	main_menu.quality_selected.connect(set_quality)
+	main_menu.settings_changed.connect(apply_settings)
+	main_menu.logout_requested.connect(logout)
+	main_menu.reset_requested.connect(reset_account)
+	main_menu.version_text = _version_text()
 
 	chest_wheel = ChestWheel.new()
 	add_child(chest_wheel)
 	chest_wheel.setup(inventory.gear)
 	chest_wheel.closed.connect(main_menu.refresh)
 
+	apply_settings()
 	show_menu()
+
+
+## Applies the account's settings (camera distance, mouse speed, damage numbers).
+func apply_settings() -> void:
+	var st: Dictionary = progression.profile.get("settings", {})
+	camera_rig.zoom = clampf(float(st.get("cameraZoom", 7.0)), CameraRig.MIN_ZOOM, CameraRig.MAX_ZOOM)
+	camera_rig.sensitivity_scale = float(st.get("mouseSpeed", 1.0))
+	hud.show_damage_numbers = bool(st.get("damageNumbers", true))
+	main_menu.quality = str(progression.profile.get("quality", DEFAULT_QUALITY))
+
+
+## Forgets the remembered account and goes back to the login screen.
+func logout() -> void:
+	store.set_remember("")
+	get_tree().reload_current_scene()
+
+
+## Wipes the account (characters, items, gold, levels, skills, achievements).
+func reset_account() -> void:
+	store.reset_profile(progression.profile)
+	progression.profile.activeCharacter = -1
+	main_menu.selected_item = -1
+	apply_settings()
+	main_menu.open_section("characters")
+	main_menu.refresh()
+	main_menu.notify("Hesap sıfırlandı.")
+
+
+func _version_text() -> String:
+	if not FileAccess.file_exists("res://version.txt"):
+		return "geliştirme sürümü"
+	var parts := FileAccess.get_file_as_string("res://version.txt").strip_edges().split("|")
+	return "Yapı %s  ·  Godot %s" % [parts[0], parts[1] if parts.size() > 1 else "?"]
+
+
+func _on_hit_dealt(_at: Vector3, amount: float, _crit: bool) -> void:
+	achievements.add("damageDealt", amount)
 
 
 ## Quits the current run from the pause menu; the run still counts and is saved.
@@ -248,6 +345,15 @@ func show_menu() -> void:
 
 
 func start_run() -> void:
+	# Every run picks a random map and shows its name.
+	var ids := maps.keys()
+	var next := forced_map if forced_map != "" else str(ids[_rng.randi() % ids.size()])
+	if next != map_id:
+		load_map(next)
+	var played: Dictionary = achievements.profile.stats.get("maps", {})
+	played[next] = true
+	achievements.profile.stats.maps = played
+	achievements.profile.stats.mapsPlayed = float(played.size())
 	in_run = true
 	_was_captured = false
 	pause_menu.close()
@@ -289,6 +395,8 @@ func start_run() -> void:
 	camera_rig.camera.current = true
 	hud.visible = true
 	hud.hide_death()
+	hud.show_title(UiTheme.upper(map_name()), str(maps[map_id].get("subtitle", "")))
+	_last_step_pos = player.global_position
 
 
 ## The active character, creating a default archer if the account has none
@@ -487,6 +595,8 @@ func set_quality(quality: String) -> void:
 		hud.world_scale = _world_view.stretch_shrink
 	if pause_menu:
 		pause_menu.set_quality(quality)
+	if main_menu:
+		main_menu.quality = quality
 	if progression and progression.profile.get("quality", "") != quality:
 		progression.profile.quality = quality
 		store.save_to_disk()
@@ -536,11 +646,30 @@ func _drop_chest(tier: int) -> void:
 func _end_run() -> void:
 	if not _character.is_empty():
 		_character.bestLevel = maxi(int(_character.get("bestLevel", 0)), progression.level)
+	_record_history()
 	progression.end_run(enemies.kills)
 	achievements.record_best("bestTime", enemies.run_time)
 	achievements.live = {}
 	achievements.check()
 	inventory.save()
+
+
+## Adds the finished run to the account's log (newest first, last 50 kept).
+func _record_history() -> void:
+	var history: Array = progression.profile.get("history", [])
+	history.push_front({
+		"at": Time.get_datetime_string_from_system(false, true),
+		"map": map_name(),
+		"character": str(_character.get("name", "")),
+		"class": class_id(),
+		"level": progression.level,
+		"kills": enemies.kills,
+		"time": int(enemies.run_time),
+		"gold": _run_gold,
+		"bosses": _bosses_killed,
+		"died": player.dead,
+	})
+	progression.profile.history = history.slice(0, 50)
 
 
 ## Checks achievements with the numbers of the run in progress.
@@ -581,7 +710,7 @@ func _on_player_died() -> void:
 
 func _update_menu_camera(delta: float) -> void:
 	_menu_angle += delta * 0.06
-	var ground := terrain.height_at(0, 0)
+	var ground := maxf(terrain.height_at(0, 0), float(maps.get(map_id, {}).get("seaLevel", -100.0)))
 	menu_camera.position = Vector3(sin(_menu_angle) * 30.0, ground + 14.0, cos(_menu_angle) * 30.0)
 	menu_camera.look_at(Vector3(0, ground + 2.0, 0))
 
@@ -611,8 +740,10 @@ func _build_world_viewport() -> void:
 
 func _build_environment() -> void:
 	var env := Environment.new()
-	# A soft sky gradient with a warm horizon behind the forest.
+	_env = env
+	# A soft sky gradient (colors set per map in load_map).
 	var sky_mat := ProceduralSkyMaterial.new()
+	_sky_mat = sky_mat
 	sky_mat.sky_top_color = Color("#4f97d6")
 	sky_mat.sky_horizon_color = Color("#d9ecf2")
 	sky_mat.ground_horizon_color = Color("#cfe3d0")

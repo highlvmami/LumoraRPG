@@ -1,4 +1,8 @@
-## Heightfield terrain: rolling forest hills in the middle, a mountain ring at the edge.
+## Heightfield terrain: rolling hills in the middle, a mountain ring at the edge.
+## Its look comes from the map (data/maps.json): ground colors, how hilly it
+## is, a sea on one side (beach) or stone floor tiles (dungeon). Calling
+## build() again replaces the ground in place, so everything holding this
+## node keeps working on the new map.
 ## The collision shape is built from the same triangles that are drawn,
 ## so the player always stands exactly on what they see.
 extends StaticBody3D
@@ -17,9 +21,24 @@ var half: float
 var verts: int
 var spawn_clear_radius: float
 var heights := PackedFloat32Array()
+## The map this terrain was built for (see data/maps.json).
+var map := {}
+var _ground_a := GRASS_A
+var _ground_b := GRASS_B
+var _slope := DIRT
+var _stone := STONE
 
 
-func build(cfg: Dictionary) -> void:
+func build(cfg: Dictionary, p_map := {}) -> void:
+	map = p_map
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+	if map.has("ground"):
+		_ground_a = Color(str(map.ground[0]))
+		_ground_b = Color(str(map.ground[1]))
+		_slope = Color(str(map.get("slope", DIRT.to_html())))
+		_stone = Color(str(map.get("stone", STONE.to_html())))
 	size = cfg.size
 	segments = int(cfg.segments)
 	spawn_clear_radius = cfg.spawnClearRadius
@@ -28,7 +47,7 @@ func build(cfg: Dictionary) -> void:
 	verts = segments + 1
 
 	var noise := FastNoiseLite.new()
-	noise.seed = int(cfg.seed)
+	noise.seed = int(map.get("seed", cfg.seed))
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	noise.frequency = 0.018
 	noise.fractal_octaves = 4
@@ -41,7 +60,7 @@ func build(cfg: Dictionary) -> void:
 			heights[iz * verts + ix] = _generate_height(noise, x, z)
 
 	var color_noise := FastNoiseLite.new()
-	color_noise.seed = int(cfg.seed) + 1
+	color_noise.seed = int(map.get("seed", cfg.seed)) + 1
 	color_noise.frequency = 0.08
 
 	var mesh := _build_mesh(color_noise)
@@ -57,7 +76,7 @@ func build(cfg: Dictionary) -> void:
 
 
 func _generate_height(noise: FastNoiseLite, x: float, z: float) -> float:
-	var h := noise.get_noise_2d(x, z) * 9.0
+	var h := noise.get_noise_2d(x, z) * float(map.get("amplitude", 9.0))
 
 	# Keep the spawn area fairly flat.
 	var d := Vector2(x, z).length()
@@ -66,6 +85,13 @@ func _generate_height(noise: FastNoiseLite, x: float, z: float) -> float:
 	# Raise a mountain ring at the border so the map feels enclosed.
 	var edge := maxf(absf(x), absf(z)) / half
 	var wall := smoothstep(0.84, 1.0, edge)
+	if map.has("seaFrom"):
+		# The beach slopes down into a shallow sea on the east side (no wall there).
+		var sea := smoothstep(float(map.seaFrom), float(map.seaFrom) + 18.0, x)
+		h = lerpf(h, -float(map.seaDepth), sea)
+		var side_edge := absf(z) / half
+		var west_edge := -x / half
+		wall = smoothstep(0.84, 1.0, maxf(side_edge, west_edge))
 	return h + wall * wall * 26.0
 
 
@@ -96,11 +122,22 @@ func _add_triangle(st: SurfaceTool, color_noise: FastNoiseLite, a: Vector3, b: V
 	var normal := (c - a).cross(b - a).normalized()
 	var center := (a + b + c) / 3.0
 	var steep := 1.0 - absf(normal.y)
-	var color := GRASS_A.lerp(GRASS_B, color_noise.get_noise_2d(center.x, center.z) * 0.5 + 0.5)
+	var color := _ground_a.lerp(_ground_b, color_noise.get_noise_2d(center.x, center.z) * 0.5 + 0.5)
+	if map.get("tiles", false):
+		# Stone floor tiles: a checker of slightly different slabs with dark seams.
+		var tx := floori((center.x + half) / 2.0)
+		var tz := floori((center.z + half) / 2.0)
+		color = _ground_a if (tx + tz) % 2 == 0 else _ground_b
+		color = color.darkened(0.06 * (color_noise.get_noise_2d(tx * 3.0, tz * 3.0) + 1.0))
+	if map.has("inland") and center.x < float(map.inlandFrom) + color_noise.get_noise_2d(center.z, center.x) * 8.0:
+		color = Color(str(map.inland)).lerp(_ground_a, 0.15 * (color_noise.get_noise_2d(center.x, center.z) + 1.0))
+	if map.has("seaLevel") and center.y < float(map.seaLevel) + 0.5:
+		# Wet sand at the waterline.
+		color = _ground_a.darkened(0.25)
 	if steep > 0.35:
-		color = DIRT
+		color = _slope
 	if center.y > 12.0 or steep > 0.6:
-		color = STONE
+		color = _stone
 	st.set_color(color)
 	st.add_vertex(a)
 	st.add_vertex(b)

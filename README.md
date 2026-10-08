@@ -20,7 +20,7 @@ https://highlvmami.github.io/LumoraRPG/ — `main` dalına her birleştirmede ot
 
 ## Oynanış
 
-Girişte bir kullanıcı adı yaz (yeni ad = yeni hesap; hesap bu cihazda saklanır). Ana menüde hesap seviyeni görürsün; **Oyna**, **Karakterler**, **Ekipman**, **Çanta**, **Yetenek Ağacı**, **Market**, **Başarımlar**, **Profil** ve **Arkadaşlar** bölümleri vardır.
+Girişte **Kayıt Ol** ile kullanıcı adı ve şifreyle hesap aç, sonra **Giriş Yap** ile gir (hesaplar bu cihazda saklanır, şifre açık hâlde kaydedilmez). "Beni hatırla" seçiliyse oyun bu bilgisayarda bir daha şifre sormadan açılır; Ayarlar → Hesap'tan çıkış yapabilir, şifreni değiştirebilir ya da hesabı tamamen sıfırlayabilirsin. Her oyun rastgele bir haritada başlar ve haritanın adı ekranda yazar: **Sakin Orman**, **Sahil Kasabası** ya da **Ölümcül Zindan**. Fare tekerleğiyle kamerayı yaklaştırıp uzaklaştırabilirsin. Ana menüde hesap seviyeni görürsün; **Oyna**, **Karakterler**, **Ekipman**, **Çanta**, **Yetenek Ağacı**, **Market**, **Başarımlar**, **Profil**, **Arkadaşlar**, **Kayıtlar** (geçmiş oyunlar), **Sürümler** (yenilikler) ve **Ayarlar** bölümleri vardır.
 
 Hesapta en fazla 3 karakter açılır, her biri bir sınıftır: **Savaşçı** (kılıçla önündeki düşmanları biçer, canı yüksek), **Okçu** (uzaktan ok atar) ve **Büyücü** (büyü küresi fırlatır, kritikleri güçlü). Karakterler ekranında her karakterin üstündeki eşyalar görünür.
 

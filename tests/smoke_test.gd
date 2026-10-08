@@ -29,6 +29,26 @@ func _run() -> void:
 	_check(str(ProjectSettings.get_setting("application/run/main_scene")) == "res://scenes/boot.tscn", "the game starts through the updater")
 	_check(main.get("login_screen") != null, "login screen is shown")
 	main.get("store").path = TEST_SAVE
+	main.set("forced_map", "forest")
+
+	# Accounts: register, password check, remember on this device.
+	var st: RefCounted = main.get("store")
+	_check(str(st.call("register", "yeni_oyuncu", "gizliSifre")) == "", "a new account can be registered")
+	_check(str(st.call("register", "yeni_oyuncu", "gizliSifre")) != "", "a taken name cannot be registered again")
+	_check(str(st.call("check_login", "yeni_oyuncu", "gizliSifre")) == "" and str(st.call("check_login", "yeni_oyuncu", "yanlis")) != "", "the password is checked")
+	_check(not JSON.stringify(st.get("_data")).contains("gizliSifre"), "the password is not saved as plain text")
+	st.call("set_remember", "yeni_oyuncu")
+	_check(str(st.call("remembered")) == "yeni_oyuncu", "the device remembers the account")
+	st.call("set_remember", "")
+	var screen: CanvasLayer = load("res://scripts/ui/login_screen.gd").new()
+	root.add_child(screen)
+	screen.call("setup", st)
+	screen.call("set_mode", "register")
+	_check(str(screen.call("submit_with", "ikinci", "abcd", "abce")) != "", "registering asks for the same password twice")
+	screen.call("set_mode", "login")
+	_check(str(screen.call("submit_with", "yeni_oyuncu", "yanlis")) != "", "a wrong password does not log in")
+	screen.queue_free()
+	(st.get("_data").profiles as Dictionary).erase("yeni_oyuncu")
 	main.get("login_screen").login("ci_test")
 	await _frames(5)
 
@@ -290,6 +310,7 @@ func _run() -> void:
 	main.call("cheat", "clear")
 	var offered: Array = (weapons.call("available_choices") as Array).map(func(d: Dictionary) -> String: return str(d.id))
 	_check(offered.has("arrow_rain") and not offered.has("meteor") and not offered.has("shield_bash"), "only the archer's own class skill is offered")
+	_check(not offered.has("fireball") and not offered.has("lightning"), "fireball and lightning are mage-only")
 	for id: String in ["orbit", "fireball", "lightning", "aura", "arrow_rain"]:
 		weapons.call("add", id)
 	_check((weapons.call("owned") as Array).size() == 5, "all extra weapons and the class skill can be carried")
@@ -375,7 +396,8 @@ func _run() -> void:
 			if bool(level_up.get("visible")):
 				level_up.call("pick", 0)
 	boss = int(enemies.call("boss_index"))
-	enemies.call("damage", boss, boss_max * 0.3)
+	# Down to 30% health (the weapons may have hit it meanwhile).
+	enemies.call("damage", boss, float((enemies.get("_hp") as PackedFloat32Array)[boss]) - boss_max * 0.3)
 	await _frames(3)
 	_check(int(enemies.call("boss_phase")) == 3 and int(enemies.call("boss_style")) == 3 and phases == [2, 3], "below 1/3 health the boss is enraged")
 	player.set("hp", float(player.get("max_hp")))
@@ -500,6 +522,53 @@ func _run() -> void:
 		cheats.call("reset_all")
 		main.call("leave_run")
 		await _frames(2)
+
+	# Maps: every map builds, a run shows its name, played maps are counted.
+	var terrain_node: Node = main.get("terrain")
+	for map_id: String in ["beach", "dungeon", "forest"]:
+		main.call("load_map", map_id)
+		await _frames(2)
+		_check(str(main.get("map_id")) == map_id and main.get_node("WorldView/WorldViewport/World/Props").get_child_count() > 5, "the %s map builds" % map_id)
+	main.set("forced_map", "dungeon")
+	main.call("start_run")
+	await _frames(2)
+	_check(str(main.get("map_id")) == "dungeon" and str(hud.get("_title").text) == "ÖLÜMCÜL ZİNDAN", "a run shows the map's name")
+	_check(float((profile.stats as Dictionary).get("mapsPlayed", 0)) >= 2, "played maps are counted")
+	_check(float((profile.stats as Dictionary).get("damageDealt", 0)) > 0.0, "damage dealt is counted for achievements")
+	var rig: Node = main.get("camera_rig")
+	var zoom_before := float(rig.get("zoom"))
+	rig.call("zoom_by", 2.0)
+	_check(float(rig.get("zoom")) > zoom_before, "the mouse wheel moves the camera away")
+	rig.call("zoom_by", -100.0)
+	_check(is_equal_approx(float(rig.get("zoom")), 3.5), "the camera cannot come closer than the limit")
+	main.call("leave_run")
+	await _frames(2)
+	_check(not (profile.history as Array).is_empty() and str(profile.history[0].map) == "Ölümcül Zindan", "finished runs are logged")
+	main.set("forced_map", "forest")
+
+	# Menu pages: logs, versions, settings.
+	for section_id: String in ["logs", "versions", "settings"]:
+		menu.call("open_section", section_id)
+		await _frames(1)
+	menu.call("set_setting", "cameraZoom", 11.0)
+	menu.call("set_setting", "damageNumbers", false)
+	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
+	_check(bool(menu.call("change_password", "yeniSifre")) and str(store_ref.call("check_login", "ci_test", "yeniSifre")) == "", "the password can be changed")
+
+	# Deleting a character asks first.
+	var before_delete := (inv.call("characters") as Array).size()
+	menu.call("ask_delete_character", int(warrior.id))
+	_check(bool(menu.call("is_confirm_open")) and (inv.call("characters") as Array).size() == before_delete, "deleting a character asks for confirmation first")
+	menu.call("close_confirm")
+	_check(bool(menu.call("delete_character", int(warrior.id))) and (inv.call("characters") as Array).size() == before_delete - 1, "a character can be deleted")
+
+	# Resetting the account wipes everything but the name.
+	menu.call("ask_reset_account")
+	_check(bool(menu.call("is_confirm_open")), "resetting the account asks for confirmation")
+	menu.call("close_confirm")
+	main.call("reset_account")
+	_check((inv.call("characters") as Array).is_empty() and (inv.call("items") as Array).is_empty() and int(profile.gold) == 0
+		and (profile.upgrades as Dictionary).is_empty() and (profile.achievements as Dictionary).is_empty() and str(profile.name) == "ci_test", "resetting the account wipes characters, items, gold, skills and achievements")
 
 	_finish()
 

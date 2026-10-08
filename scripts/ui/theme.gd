@@ -24,6 +24,11 @@ static func label_settings(size: int, color := TEXT, outline := 6) -> LabelSetti
 	return s
 
 
+## Upper case that keeps the Turkish dotted İ ("Zindan" -> "ZİNDAN").
+static func upper(text: String) -> String:
+	return text.replace("i", "İ").to_upper()
+
+
 static func label(text: String, settings: LabelSettings) -> Label:
 	var l := Label.new()
 	l.text = text
