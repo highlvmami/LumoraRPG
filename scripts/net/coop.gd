@@ -100,6 +100,20 @@ func puppets() -> Array:
 	return _puppets.values()
 
 
+## The party for the HUD list: this player first, then the partners.
+func party() -> Array:
+	if not running:
+		return []
+	var names: Dictionary = main.main_menu.CLASS_NAMES
+	var p: Node3D = main.player
+	var out: Array = [{"name": str(main.inventory.active_character().get("name", "")), "account": str(main.progression.profile.name),
+		"class": names.get(main.class_id(), ""), "hp": float(p.get("hp")), "max_hp": float(p.get("max_hp")), "dead": bool(p.get("dead")), "me": true}]
+	for r: Node3D in _puppets.values():
+		out.append({"name": r.character_name if r.character_name != "" else r.player_name, "account": r.player_name,
+			"class": names.get(r.class_id, ""), "hp": r.hp, "max_hp": r.max_hp, "dead": r.dead})
+	return out
+
+
 func _process(delta: float) -> void:
 	if not running:
 		return
@@ -129,7 +143,8 @@ func _send_state(with_look: bool) -> void:
 	var p: Node3D = main.player
 	var d := {"k": "p", "p": [snappedf(p.global_position.x, 0.01), snappedf(p.global_position.y, 0.01), snappedf(p.global_position.z, 0.01)],
 		"f": snappedf(float(p.get("facing")), 0.01), "s": snappedf(float(p.call("horizontal_speed")), 0.1),
-		"hp": roundf(float(p.get("hp"))), "mh": roundf(float(p.get("max_hp"))), "d": bool(p.get("dead")), "a": _attacks}
+		"hp": roundf(float(p.get("hp"))), "mh": roundf(float(p.get("max_hp"))), "d": bool(p.get("dead")), "a": _attacks,
+		"cn": str(main.inventory.active_character().get("name", "")), "cl": str(main.class_id())}
 	if with_look:
 		_look_timer = LOOK_TIME
 		d.lk = main.character_look(main.inventory.active_character())

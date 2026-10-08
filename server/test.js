@@ -2,7 +2,7 @@
 process.env.PORT = process.env.PORT || "18080";
 const assert = require("assert");
 const WebSocket = require("ws");
-const { server, wss } = require("./index.js");
+const { server, wss, ready } = require("./index.js");
 
 function client() {
   return new Promise((resolve) => {
@@ -30,12 +30,49 @@ function client() {
 }
 
 (async () => {
+  await ready;
   const a = await client();
   const b = await client();
-  a.send({ t: "hello", name: "mami" });
-  b.send({ t: "hello", name: "Ece" });
   const wa = await a.next("welcome");
   const wb = await b.next("welcome");
+
+  // Accounts: nothing works before signing in.
+  a.send({ t: "create" });
+  assert.match((await a.next("error")).msg, /giriş/);
+  a.send({ t: "login", name: "mami", pw: "gizli1" });
+  assert.strictEqual((await a.next("auth")).code, "no_account");
+  a.send({ t: "register", name: "mami", pw: "gizli1", profile: { gold: 5 }, at: 10 });
+  const reg = await a.next("auth");
+  assert.ok(reg.ok && reg.token && reg.profile.gold === 5);
+  b.send({ t: "register", name: "MAMI", pw: "baska" });
+  assert.strictEqual((await b.next("auth")).code, "taken");
+  b.send({ t: "register", name: "a b", pw: "baska" });
+  assert.strictEqual((await b.next("auth")).code, "bad_name");
+  b.send({ t: "login", name: "Mami", pw: "yanlis" });
+  assert.strictEqual((await b.next("auth")).code, "wrong_password");
+  b.send({ t: "resume", name: "mami", token: "uydurma" });
+  assert.strictEqual((await b.next("auth")).code, "token");
+  b.send({ t: "exists", name: "MAMİ" });
+  b.send({ t: "register", name: "Ece", pw: "sifre2" });
+  assert.ok((await b.next("auth")).ok);
+
+  // Saves: newer replaces older; a login on another device gets it back.
+  a.send({ t: "save", profile: { gold: 99 }, at: 20 });
+  assert.strictEqual((await a.next("saved")).at, 20);
+  a.send({ t: "save", profile: { gold: 1 }, at: 15 });
+  const c3 = await client();
+  await c3.next("welcome");
+  c3.send({ t: "resume", name: "mami", token: reg.token });
+  const back = await c3.next("auth");
+  assert.ok(back.ok && back.profile.gold === 99 && back.savedAt === 20, "older save must not win");
+  c3.send({ t: "online_list" });
+  assert.deepStrictEqual((await c3.next("online_list")).names.sort(), ["Ece", "mami"]);
+  c3.send({ t: "password", new: "yeni12" });
+  const pw = await c3.next("password");
+  assert.ok(pw.ok && pw.token);
+  c3.send({ t: "login", name: "mami", pw: "yeni12" });
+  assert.ok((await c3.next("auth")).ok);
+  c3.close();
 
   a.send({ t: "who", names: ["ece", "nobody"] });
   assert.deepStrictEqual((await a.next("who")).online, ["ece"]);
@@ -54,6 +91,7 @@ function client() {
   assert.match((await a.next("error")).msg, /çevrimiçi değil/);
 
   b.send({ t: "join", code: inv.code.toLowerCase() });
+  assert.strictEqual((await b.next("exists")).found, true);
   const joined = await b.next("room");
   assert.strictEqual(joined.members.length, 2);
   assert.strictEqual(joined.you, wb.id);

@@ -2,12 +2,19 @@
 ## In the browser build, user:// is kept in the browser's storage.
 ## Accounts have a password (only a salted hash is saved) and the device can
 ## remember the last account so the game logs straight in next time.
-## Online accounts replace this later; the data shape stays the same.
+## Online accounts keep the same data on the server: every save of the
+## signed-in account is stamped (savedAt) and sent up (`saved`), and a newer
+## game from the server replaces this device's copy (adopt).
 extends RefCounted
 
 const SAVE_VERSION := 1
 
+## The signed-in account's profile was saved (to send it to the server).
+signal saved(profile: Dictionary)
+
 var path := "user://profiles.json"
+## The account playing now ("" before login).
+var active := ""
 var _data := {"version": SAVE_VERSION, "last": "", "profiles": {}}
 
 
@@ -20,11 +27,17 @@ func load_from_disk() -> void:
 
 
 func save_to_disk() -> void:
+	var profile: Dictionary = (_data.profiles as Dictionary).get(active, {})
+	if not profile.is_empty():
+		profile.savedAt = Time.get_unix_time_from_system()
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		push_error("Could not save profiles: %s" % error_string(FileAccess.get_open_error()))
 		return
 	file.store_string(JSON.stringify(_data, "\t"))
+	file.close()
+	if not profile.is_empty():
+		saved.emit(profile)
 
 
 ## Every other account saved on this device (for friend suggestions).
@@ -52,7 +65,49 @@ func remembered() -> String:
 
 func set_remember(name: String) -> void:
 	_data.remember = name
+	if name == "":
+		_data.erase("tokens")
 	save_to_disk()
+
+
+## Online sign-in token kept for the remembered account ("" if none).
+func token_for(name: String) -> String:
+	return str((_data.get("tokens", {}) as Dictionary).get(name, ""))
+
+
+func set_token(name: String, token: String) -> void:
+	_data.tokens = {name: token}
+	save_to_disk()
+
+
+## Takes the game saved on the server when it is newer than this device's
+## (or the account is new here). The profile dictionary stays the same
+## object, so everything holding it sees the new data. Returns true if taken.
+func adopt(name: String, cloud: Dictionary, cloud_saved_at: float) -> bool:
+	var fresh := not has_account(name)
+	var profile := login(name) if fresh else _data.profiles[name] as Dictionary
+	if cloud.is_empty() or (not fresh and cloud_saved_at <= float(profile.get("savedAt", 0.0))):
+		return false
+	var keep := {}
+	for key: String in ["salt", "passwordHash"]:
+		if profile.has(key):
+			keep[key] = profile[key]
+	profile.clear()
+	profile.merge(cloud.duplicate(true))
+	profile.merge(keep, true)
+	profile.name = name
+	_fill_defaults(profile)
+	# Not a new change: keep the server's time so it isn't sent back up.
+	profile.savedAt = cloud_saved_at
+	_write()
+	return true
+
+
+func _write() -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(JSON.stringify(_data, "\t"))
 
 
 ## Creates an account. Returns an error message, or "" on success.
@@ -126,6 +181,7 @@ func login(name: String) -> Dictionary:
 	var profile: Dictionary = profiles[name]
 	_fill_defaults(profile)
 	_data.last = name
+	active = name
 	save_to_disk()
 	return profile
 

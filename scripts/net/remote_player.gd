@@ -11,6 +11,9 @@ signal hurt(amount: float)
 
 var peer_id := 0
 var player_name := ""
+## Their character's name and class id (sent with every state).
+var character_name := ""
+var class_id := ""
 var hp := 100.0
 var max_hp := 100.0
 var dead := false
@@ -54,6 +57,8 @@ func apply_state(d: Dictionary) -> void:
 	hp = float(d.get("hp", hp))
 	max_hp = maxf(1.0, float(d.get("mh", max_hp)))
 	dead = bool(d.get("d", false))
+	character_name = str(d.get("cn", character_name))
+	class_id = str(d.get("cl", class_id))
 	visible = not dead
 	var attacks := int(d.get("a", 0))
 	if _attacks >= 0 and attacks != _attacks:
@@ -95,5 +100,5 @@ func _update_label() -> void:
 	if _label == null:
 		return
 	var ratio := hp / max_hp
-	_label.text = "%s  %d%%" % [player_name, roundi(ratio * 100.0)]
+	_label.text = "%s  %d%%" % [character_name if character_name != "" else player_name, roundi(ratio * 100.0)]
 	_label.modulate = Color("#ff8a8a") if ratio < 0.35 else Color("#ffffff")

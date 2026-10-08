@@ -1,6 +1,8 @@
-## Live co-op test with the real online server (server/index.js, needs node):
-## two games in one process sign in, one opens a room and invites the other,
-## the host starts a run and both play it together.
+## Online test with the real server (server/index.js, needs node): two
+## games in one process open online accounts (one through the login screen),
+## one opens a room and invites the other, the host starts a run and both
+## play it together; the game is saved on the server and comes back on
+## another device.
 ## Run: godot --headless --path . -s res://tests/coop_test.gd
 extends SceneTree
 
@@ -21,10 +23,23 @@ func _run() -> void:
 	await create_timer(1.5).timeout
 
 	var host := await _game("coop_host", "EvSahibi")
-	var guest := await _game("coop_guest", "Misafir")
-	_check(await _until(func() -> bool: return host.net.is_online() and guest.net.is_online()), "both games connect to the server")
+	_check(await _until(func() -> bool: return host.net.is_online()), "an online account can be opened")
+
+	# The second player signs up on the login screen.
+	var guest := await _game("coop_guest", "")
+	var screen: Node = guest.login_screen
+	screen.set_mode("register")
+	_check(await _until(func() -> bool: return guest.net.is_connected_to_server()), "the login screen connects to the server")
+	_check(screen.submit_with("evsahibi", "sifre12", "sifre12") == "pending", "the login screen asks the server")
+	_check(await _until(func() -> bool: return not screen.waiting) and screen.get("_error").text.contains("alınmış"),
+		"a name taken online can't be registered again (any letter case)")
+	screen.submit_with("Misafir", "sifre12", "sifre12")
+	_check(await _until(func() -> bool: return guest.progression != null and guest.net.is_online()), "signing up on the login screen opens the game online")
+	guest.inventory.create_character("Misafir", "archer")
 
 	# Friends see each other online.
+	host.net.ask_online_list()
+	_check(await _until(func() -> bool: return Array(host.net.online_list).has("Misafir")), "online players are listed")
 	host.progression.profile.friends.append("Misafir")
 	host.net.ask_who(["Misafir", "kimse"])
 	_check(await _until(func() -> bool: return host.net.is_name_online("Misafir") and not host.net.is_name_online("kimse")), "a friend shows as online")
@@ -55,6 +70,11 @@ func _run() -> void:
 		print("  host sees ", host.coop.puppet(guest.net.my_id).global_position, " friend is at ", guest.player.global_position)
 	_check(seen, "the friend's moves show in the host's game")
 	_check(host.enemies.targets.size() == 2, "enemies can chase both players")
+	await _frames(3)
+	var party: Control = host.hud.get("_party")
+	_check(party.visible and party.get_child_count() == 2, "the party list shows both players")
+	var rows: Array = host.hud.get("_party_rows")
+	_check((rows[1][1] as Label).text == "Misafir" and (rows[1][3] as ProgressBar).max_value > 1.0, "the partner's character name and health show")
 
 	# Enemies come from the host.
 	host.enemies.kill_all_silently()
@@ -87,6 +107,18 @@ func _run() -> void:
 	guest.net.leave_room()
 	_check(await _until(func() -> bool: return not host.net.members().size() == 2), "leaving the room shows for the host")
 
+	# The game is kept on the server: another device signs in and gets it.
+	host.progression.add_gold(777)
+	var gold: int = host.progression.gold()
+	host.store.save_to_disk()
+	await create_timer(3.0).timeout
+	var other := await _game("coop_other", "")
+	other.net.sign_in("EVSAHIBI", "sifre12")
+	var screen2: Node = other.login_screen
+	screen2.set("waiting", true)
+	_check(await _until(func() -> bool: return other.progression != null), "the account signs in on another device")
+	_check(other.progression.gold() == gold and str(other.progression.profile.name) == "EvSahibi", "the saved game comes back on the other device")
+
 	OS.kill(_server_pid)
 	print("all checks passed" if _failures == 0 else "%d checks FAILED" % _failures)
 	quit(1 if _failures > 0 else 0)
@@ -99,18 +131,21 @@ func _game(save: String, account: String) -> Node:
 	var path := "user://%s_profiles.json" % save
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-	if main.login_screen:
-		main.login_screen.queue_free()
-		main.login_screen = null
 	main.store.path = path
 	main.store.load_from_disk()
 	main.forced_map = "forest"
-	main.login(account)
-	main.inventory.create_character(account, "warrior")
 	main.net.stop()
 	main.net.url = "ws://localhost:%d" % PORT
 	main.net.enabled = true
-	main.net.start(account)
+	main.net.start()
+	if account == "":
+		return main
+	if main.login_screen:
+		main.login_screen.queue_free()
+		main.login_screen = null
+	main.login(account)
+	main.inventory.create_character(account, "warrior")
+	main.net.sign_in(account, "sifre12", true)
 	return main
 
 

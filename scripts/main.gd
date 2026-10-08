@@ -116,14 +116,23 @@ func _ready() -> void:
 	menu_camera.current = true
 	_update_menu_camera(0.0)
 
+	net = NetClient.new()
+	net.name = "Net"
+	add_child(net)
+	net.start()
+
 	store.load_from_disk()
 	var remembered := store.remembered()
-	if remembered != "":
-		# This device remembers the account: straight to the menu.
+	var token := store.token_for(remembered)
+	if remembered != "" and (token != "" or not net.enabled):
+		# This device remembers the account: straight to the menu (the
+		# online sign-in happens in the background).
+		if token != "":
+			net.resume(remembered, token)
 		login.call_deferred(remembered, true)
 		return
 	login_screen = LoginScreen.new()
-	login_screen.setup(store)
+	login_screen.setup(store, net)
 	login_screen.logged_in.connect(login)
 	add_child(login_screen)
 
@@ -163,6 +172,7 @@ func _process(delta: float) -> void:
 		if moved < 5.0:
 			achievements.add("steps", moved)
 	_last_step_pos = player.global_position
+	hud.set_party(coop.party() if coop.partner_count() > 0 else [])
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if _was_captured and not captured and not cheat_menu.is_open():
 		pause_menu.open()
@@ -278,9 +288,6 @@ func login(username: String, remember := false) -> void:
 	chest_wheel.setup(inventory.gear)
 	chest_wheel.closed.connect(main_menu.refresh)
 
-	net = NetClient.new()
-	net.name = "Net"
-	add_child(net)
 	coop = Coop.new()
 	coop.name = "Coop"
 	add_child(coop)
@@ -291,7 +298,13 @@ func login(username: String, remember := false) -> void:
 	net.status_changed.connect(func(_s: String) -> void: main_menu.refresh_online())
 	net.room_changed.connect(main_menu.refresh_online)
 	net.who_updated.connect(main_menu.update_friend_status)
-	net.start(username)
+	net.online_list_updated.connect(main_menu.update_online_list)
+	net.signed_in.connect(_on_signed_in)
+	net.sign_in_failed.connect(_on_sign_in_failed)
+	net.password_changed.connect(_on_password_changed)
+	store.saved.connect(net.save_profile)
+	# The server keeps the newest game (an older one there is replaced).
+	net.save_profile(profile)
 
 	apply_settings()
 	show_menu()
@@ -304,6 +317,42 @@ func apply_settings() -> void:
 	camera_rig.sensitivity_scale = float(st.get("mouseSpeed", 1.0))
 	hud.show_damage_numbers = bool(st.get("damageNumbers", true))
 	main_menu.quality = str(progression.profile.get("quality", DEFAULT_QUALITY))
+
+
+## Signed in online after the menu opened (remembered account, offline
+## start, reconnect): a newer game on the server replaces this device's.
+func _on_signed_in(account_name: String, token: String, cloud: Dictionary, saved_at: float) -> void:
+	if progression == null or account_name.to_lower() != str(progression.profile.name).to_lower():
+		return
+	account_name = str(progression.profile.name)
+	if store.remembered() == account_name:
+		store.set_token(account_name, token)
+	if not in_run and store.adopt(account_name, cloud, saved_at):
+		apply_settings()
+		main_menu.selected_item = -1
+		main_menu.refresh()
+		main_menu.notify("Oyunun sunucudan yüklendi.")
+	else:
+		net.save_profile(progression.profile)
+	main_menu.refresh_online()
+
+
+func _on_sign_in_failed(code: String, message: String) -> void:
+	if progression == null:
+		return
+	if code == "token":
+		# The remembered sign-in no longer works (password changed elsewhere).
+		store.set_remember("")
+		if not in_run:
+			logout()
+			return
+	_on_net_notice(message if code != "taken" else "Bu isim çevrimiçi başka bir oyuncuya ait. Çevrimiçi oynamak için yeni hesap aç.")
+
+
+func _on_password_changed(ok: bool, message: String, token: String) -> void:
+	if ok and token != "" and store.remembered() == str(progression.profile.name):
+		store.set_token(str(progression.profile.name), token)
+	main_menu.notify(message)
 
 
 ## Forgets the remembered account and goes back to the login screen.
