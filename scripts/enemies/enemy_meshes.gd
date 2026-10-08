@@ -9,11 +9,13 @@ static func build(id: String, radius: float) -> ArrayMesh:
 		"wolf":
 			return _wolf()
 		"spider":
-			return _spider()
+			return _spider(Color("#3d2c4a"), Color("#2a1f33"), Color("#ff3b3b"), false)
 		"thrower":
 			return _thrower()
 		"boss":
 			return _golem()
+		"spider_boss":
+			return _spider(Color("#4a1f5c"), Color("#2b1236"), Color("#ffdd33"), true)
 		_:
 			return _slime(radius)
 
@@ -48,10 +50,8 @@ static func _wolf() -> ArrayMesh:
 	return _compound(parts)
 
 
-static func _spider() -> ArrayMesh:
-	var body := Color("#3d2c4a")
-	var leg := Color("#2a1f33")
-	var eye := Color("#ff3b3b")
+## A spider; the queen (boss) gets red markings and a spiky crown.
+static func _spider(body: Color, leg: Color, eye: Color, queen: bool) -> ArrayMesh:
 	var parts := [
 		[_sphere(0.55, 0.85), Vector3(0, 0.6, -0.4), body],
 		[_sphere(0.34, 0.5), Vector3(0, 0.5, 0.32), body],
@@ -67,6 +67,14 @@ static func _spider() -> ArrayMesh:
 			var b := Basis(Vector3.UP, spread * side) * Basis(Vector3.BACK, -0.55 * side)
 			var origin := Vector3(side * 0.6, 0.38, 0.15 - n * 0.2)
 			parts.append([_box(Vector3(0.95, 0.08, 0.08)), Transform3D(b, origin), leg])
+	if queen:
+		var mark := Color("#d8263a")
+		parts.append([_box(Vector3(0.36, 0.1, 0.36)), Vector3(0, 1.0, -0.42), mark])
+		parts.append([_box(Vector3(0.14, 0.08, 0.5)), Vector3(0, 0.96, -0.85), mark])
+		for x in [-0.16, 0.0, 0.16]:
+			parts.append([_box(Vector3(0.06, 0.16 if x == 0.0 else 0.11, 0.06)), Vector3(x, 0.8, 0.32), eye])
+		parts.append([_box(Vector3(0.08, 0.2, 0.08)), Transform3D(Basis(Vector3.RIGHT, 0.5), Vector3(-0.12, 0.38, 0.62)), mark])
+		parts.append([_box(Vector3(0.08, 0.2, 0.08)), Transform3D(Basis(Vector3.RIGHT, 0.5), Vector3(0.12, 0.38, 0.62)), mark])
 	return _compound(parts)
 
 

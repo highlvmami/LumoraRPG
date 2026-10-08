@@ -26,6 +26,7 @@ const NAV := [
 	["equipment", "Ekipman", "armor"],
 	["backpack", "Çanta", "chest"],
 	["market", "Market", "clover"],
+	["achievements", "Başarımlar", "skull"],
 	["profile", "Profil", "eye"],
 	["friends", "Arkadaşlar", "heart"],
 ]
@@ -36,6 +37,8 @@ const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büy�
 var progression: Progression
 var shop: Shop
 var inventory: Inventory
+## Achievements (set by the game after setup).
+var achievements: RefCounted
 var section := "characters"
 ## Item selected in the backpack (uid, -1 = none).
 var selected_item := -1
@@ -142,6 +145,9 @@ func open_section(id: String) -> void:
 		"market":
 			_section_title.text = "Market"
 			_build_market()
+		"achievements":
+			_section_title.text = "Başarımlar"
+			_build_achievements()
 		"profile":
 			_section_title.text = "Profil"
 			_build_profile()
@@ -177,6 +183,7 @@ func play() -> void:
 ## Buys a permanent market upgrade. Returns true on success.
 func buy(id: String) -> bool:
 	var ok := shop.buy(id)
+	_check_achievements()
 	refresh()
 	return ok
 
@@ -245,8 +252,14 @@ func add_friend(friend_name: String) -> bool:
 		return false
 	friends.append(friend_name)
 	progression.store.save_to_disk()
+	_check_achievements()
 	refresh()
 	return true
+
+
+func _check_achievements() -> void:
+	if achievements:
+		achievements.call("check")
 
 
 func _remove_friend(friend_name: String) -> void:
@@ -490,8 +503,8 @@ func _build_equipment() -> void:
 		_text("Bu karaktere uygun eşya yok. Canavarlar ve boss kasaları eşya düşürür.", 15, UiTheme.MUTED)
 
 
-const DOLL_SIZE := Vector2(210, 400)
-const DOLL_SLOT := 72.0
+const DOLL_SIZE := Vector2(170, 320)
+const DOLL_SLOT := 58.0
 ## [slot, column (0 = next to the body, 1 = outer), body height it lines up with]
 const DOLL_SLOTS := [
 	["helmet", 0, 1.8], ["armor", 0, 1.1], ["boots", 0, 0.2],
@@ -502,7 +515,7 @@ const DOLL_SLOTS := [
 ## The standing character with its equipment slots placed at body height.
 func _paper_doll(c: Dictionary, color: Color) -> Control:
 	var doll := Control.new()
-	var col_x := [DOLL_SIZE.x + 26.0, DOLL_SIZE.x + 26.0 + DOLL_SLOT + 14.0]
+	var col_x := [DOLL_SIZE.x + 22.0, DOLL_SIZE.x + 22.0 + DOLL_SLOT + 12.0]
 	doll.custom_minimum_size = Vector2(col_x[1] + DOLL_SLOT, DOLL_SIZE.y)
 	var stage := _stage(color)
 	var view := DOLL_SIZE - Vector2(8, 8)
@@ -519,7 +532,7 @@ func _paper_doll(c: Dictionary, color: Color) -> Control:
 			# A faint line from the body part to its slot.
 			var line := ColorRect.new()
 			line.color = Color(color, 0.4)
-			line.position = Vector2(DOLL_SIZE.x * 0.5 + 34.0, top_y + DOLL_SLOT * 0.5 - 1.0)
+			line.position = Vector2(DOLL_SIZE.x * 0.5 + 28.0, top_y + DOLL_SLOT * 0.5 - 1.0)
 			line.size = Vector2(x - line.position.x, 2)
 			line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			doll.add_child(line)
@@ -675,6 +688,69 @@ func _upgrade_card(id: String) -> Control:
 	return card
 
 
+## Every achievement with its progress and reward; finished ones glow gold.
+func _build_achievements() -> void:
+	if achievements == null:
+		return
+	var defs: Array = achievements.get("defs")
+	_text("%d / %d tamamlandı  ·  Her başarım altın ödülü verir." % [int(achievements.call("done_count")), defs.size()], 16, UiTheme.MUTED)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	_content.add_child(grid)
+	for d: Dictionary in defs:
+		var done := bool(achievements.call("is_done", str(d.id)))
+		var target := float(d.target)
+		var now := minf(float(achievements.call("value", str(d.stat))), target)
+		var color := UiTheme.ACCENT if done else Color("#6b7280")
+		var card := PanelContainer.new()
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var style := _card_style(color, 2)
+		if done:
+			style.bg_color = Color(0.2, 0.17, 0.06, 0.95)
+		card.add_theme_stylebox_override("panel", style)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		card.add_child(row)
+		var icon := PixelIcons.rect(str(d.icon), 36)
+		icon.modulate = Color.WHITE if done else Color(1, 1, 1, 0.45)
+		row.add_child(icon)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_theme_constant_override("separation", 2)
+		row.add_child(info)
+		var title := HBoxContainer.new()
+		var name_label := UiTheme.label(str(d.name), UiTheme.label_settings(17, UiTheme.ACCENT if done else UiTheme.TEXT, 3))
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title.add_child(name_label)
+		title.add_child(UiTheme.label("TAMAMLANDI" if done else "+%d altın" % int(d.reward), UiTheme.label_settings(12, UiTheme.ACCENT if done else Color("#ffd23f"), 2)))
+		info.add_child(title)
+		info.add_child(UiTheme.label(str(d.desc), UiTheme.label_settings(13, UiTheme.MUTED, 2)))
+		var bar := ProgressBar.new()
+		bar.max_value = target
+		bar.value = now
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 8)
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = UiTheme.ACCENT if done else Color("#5fb8ff")
+		fill.set_corner_radius_all(3)
+		bar.add_theme_stylebox_override("fill", fill)
+		info.add_child(bar)
+		info.add_child(UiTheme.label("%s / %s" % [_short(now), _short(target)], UiTheme.label_settings(11, UiTheme.MUTED, 2)))
+		grid.add_child(card)
+
+
+## 1234 -> "1.234", 300 seconds shown as plain numbers.
+func _short(v: float) -> String:
+	var n := str(int(v))
+	var out := ""
+	while n.length() > 3:
+		out = "." + n.right(3) + out
+		n = n.left(n.length() - 3)
+	return n + out
+
+
 func _build_profile() -> void:
 	var p := progression.profile
 	_text("Hesap seviyesi: %d" % progression.account_level(), 24)
@@ -723,6 +799,54 @@ func _build_friends() -> void:
 		_content.add_child(line)
 	_text("Arkadaşlarının çevrimiçi durumu ve birlikte oynama, çevrimiçi hesaplar gelince açılacak.", 15, UiTheme.MUTED)
 
+	_header("Arkadaş önerileri")
+	var suggestions := friend_suggestions()
+	if suggestions.is_empty():
+		_text("Şimdilik öneri yok. Bu cihazda oynayan diğer oyuncular burada önerilir; çevrimiçi hesaplar gelince başka oyuncular da önerilecek.", 14, UiTheme.MUTED)
+	for s: Dictionary in suggestions:
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 12)
+		var avatar := PanelContainer.new()
+		avatar.add_theme_stylebox_override("panel", UiTheme.box(Color("#2a3a4f"), 8, 4))
+		avatar.custom_minimum_size = Vector2(36, 36)
+		avatar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		var letter := _centered(str(s.name).left(1).to_upper(), UiTheme.label_settings(18, UiTheme.ACCENT, 2))
+		letter.custom_minimum_size.x = 0
+		avatar.add_child(letter)
+		line.add_child(avatar)
+		var who := VBoxContainer.new()
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		who.add_theme_constant_override("separation", 0)
+		who.add_child(UiTheme.label(str(s.name), UiTheme.label_settings(19, UiTheme.TEXT, 0)))
+		who.add_child(UiTheme.label("Hesap Sv. %d  ·  %s" % [int(s.level), s.reason], UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+		line.add_child(who)
+		var add_button := Button.new()
+		add_button.text = "Ekle"
+		add_button.pressed.connect(func() -> void: add_friend(str(s.name)))
+		line.add_child(add_button)
+		_content.add_child(line)
+
+
+## Other players to befriend: accounts that played on this device and are
+## not friends yet, closest account level first.
+func friend_suggestions() -> Array:
+	var me: Dictionary = progression.profile
+	var friends: Array = me.friends
+	var out: Array = []
+	for other: Dictionary in progression.store.call("other_profiles", str(me.name)):
+		if friends.has(str(other.name)):
+			continue
+		var level := int(other.get("accountLevel", 1))
+		var mutual := 0
+		for f: String in other.get("friends", []):
+			if friends.has(f):
+				mutual += 1
+		out.append({"name": str(other.name), "level": level, "mutual": mutual,
+			"reason": "%d ortak arkadaş" % mutual if mutual > 0 else "Bu cihazda oynuyor"})
+	var my_level := progression.account_level()
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.mutual) > int(b.mutual) or (int(a.mutual) == int(b.mutual) and absi(int(a.level) - my_level) < absi(int(b.level) - my_level)))
+	return out.slice(0, 6)
+
 
 # --- Small widgets -------------------------------------------------------------
 
@@ -733,7 +857,7 @@ func _item_card(it: Dictionary, equip_only: bool) -> Control:
 	var rarity := int(it.rarity)
 	var color := gear.rarity_color(rarity)
 	var card: PanelContainer = TooltipCard.new()
-	card.custom_minimum_size = Vector2(156, 0)
+	card.custom_minimum_size = Vector2(128, 0)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.tooltip_text = gear.item_name(it)
 	card.set("tooltip_builder", func() -> Control: return ItemArt.tooltip(gear, it, CLASS_NAMES))
@@ -752,19 +876,24 @@ func _item_card(it: Dictionary, equip_only: bool) -> Control:
 	stage_style.border_width_bottom = 3
 	stage_style.border_color = color.darkened(0.2)
 	stage.add_theme_stylebox_override("panel", stage_style)
-	var art := ItemArt.make(it, color, gear.tier(rarity), 84)
+	var art := ItemArt.make(it, color, gear.tier(rarity), 62)
 	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	art.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stage.add_child(art)
 	col.add_child(stage)
 
-	var name_label := _centered(gear.item_name(it), UiTheme.label_settings(13, color.lightened(0.15), 3))
-	name_label.custom_minimum_size.x = 140
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var name_label := _centered(gear.item_name(it), UiTheme.label_settings(12, color.lightened(0.15), 3))
+	name_label.custom_minimum_size.x = 114
+	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	col.add_child(name_label)
 	var w := inventory.wearer(int(it.uid))
 	if not w.is_empty():
-		col.add_child(_centered("Giyen: %s" % w.name, UiTheme.label_settings(11, UiTheme.ACCENT, 2)))
+		var worn := _centered("Giyen: %s" % w.name, UiTheme.label_settings(11, UiTheme.ACCENT, 2))
+		worn.custom_minimum_size.x = 114
+		worn.autowrap_mode = TextServer.AUTOWRAP_OFF
+		worn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		col.add_child(worn)
 
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL

@@ -3,12 +3,16 @@
 ## They walk on the terrain height map instead of using physics bodies.
 ## New kinds unlock as the run goes on (data/enemies.json) and every enemy
 ## gets more health, damage and speed the longer the run lasts.
+## Bosses fight alone (other enemies leave when one arrives) and use attack
+## patterns from their data: each attack first shows a red warning zone on
+## the ground, then hits whatever is still inside it.
 extends Node3D
 
 const Config := preload("res://scripts/core/config.gd")
 const Toon := preload("res://scripts/core/toon.gd")
 const Terrain := preload("res://scripts/world/terrain.gd")
 const EnemyMeshes := preload("res://scripts/enemies/enemy_meshes.gd")
+const BossAttacks := preload("res://scripts/enemies/boss_attacks.gd")
 
 signal enemy_killed(at_position: Vector3, exp_amount: int, gold_amount: int)
 ## Emitted the first time a kind can spawn in a run (not for the starting kind).
@@ -31,6 +35,11 @@ var kills := 0
 var active := false
 ## Projectiles thrown by ranged enemies this run.
 var shots_fired := 0
+## Boss attacks started this run, and how many of them caught the player.
+var boss_attacks_started := 0
+var boss_attack_hits := 0
+## Draws the warning zones of boss attacks.
+var attacks: BossAttacks
 
 var _kinds: Array = []
 var _spawn: Dictionary
@@ -53,6 +62,16 @@ var _yaw := PackedFloat32Array()
 ## Ranged enemies: seconds until the next throw.
 var _cool := PackedFloat32Array()
 var _mms: Array[MultiMesh] = []
+
+## Boss fight state (one boss at a time): seconds until its next attack, how
+## long it stands still winding up, which attack comes next, a dash or leap
+## it is doing (or will do after the wind-up) and attacks waiting to land.
+var _boss_cooldown := 0.0
+var _boss_hold := 0.0
+var _boss_next := 0
+var _dash := {}
+var _pending_dash := {}
+var _strikes: Array = []
 
 var _shot_pos := PackedVector3Array()
 var _shot_vel := PackedVector3Array()
@@ -103,6 +122,11 @@ func setup(p_terrain: Terrain, p_player: CharacterBody3D, bounds: float) -> void
 	shots.material_override = shot_mat
 	add_child(shots)
 
+	attacks = BossAttacks.new()
+	attacks.name = "BossAttacks"
+	attacks.terrain = terrain
+	add_child(attacks)
+
 
 func count() -> int:
 	return _pos.size()
@@ -141,6 +165,9 @@ func clear() -> void:
 	shots_fired = 0
 	_spawn_timer = 0.0
 	_announced.clear()
+	_reset_boss_fight()
+	boss_attacks_started = 0
+	boss_attack_hits = 0
 
 
 ## Kills every enemy without rewards (developer menu).
@@ -149,11 +176,13 @@ func kill_all_silently() -> void:
 	var k := kills
 	var s := shots_fired
 	var b := _next_boss
+	var started := boss_attacks_started
 	clear()
 	_next_boss = b
 	run_time = t
 	kills = k
 	shots_fired = s
+	boss_attacks_started = started
 	for kd: Dictionary in _kinds:
 		if _unlocked(kd):
 			_announced[kd.id] = true
@@ -166,6 +195,7 @@ func _physics_process(delta: float) -> void:
 	_update_spawning(delta)
 	_update_movement(delta)
 	_update_shots(delta)
+	_update_strikes(delta)
 
 
 func _process(_delta: float) -> void:
@@ -192,15 +222,17 @@ func _update_spawning(delta: float) -> void:
 			if float(k.unlockAt) > 0.0 and not k.get("boss", false):
 				kind_unlocked.emit(str(k.name))
 
-	# Bosses arrive at fixed times.
+	# Bosses arrive at fixed times, in order (the list repeats).
 	var boss_times: Array = _spawn.bossTimes
 	if _next_boss < boss_times.size() and run_time >= float(boss_times[_next_boss]):
-		_next_boss += 1
+		var order: Array = _spawn.bossOrder
 		var a := _rng.randf() * TAU
-		var from := player.global_position + Vector3(cos(a), 0.0, sin(a)) * float(_spawn.ringMin)
-		if spawn("boss", from, true):
-			boss_spawned.emit(str(_kinds[_kind_index("boss")].name))
+		spawn_boss(str(order[_next_boss % order.size()]), player.global_position + Vector3(cos(a), 0.0, sin(a)) * 16.0)
+		_next_boss += 1
 
+	# Nothing else spawns during a boss fight.
+	if boss_index() >= 0:
+		return
 	_spawn_timer -= delta
 	if _spawn_timer > 0.0:
 		return
@@ -257,6 +289,35 @@ func spawn(id: String, at: Vector3, force := false) -> bool:
 	return true
 
 
+## Starts a boss fight: every other enemy (and thrown rock) leaves without
+## rewards and the boss `id` appears at `at`.
+func spawn_boss(id: String, at: Vector3) -> bool:
+	for i in range(_pos.size() - 1, -1, -1):
+		if not _kinds[_kind[i]].get("boss", false):
+			_remove(i)
+	_shot_pos.clear()
+	_shot_vel.clear()
+	_shot_life.clear()
+	_shot_damage.clear()
+	if not spawn(id, at, true):
+		return false
+	_reset_boss_fight()
+	_boss_cooldown = 2.5
+	boss_spawned.emit(str(_kinds[_kind_index(id)].name))
+	return true
+
+
+func _reset_boss_fight() -> void:
+	_boss_cooldown = 0.0
+	_boss_hold = 0.0
+	_boss_next = 0
+	_dash = {}
+	_pending_dash = {}
+	_strikes.clear()
+	if attacks:
+		attacks.clear()
+
+
 func _kind_index(id: String) -> int:
 	for i in _kinds.size():
 		if _kinds[i].id == id:
@@ -280,6 +341,9 @@ func _update_movement(delta: float) -> void:
 
 	for i in _pos.size():
 		var kd: Dictionary = _kinds[_kind[i]]
+		if kd.get("boss", false):
+			_update_boss(i, kd, delta, speed_scale, damage_scale)
+			continue
 		var radius := float(kd.radius)
 		var p := _pos[i]
 		var to_player := Vector2(target.x - p.x, target.z - p.z)
@@ -340,6 +404,160 @@ func _update_movement(delta: float) -> void:
 			player.call("take_damage", float(kd.damage) * damage_scale)
 
 
+## Boss: walks to the player, and every few seconds winds up one of its
+## attacks (in turn), standing still while the warning zone fills.
+func _update_boss(i: int, kd: Dictionary, delta: float, speed_scale: float, damage_scale: float) -> void:
+	var p := _pos[i]
+	var target := player.global_position
+	var to_player := Vector2(target.x - p.x, target.z - p.z)
+	var dist := to_player.length()
+	var dir: Vector2 = to_player / dist if dist > 0.01 else Vector2.ZERO
+	var radius := float(kd.radius)
+	_flash[i] = maxf(0.0, _flash[i] - delta)
+
+	if not _dash.is_empty():
+		# Charging or leaping along a fixed path.
+		_dash.t = float(_dash.t) + delta
+		var f := minf(1.0, float(_dash.t) / float(_dash.duration))
+		var flat: Vector2 = (_dash.from as Vector2).lerp(_dash.to, f)
+		p = Vector3(flat.x, terrain.height_at(flat.x, flat.y) + sin(f * PI) * float(_dash.arc), flat.y)
+		_pos[i] = p
+		_phase[i] += delta * 14.0
+		var touching := Vector2(target.x - p.x, target.z - p.z).length() < radius + 0.6
+		if float(_dash.arc) == 0.0 and touching and not bool(_dash.hit):
+			_dash.hit = true
+			player.call("take_damage", float(_dash.damage))
+		if f >= 1.0:
+			if _dash.has("land"):
+				# The leap lands: everything in the warning circle is hit.
+				var land: Dictionary = _dash.land
+				_damage_if_inside([land], float(_dash.damage))
+			_dash = {}
+		return
+
+	if _boss_hold > 0.0:
+		_boss_hold -= delta
+		if _boss_hold <= 0.0 and not _pending_dash.is_empty():
+			_dash = _pending_dash
+			_pending_dash = {}
+	else:
+		if dist > radius + 1.0:
+			var step := dir * float(kd.speed) * speed_scale * delta
+			p.x = clampf(p.x + step.x, -_bounds, _bounds)
+			p.z = clampf(p.z + step.y, -_bounds, _bounds)
+			p.y = terrain.height_at(p.x, p.z)
+			_pos[i] = p
+			_phase[i] += delta * 5.0
+		_boss_cooldown -= delta
+		if _boss_cooldown <= 0.0 and dist < 30.0:
+			start_boss_attack(i)
+	if dist > 0.01:
+		_yaw[i] = lerp_angle(_yaw[i], atan2(dir.x, dir.y), minf(1.0, delta * 6.0))
+	if dist < radius + 0.45 and absf(target.y - p.y) < 2.0:
+		player.call("take_damage", float(kd.damage) * damage_scale)
+
+
+## Winds up the boss's next attack (or the one of type `only`, for tests).
+func start_boss_attack(i: int, only := "") -> void:
+	var kd: Dictionary = _kinds[_kind[i]]
+	var list: Array = kd.attacks
+	var a: Dictionary = list[_boss_next % list.size()]
+	if only != "":
+		for candidate: Dictionary in list:
+			if candidate.type == only:
+				a = candidate
+	_boss_next += 1
+	boss_attacks_started += 1
+	var warn := float(a.telegraph)
+	_boss_cooldown = float(kd.attackCooldown) + warn
+	var dmg := float(a.damage) * growth("damageGrowthPerMinute")
+	var color := Color(str(a.get("color", "#ff2b2b")))
+	var p := _pos[i]
+	var me := Vector2(p.x, p.z)
+	var target := Vector2(player.global_position.x, player.global_position.z)
+	var dir := (target - me).normalized() if me.distance_to(target) > 0.1 else Vector2(0, 1)
+	match str(a.type):
+		"charge":
+			# Rushes forward in a straight line.
+			var end := _clamp_flat(me + dir * float(a.length))
+			attacks.line(_ground(me), _ground(end), float(a.width), warn, color)
+			_boss_hold = warn
+			_pending_dash = {"from": me, "to": end, "t": 0.0, "duration": me.distance_to(end) / float(a.speed), "arc": 0.0, "damage": dmg, "hit": false}
+		"leap":
+			# Jumps high and lands on where the player stood.
+			var spot := _clamp_flat(target)
+			attacks.circle(_ground(spot), float(a.radius), warn + 0.55, color)
+			_boss_hold = warn
+			_pending_dash = {"from": me, "to": spot, "t": 0.0, "duration": 0.55, "arc": 7.0, "damage": dmg, "hit": false,
+				"land": {"type": "circle", "center": spot, "radius": float(a.radius)}}
+		"slam":
+			# Smashes the ground all around itself.
+			attacks.circle(_ground(me), float(a.radius), warn, color)
+			_boss_hold = warn + 0.3
+			_strikes.append({"time": warn, "damage": dmg, "shapes": [{"type": "circle", "center": me, "radius": float(a.radius)}]})
+		"meteor":
+			# Rocks (or eggs) fall from the sky: one on the player, more around.
+			var shapes: Array = []
+			for n in int(a.count):
+				var spot := target if n == 0 else target + Vector2.from_angle(_rng.randf() * TAU) * _rng.randf_range(2.0, float(a.spread))
+				spot = _clamp_flat(spot)
+				shapes.append({"type": "circle", "center": spot, "radius": float(a.radius)})
+				attacks.circle(_ground(spot), float(a.radius), warn, color, true)
+			_boss_hold = 0.6
+			_strikes.append({"time": warn, "damage": dmg, "shapes": shapes})
+		"web":
+			# A fan of web lines shoots out towards the player.
+			var shapes: Array = []
+			var count := int(a.count)
+			for n in count:
+				var angle := (n - (count - 1) * 0.5) * deg_to_rad(float(a.spreadDegrees))
+				var end := _clamp_flat(me + dir.rotated(angle) * float(a.length))
+				shapes.append({"type": "line", "from": me, "to": end, "width": float(a.width)})
+				attacks.line(_ground(me), _ground(end), float(a.width), warn, color)
+			_boss_hold = warn
+			_strikes.append({"time": warn, "damage": dmg, "shapes": shapes})
+
+
+## Attacks whose warning ran out hit the player if they are still inside.
+func _update_strikes(delta: float) -> void:
+	var i := 0
+	while i < _strikes.size():
+		var s: Dictionary = _strikes[i]
+		s.time = float(s.time) - delta
+		if float(s.time) <= 0.0:
+			_damage_if_inside(s.shapes, float(s.damage))
+			_strikes.remove_at(i)
+		else:
+			i += 1
+
+
+## Hits the player once if they stand in any of the shapes.
+func _damage_if_inside(shapes: Array, amount: float) -> bool:
+	var at := Vector2(player.global_position.x, player.global_position.z)
+	for shape: Dictionary in shapes:
+		var inside := false
+		if shape.type == "circle":
+			inside = at.distance_to(shape.center) <= float(shape.radius) + 0.3
+		else:
+			var a: Vector2 = shape.from
+			var b: Vector2 = shape.to
+			var closest := Geometry2D.get_closest_point_to_segment(at, a, b)
+			inside = at.distance_to(closest) <= float(shape.width) * 0.5 + 0.3
+		if inside:
+			boss_attack_hits += 1
+			player.call("take_damage", amount)
+			return true
+	return false
+
+
+func _ground(flat: Vector2) -> Vector3:
+	return Vector3(flat.x, terrain.height_at(flat.x, flat.y), flat.y)
+
+
+func _clamp_flat(v: Vector2) -> Vector2:
+	return Vector2(clampf(v.x, -_bounds, _bounds), clampf(v.y, -_bounds, _bounds))
+
+
 func _throw(from: Vector3, dir: Vector3, speed: float, dmg: float) -> void:
 	if _shot_pos.size() >= MAX_SHOTS:
 		return
@@ -387,7 +605,7 @@ func _update_render() -> void:
 			scale_v = Vector3(1.0 + 0.12 * (1.0 - bounce), 0.85 + 0.3 * bounce, 1.0 + 0.12 * (1.0 - bounce))
 			lift = float(_kinds[k].radius) * 0.6 + bounce * 0.35
 		else:
-			scale_v = Vector3.ONE
+			scale_v = Vector3.ONE * float(_kinds[k].get("scale", 1.0))
 			lift = bounce * 0.08
 		if _flash[i] > 0.0:
 			# Squashed flat for a moment when hit.
