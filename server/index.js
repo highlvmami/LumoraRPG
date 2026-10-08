@@ -23,6 +23,9 @@
 //   {t:"leave"}                  leave the room (a leaving host closes it)
 //   {t:"invite", to}             invite an online account to your room
 //   {t:"game", d, to?}           co-op data for the room (or one member)
+//   {t:"hub_join", look?}        sit down in the big hub tavern (everyone online can come)
+//   {t:"hub_leave"}              get up and leave the hub tavern
+//   {t:"chat", text}             say something in the hub tavern
 //   {t:"ping"}
 // To a client:
 //   {t:"welcome", id}  {t:"auth", ...}  {t:"saved", at}  {t:"who", online, levels}
@@ -30,6 +33,7 @@
 //   {t:"online_list", names, levels}  {t:"exists", name, found}  {t:"password", ok, msg, token}  {t:"room", code, host, members, you}
 //   {t:"room_closed", reason}  {t:"invited", from, code}  {t:"invite_sent", to}
 //   {t:"game", from, d}  {t:"error", msg}  {t:"pong"}
+//   {t:"hub", members:[{id, name, look, seat, level}], you, chat:[{name, text, at}]}  {t:"hub_chat", id, name, text, at}
 
 const http = require("http");
 const { WebSocketServer } = require("ws");
@@ -42,6 +46,10 @@ const MAX_FAILS = 8;
 const MAX_LOOK = 1500;
 const BOARD_SIZE = 20;
 const BOARD_CACHE_MS = 15000;
+const HUB_SEATS = 24;
+const CHAT_KEEP = 40;
+const CHAT_MAX = 200;
+const CHAT_GAP_MS = 600;
 
 // Leaderboard categories: where the number is in the saved game.
 const BOARDS = {
@@ -59,6 +67,8 @@ const accounts = new Accounts(process.env.DATABASE_URL);
 
 const clients = new Map(); // id -> client
 const rooms = new Map(); // code -> room
+// The hub tavern: one big room for everyone online, with seats and a chat.
+const hub = { seats: new Map(), chat: [] }; // seats: client id -> seat number
 let nextId = 1;
 
 function send(c, msg) {
@@ -133,6 +143,70 @@ function setLook(c, look) {
   return true;
 }
 
+async function hubInfo(you) {
+  const ids = [...hub.seats.keys()];
+  const names = ids.map((id) => clients.get(id)?.name || "?");
+  const levels = await accounts.levels(names);
+  return {
+    t: "hub",
+    you,
+    members: ids.map((id, n) => {
+      const c = clients.get(id);
+      return { id, name: names[n], look: c?.look || null, seat: hub.seats.get(id), level: levels[names[n]] || 0 };
+    }),
+    chat: hub.chat,
+  };
+}
+
+async function broadcastHub() {
+  const info = await hubInfo(0);
+  for (const id of hub.seats.keys()) {
+    const c = clients.get(id);
+    if (c) send(c, { ...info, you: id });
+  }
+}
+
+function hubJoin(c) {
+  if (hub.seats.has(c.id)) return broadcastHub();
+  const taken = new Set(hub.seats.values());
+  let seat = -1;
+  for (let s = 0; s < HUB_SEATS; s++) {
+    if (!taken.has(s)) {
+      seat = s;
+      break;
+    }
+  }
+  if (seat < 0) return send(c, { t: "error", msg: "Taverna dolu, biraz sonra tekrar dene." });
+  hub.seats.set(c.id, seat);
+  return broadcastHub();
+}
+
+function hubLeave(c) {
+  if (!hub.seats.delete(c.id)) return;
+  broadcastHub().catch((e) => console.error("hub update failed", e));
+}
+
+// A chat line: one line of plain text, not too long, not too often.
+function hubChat(c, text) {
+  if (!hub.seats.has(c.id)) return send(c, { t: "error", msg: "Sohbet için tavernada olmalısın." });
+  const now = Date.now();
+  if (now - (c.lastChat || 0) < CHAT_GAP_MS) return;
+  const clean = String(text ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .trim()
+    .slice(0, CHAT_MAX);
+  if (!clean) return;
+  c.lastChat = now;
+  const line = { name: c.name, text: clean, at: now };
+  hub.chat.push(line);
+  if (hub.chat.length > CHAT_KEEP) hub.chat.shift();
+  const out = JSON.stringify({ t: "hub_chat", id: c.id, ...line });
+  for (const id of hub.seats.keys()) {
+    const m = clients.get(id);
+    if (m && m.ws.readyState === 1) m.ws.send(out);
+  }
+}
+
 async function topRows(cat) {
   const hit = boardCache.get(cat);
   if (hit && Date.now() - hit.at < BOARD_CACHE_MS) return hit.rows;
@@ -190,9 +264,18 @@ async function handle(c, msg) {
       return send(c, { t: "leaderboard", cat, rows, me });
     }
     case "look": {
-      if (setLook(c, msg.look) && c.room && rooms.has(c.room)) broadcastRoom(rooms.get(c.room));
+      if (!setLook(c, msg.look)) return;
+      if (c.room && rooms.has(c.room)) broadcastRoom(rooms.get(c.room));
+      if (hub.seats.has(c.id)) await broadcastHub();
       return;
     }
+    case "hub_join":
+      setLook(c, msg.look);
+      return hubJoin(c);
+    case "hub_leave":
+      return hubLeave(c);
+    case "chat":
+      return hubChat(c, msg.text);
     case "create": {
       setLook(c, msg.look);
       if (c.room) leaveRoom(c);
@@ -230,7 +313,7 @@ async function handle(c, msg) {
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
-  res.end(`Lumora online sunucusu çalışıyor. Çevrimiçi: ${clients.size}, oda: ${rooms.size}\n`);
+  res.end(`Lumora online sunucusu çalışıyor. Çevrimiçi: ${clients.size}, oda: ${rooms.size}, tavernada: ${hub.seats.size}\n`);
 });
 
 const wss = new WebSocketServer({ server, maxPayload: 2 * 1024 * 1024 });
@@ -255,6 +338,7 @@ wss.on("connection", (ws) => {
   });
   ws.on("close", () => {
     leaveRoom(c);
+    hubLeave(c);
     clients.delete(c.id);
   });
 });
@@ -285,4 +369,4 @@ const ready = accounts
       )
   );
 
-module.exports = { server, wss, ready, boardCache };
+module.exports = { server, wss, ready, boardCache, hub };

@@ -16,6 +16,20 @@ const PALETTE := {
 }
 
 const GRIDS := {
+	"mug": [
+		"............",
+		"..wwwwww....",
+		".wwwwwwww...",
+		".kkkkkkkk...",
+		".kooooook...",
+		".kooooookkk.",
+		".kooyoook.k.",
+		".kooyoook.k.",
+		".kooooookkk.",
+		".kooooook...",
+		".kooooook...",
+		".kkkkkkkk...",
+	],
 	"trophy": [
 		"..kkkkkkkk..",
 		"kkkyywyyykkk",

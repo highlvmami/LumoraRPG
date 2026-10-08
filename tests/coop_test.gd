@@ -69,6 +69,21 @@ func _run() -> void:
 		return names.has("Misafir") and names.has("EvSahibi") and not (board.get("me", {}) as Dictionary).is_empty()), "the online leaderboard lists the players")
 	host.net.ask_who(["Misafir"])
 	_check(await _until(func() -> bool: return host.net.level_of("Misafir") >= 1), "a friend's account level comes from the server")
+
+	# The hub tavern: both come in, sit down and chat.
+	host.main_menu.open_section("hub")
+	guest.main_menu.open_section("hub")
+	_check(await _until(func() -> bool:
+		return host.main_menu.get("_hub_view") != null and (host.main_menu.get("_hub_view").seated() as Array).size() == 2),
+		"both players sit in the hub tavern")
+	_check(int(host.main_menu.get("_hub_view").seat_count()) >= 20, "the hub tavern is a big hall")
+	guest.main_menu.get("_hub_edit").text = "Selam millet!"
+	_check(guest.main_menu.send_hub_chat(), "a chat line can be sent in the tavern")
+	_check(await _until(func() -> bool: return host.main_menu.get("_hub_log").get_parsed_text().contains("Selam millet!")),
+		"the chat line shows for the other player")
+	_check(str(host.main_menu.get("_hub_view").bubble_text(guest.net.my_id)) == "Selam millet!", "the line pops up over the speaker's head")
+	guest.main_menu.open_section("characters")
+	_check(await _until(func() -> bool: return host.net.hub_members.size() == 1), "leaving the tavern page gets the player up")
 	host.main_menu.open_section("friends")
 
 	# Only the host starts; the friend's game follows on the same map.
