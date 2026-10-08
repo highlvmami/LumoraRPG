@@ -72,6 +72,23 @@ func class_info(class_id: String) -> Dictionary:
 	return classes.get(class_id, classes.archer)
 
 
+## Look of a character for PlayerModel.build: class colors, plus each worn
+## piece of gear drawn in its rarity color (weapons get more detailed by tier).
+func character_look(c: Dictionary) -> Dictionary:
+	var info := class_info(str(c.get("class", "archer")))
+	var look := {"class": str(c.get("class", "archer")), "tunic": info.tunic, "hair": info.hair, "weapon_tier": -1}
+	var weapon := equipped(c, "weapon")
+	if not weapon.is_empty():
+		look.weapon_tier = gear.tier(int(weapon.rarity))
+		look.weapon_color = info.color if int(weapon.rarity) == 0 else str(gear.rarity(int(weapon.rarity)).color)
+	for slot: String in ["helmet", "armor", "gloves", "boots"]:
+		var it := equipped(c, slot)
+		if not it.is_empty():
+			look[slot + "_color"] = str(gear.rarity(int(it.rarity)).color)
+			look[slot + "_tier"] = gear.tier(int(it.rarity))
+	return look
+
+
 # --- Items ------------------------------------------------------------------
 
 func items() -> Array:
@@ -134,9 +151,10 @@ func unequip(char_id: int, slot_id: String) -> void:
 
 
 func equipped(c: Dictionary, slot_id: String) -> Dictionary:
-	if c.is_empty() or not (c.equipment as Dictionary).has(slot_id):
+	var worn: Dictionary = c.get("equipment", {})
+	if not worn.has(slot_id):
 		return {}
-	return item(int(c.equipment[slot_id]))
+	return item(int(worn[slot_id]))
 
 
 ## Sum of one stat over everything the character wears.

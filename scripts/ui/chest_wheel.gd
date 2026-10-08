@@ -4,7 +4,7 @@
 extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
-const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
+const ItemArt := preload("res://scripts/ui/item_art.gd")
 const Gear := preload("res://scripts/progression/gear.gd")
 
 ## The result panel was closed.
@@ -75,7 +75,7 @@ func setup(p_gear: Gear) -> void:
 	_result_box = VBoxContainer.new()
 	_result_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	_result_box.add_theme_constant_override("separation", 6)
-	_result_box.custom_minimum_size.y = 230
+	_result_box.custom_minimum_size.y = 270
 	column.add_child(_result_box)
 	_result_icon = CenterContainer.new()
 	_result_box.add_child(_result_icon)
@@ -142,7 +142,7 @@ func _show_result() -> void:
 	var color := gear.rarity_color(int(result.rarity))
 	for child in _result_icon.get_children():
 		child.queue_free()
-	_result_icon.add_child(PixelIcons.item_rect(gear.item_icon(result), int(result.rarity), color, 96))
+	_result_icon.add_child(ItemArt.make(result, color, gear.tier(int(result.rarity)), 120))
 	_result_name.text = gear.item_name(result)
 	_result_name.label_settings = UiTheme.label_settings(32, color, 6)
 	var cls := gear.item_class(result)
@@ -178,5 +178,5 @@ func _tile(it: Dictionary) -> Control:
 	style.border_color = color
 	style.border_width_bottom = 8
 	tile.add_theme_stylebox_override("panel", style)
-	tile.add_child(PixelIcons.item_rect(gear.item_icon(it), int(it.rarity), color, TILE - 24))
+	tile.add_child(ItemArt.make(it, color, gear.tier(int(it.rarity)), TILE - 16))
 	return tile

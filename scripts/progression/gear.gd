@@ -41,6 +41,11 @@ func rarity_color(index: int) -> Color:
 	return Color(str(rarity(index).color))
 
 
+## Detail tier of an item's picture and model: 0 common/rare, 1 very rare/epic, 2 legendary/divine.
+func tier(rarity_index: int) -> int:
+	return 0 if rarity_index < 2 else (1 if rarity_index < 4 else 2)
+
+
 func chest(index: int) -> Dictionary:
 	return chests[clampi(index, 0, chests.size() - 1)]
 

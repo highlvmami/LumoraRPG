@@ -23,7 +23,6 @@ const Progression := preload("res://scripts/progression/progression.gd")
 const Shop := preload("res://scripts/progression/shop.gd")
 const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
-const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 const ChestWheel := preload("res://scripts/ui/chest_wheel.gd")
 const LoginScreen := preload("res://scripts/ui/login_screen.gd")
 const MainMenu := preload("res://scripts/ui/main_menu.gd")
@@ -301,18 +300,9 @@ func class_id() -> String:
 	return str(_character["class"]) if not _character.is_empty() else "archer"
 
 
-## Look of a character for PlayerModel.build: class colors plus worn gear.
+## Look of a character for PlayerModel.build (class colors plus worn gear).
 func character_look(c: Dictionary) -> Dictionary:
-	var info := inventory.class_info(str(c["class"]))
-	var look := {"class": str(c["class"]), "tunic": info.tunic, "hair": info.hair, "weapon_tier": -1}
-	var weapon := inventory.equipped(c, "weapon")
-	if not weapon.is_empty():
-		look.weapon_tier = PixelIcons.tier(int(weapon.rarity))
-		look.weapon_color = info.color if int(weapon.rarity) == 0 else str(inventory.gear.rarity(int(weapon.rarity)).color)
-	var helmet := inventory.equipped(c, "helmet")
-	if not helmet.is_empty():
-		look.helmet_color = str(inventory.gear.rarity(int(helmet.rarity)).color)
-	return look
+	return inventory.character_look(c)
 
 
 ## Opens a chest from the backpack with the spinning wheel. The item is

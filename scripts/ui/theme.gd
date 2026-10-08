@@ -46,8 +46,8 @@ static func theme() -> Theme:
 		return _theme
 	_theme = Theme.new()
 	_theme.default_font_size = 22
-	_theme.set_stylebox("normal", "Button", box(BUTTON, 8, 10))
-	_theme.set_stylebox("hover", "Button", box(BUTTON_HOVER, 8, 10))
+	_theme.set_stylebox("normal", "Button", _raised(BUTTON))
+	_theme.set_stylebox("hover", "Button", _raised(BUTTON_HOVER))
 	_theme.set_stylebox("pressed", "Button", box(BUTTON_PRESSED, 8, 10))
 	_theme.set_stylebox("disabled", "Button", box(Color(0.2, 0.22, 0.25, 0.8), 8, 10))
 	_theme.set_stylebox("focus", "Button", StyleBoxEmpty.new())
@@ -55,9 +55,24 @@ static func theme() -> Theme:
 	_theme.set_color("font_hover_color", "Button", Color.WHITE)
 	_theme.set_stylebox("normal", "LineEdit", box(Color(0, 0, 0, 0.55), 6, 10))
 	_theme.set_stylebox("focus", "LineEdit", box(Color(0, 0, 0, 0.7), 6, 10))
-	_theme.set_stylebox("panel", "PanelContainer", box(PANEL, 12, 18))
+	var panel := box(PANEL, 12, 18)
+	panel.set_border_width_all(1)
+	panel.border_color = Color("#2f4052")
+	panel.shadow_color = Color(0, 0, 0, 0.4)
+	panel.shadow_size = 8
+	_theme.set_stylebox("panel", "PanelContainer", panel)
+	var tip := box(Color(0.05, 0.07, 0.1, 0.0), 8, 0)
+	_theme.set_stylebox("panel", "TooltipPanel", tip)
 	_theme.set_color("font_color", "Label", TEXT)
 	return _theme
+
+
+## A button style with a darker bottom edge so it looks pressable.
+static func _raised(color: Color) -> StyleBoxFlat:
+	var s := box(color, 8, 10)
+	s.border_width_bottom = 3
+	s.border_color = color.darkened(0.35)
+	return s
 
 
 ## A big green call-to-action button.
