@@ -268,6 +268,7 @@ func start_run() -> void:
 	var info := inventory.class_info(class_id())
 	var archer := class_id() == "archer"
 	weapons.uses_bow = archer
+	weapons.class_id = class_id()
 	if not archer:
 		weapons.add(str(info.weapon))
 	hud.character_name = str(_character.name)
@@ -339,16 +340,21 @@ func _apply_stats() -> void:
 	bow.attack_speed_multiplier = 1.0 + _extra("attackSpeed")
 	bow.range_bonus = _extra("range")
 	bow.crit_chance = minf(1.0, bow.base_crit_chance + _extra("critChance"))
+	bow.double_chance = _extra("doubleChance")
+	weapons.double_chance = bow.double_chance
 	bow.crit_multiplier = bow.base_crit_multiplier + _extra("critDamage")
 	range_ring.radius = _attack_range()
 	hud.set_stats(stat_list())
 
 
-## Level-up cards: random boosts and weapons (new or upgrades). When any
-## weapon can be offered, at least one card is a weapon.
+## Level-up cards: random boosts and weapons (new or upgrades), including the
+## ones only the character's class can take. When any weapon can be offered,
+## at least one card is a weapon.
 func roll_level_up_choices() -> Array:
 	var boost_cards: Array = []
 	for d: Dictionary in boosts.defs:
+		if d.has("class") and str(d["class"]) != class_id():
+			continue
 		if boosts.count(d.id) < int(d.maxStacks):
 			boost_cards.append({"id": d.id, "type": "boost", "def": d, "now": boosts.count(d.id), "max": int(d.maxStacks)})
 	var weapon_cards: Array = []
@@ -463,7 +469,7 @@ func cheat(id: String) -> void:
 
 
 func _can_pause() -> bool:
-	return in_run and not player.dead and not level_up_screen.visible
+	return in_run and not player.dead
 
 
 func _on_popup_closed() -> void:
@@ -560,6 +566,7 @@ func _on_level_up(level: int) -> void:
 
 
 func _on_player_died() -> void:
+	level_up_screen.close()
 	enemies.active = false
 	bow.active = false
 	weapons.active = false

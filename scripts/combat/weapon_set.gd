@@ -23,6 +23,8 @@ const MAX_FIREBALLS := 32
 const BOLT_HEIGHT := 14.0
 const BOLT_STEPS := 8
 const BOLT_STEP_TIME := 0.05
+## Height arrows and meteors fall from.
+const SKY_HEIGHT := 10.0
 
 var player: CharacterBody3D
 var enemies: EnemyManager
@@ -34,6 +36,10 @@ var defs: Array = []
 var slots := 4
 ## True when the bow (outside this node) takes the first slot.
 var uses_bow := true
+## Class of the character; class-only weapons are offered only to it.
+var class_id := ""
+## Chance that the class weapon attacks again right away (class boosts).
+var double_chance := 0.0
 ## Weapon id -> level (only weapons picked this run).
 var levels := {}
 ## Weapon id -> total damage dealt this run.
@@ -133,6 +139,8 @@ func available_choices() -> Array:
 	var free_slot := levels.size() + (1 if uses_bow else 0) < slots
 	var out: Array = []
 	for d: Dictionary in defs:
+		if d.has("class") and str(d["class"]) != class_id:
+			continue
 		var lv := level(d.id)
 		var is_new_ok: bool = free_slot and not d.get("starter", false)
 		if (lv == 0 and is_new_ok) or (lv > 0 and lv < int(d.maxLevel)):
@@ -185,6 +193,10 @@ func _physics_process(delta: float) -> void:
 				_update_lightning(delta, d, level(id))
 			"aura":
 				_update_aura(delta, d, level(id))
+			"arrow_rain", "meteor":
+				_update_sky_strike(id, delta, d, level(id))
+			"shield_bash":
+				_update_shield_bash(delta, d, level(id))
 	_update_fireballs(delta)
 
 
@@ -291,6 +303,8 @@ func _update_slash(delta: float, d: Dictionary, lv: int) -> void:
 			arc.append(i)
 	_hit_all(arc, _base_damage(d, lv), center, "slash", true)
 	attacked.emit(dir)
+	if _rng.randf() < double_chance:
+		_timers["slash"] = 0.18
 	var swoosh := BoxMesh.new()
 	swoosh.size = Vector3(radius * 1.7, 0.05, radius)
 	var facing := Basis.looking_at(-dir, Vector3.UP)
@@ -318,6 +332,8 @@ func _update_magic(delta: float, d: Dictionary, lv: int) -> void:
 			targets.append(i)
 	for i: int in targets:
 		_launch(origin, enemies.position_of(i), float(d.speed), 1)
+	if _rng.randf() < double_chance:
+		_timers["magic"] = 0.15
 	var aim := enemies.position_of(first) - origin
 	aim.y = 0.0
 	attacked.emit(aim.normalized())
@@ -432,6 +448,79 @@ func _show_nodes(nodes: Array) -> void:
 	for node in nodes:
 		if is_instance_valid(node):
 			(node as Node3D).visible = true
+
+
+## Archer's arrow rain and mage's meteor: something falls from the sky onto
+## a random enemy in range and hits everything around where it lands.
+func _update_sky_strike(id: String, delta: float, d: Dictionary, lv: int) -> void:
+	if not _ready_to_fire(id, delta, float(d.cooldown)):
+		return
+	var near := Array(enemies.in_range(player.global_position, float(d.range) + bow.range_bonus))
+	if near.is_empty():
+		_timers[id] = 0.2
+		return
+	var at := enemies.position_of(near[_rng.randi() % near.size()])
+	at.y = terrain.height_at(at.x, at.z)
+	var radius := (float(d.radius) + float(d.radiusPerLevel) * (lv - 1)) * _area()
+	var root := Node3D.new()
+	add_child(root)
+	root.global_position = at
+	var tween := create_tween().set_parallel(true)
+	var fall := 0.75 if id == "meteor" else 0.45
+	if id == "meteor":
+		var rock := MeshInstance3D.new()
+		rock.mesh = _sphere_mesh(radius * 0.4)
+		rock.material_override = _bolt_material(Color(1.0, 0.45, 0.12, 1.0))
+		root.add_child(rock)
+		rock.position = Vector3(3.0, SKY_HEIGHT, -2.0)
+		tween.tween_property(rock, "position", Vector3(0, radius * 0.2, 0), fall).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	else:
+		var mat := _bolt_material(Color(1.0, 0.86, 0.5, 1.0))
+		for n in 9:
+			var arrow := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = Vector3(0.08, 1.0, 0.08)
+			arrow.mesh = box
+			arrow.material_override = mat
+			root.add_child(arrow)
+			var spot := Vector3.FORWARD.rotated(Vector3.UP, _rng.randf() * TAU) * _rng.randf() * radius
+			arrow.position = spot + Vector3.UP * (SKY_HEIGHT + _rng.randf() * 3.0)
+			tween.tween_property(arrow, "position", spot + Vector3.UP * 0.5, fall + _rng.randf() * 0.15).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(_area_hit.bind(at, radius, _base_damage(d, lv), id))
+	tween.chain().tween_callback(root.queue_free)
+
+
+## Warrior's shield bash: hits everything around and throws it far back.
+func _update_shield_bash(delta: float, d: Dictionary, lv: int) -> void:
+	if not _ready_to_fire("shield_bash", delta, float(d.cooldown)):
+		return
+	var radius := (float(d.radius) + float(d.radiusPerLevel) * (lv - 1)) * _area()
+	var center := player.global_position
+	var hits := enemies.in_range(center, radius)
+	if hits.is_empty():
+		_timers["shield_bash"] = 0.2
+		return
+	# Face the first target before hitting: a kill can free its slot.
+	var dir := enemies.position_of(hits[0]) - center
+	dir.y = 0.0
+	for n in range(hits.size() - 1, -1, -1):
+		var i := hits[n]
+		var push := enemies.position_of(i) - center
+		push.y = 0.0
+		_hit(i, _base_damage(d, lv), push.normalized() * float(d.push), "shield_bash")
+	attacked.emit(dir.normalized())
+	var ring := CylinderMesh.new()
+	ring.top_radius = radius
+	ring.bottom_radius = radius
+	ring.height = 0.3
+	_flash(ring, center + Vector3.UP * 0.4, Color(0.62, 0.76, 1.0, 0.55), 0.3)
+
+
+func _area_hit(at: Vector3, radius: float, damage: float, id: String) -> void:
+	var color := Color(1.0, 0.45, 0.12, 0.6) if id == "meteor" else Color(1.0, 0.9, 0.6, 0.45)
+	_flash(_sphere_mesh(radius), at + Vector3.UP * 0.3, color, 0.4)
+	if active:
+		_hit_all(enemies.in_range(at, radius), damage, at, id, true)
 
 
 func _update_aura(delta: float, d: Dictionary, lv: int) -> void:
