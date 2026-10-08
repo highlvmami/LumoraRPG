@@ -19,6 +19,11 @@ signal attacked(direction: Vector3)
 const MAX_BLADES := 8
 const MAX_FIREBALLS := 32
 
+## Lightning bolt look: height, zigzag pieces and how long each piece takes to appear.
+const BOLT_HEIGHT := 14.0
+const BOLT_STEPS := 8
+const BOLT_STEP_TIME := 0.05
+
 var player: CharacterBody3D
 var enemies: EnemyManager
 var bow: AutoBow
@@ -360,11 +365,73 @@ func _update_lightning(delta: float, d: Dictionary, lv: int) -> void:
 	picks.sort()
 	picks.reverse()
 	for i: int in picks:
-		var at := enemies.position_of(i)
-		var bolt := BoxMesh.new()
-		bolt.size = Vector3(0.25, 14.0, 0.25)
-		_flash(bolt, at + Vector3.UP * 7.0, Color(0.7, 0.9, 1.0, 0.9), 0.18)
-		_hit(i, _base_damage(d, lv), Vector3.ZERO, "lightning")
+		_bolt(enemies.position_of(i), enemies.uid_of(i), _base_damage(d, lv))
+
+
+## A thick zigzag bolt that grows down from the sky; the enemy is hit when it
+## reaches the ground (if it is still alive by then).
+func _bolt(at: Vector3, uid: int, damage: float) -> void:
+	var glow := _bolt_material(Color(0.55, 0.85, 1.0, 0.85))
+	var core := _bolt_material(Color(0.95, 0.98, 1.0, 1.0))
+	var root := Node3D.new()
+	add_child(root)
+	root.global_position = at
+	var points: Array[Vector3] = [Vector3(0, BOLT_HEIGHT, 0)]
+	for s in range(1, BOLT_STEPS + 1):
+		var p := Vector3(0, BOLT_HEIGHT * (1.0 - float(s) / BOLT_STEPS), 0)
+		if s < BOLT_STEPS:
+			p += Vector3(randf_range(-0.9, 0.9), 0, randf_range(-0.9, 0.9))
+		points.append(p)
+	var tween := create_tween()
+	for s in BOLT_STEPS:
+		var outer := _bolt_segment(points[s], points[s + 1], 0.6, glow)
+		var inner := _bolt_segment(points[s], points[s + 1], 0.22, core)
+		root.add_child(outer)
+		root.add_child(inner)
+		tween.tween_callback(_show_nodes.bind([outer, inner]))
+		tween.tween_interval(BOLT_STEP_TIME)
+	tween.tween_callback(_bolt_impact.bind(at, uid, damage))
+	tween.tween_interval(0.12)
+	tween.tween_property(glow, "albedo_color:a", 0.0, 0.45)
+	tween.parallel().tween_property(core, "albedo_color:a", 0.0, 0.45)
+	tween.tween_callback(root.queue_free)
+
+
+func _bolt_impact(at: Vector3, uid: int, damage: float) -> void:
+	_flash(_sphere_mesh(1.3), at + Vector3.UP * 0.3, Color(0.75, 0.92, 1.0, 0.8), 0.5)
+	if not active:
+		return
+	var i := enemies.index_of_uid(uid)
+	if i >= 0:
+		_hit(i, damage, Vector3.ZERO, "lightning")
+
+
+func _bolt_material(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = color
+	return mat
+
+
+func _bolt_segment(a: Vector3, b: Vector3, thickness: float, mat: Material) -> MeshInstance3D:
+	var box := BoxMesh.new()
+	box.size = Vector3(thickness, a.distance_to(b) + thickness * 0.5, thickness)
+	var seg := MeshInstance3D.new()
+	seg.mesh = box
+	seg.material_override = mat
+	seg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	seg.visible = false
+	var y := (b - a).normalized()
+	var x := y.cross(Vector3.FORWARD).normalized()
+	seg.transform = Transform3D(Basis(x, y, x.cross(y)), (a + b) * 0.5)
+	return seg
+
+
+func _show_nodes(nodes: Array) -> void:
+	for node in nodes:
+		if is_instance_valid(node):
+			(node as Node3D).visible = true
 
 
 func _update_aura(delta: float, d: Dictionary, lv: int) -> void:
