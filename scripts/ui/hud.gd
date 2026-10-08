@@ -33,7 +33,6 @@ var _stats_grid: GridContainer
 var _stat_values: Array[Label] = []
 var _stats: Label
 var _toast: Label
-var _start_hint: Control
 var _death: Control
 var _death_text: Label
 var _float_settings: LabelSettings
@@ -48,10 +47,10 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	enemies = p_enemies
 	camera = p_camera
 	world_scale = p_world_scale
-	_float_settings = UiTheme.label_settings(20, Color("#8fe3ff"), 5)
-	_gold_settings = UiTheme.label_settings(18, UiTheme.ACCENT, 5)
-	_hit_settings = UiTheme.label_settings(17, Color("#ffffff"), 4)
-	_crit_settings = UiTheme.label_settings(26, Color("#ff9a3c"), 6)
+	_float_settings = UiTheme.label_settings(14, Color("#8fe3ff"), 4)
+	_gold_settings = UiTheme.label_settings(13, UiTheme.ACCENT, 4)
+	_hit_settings = UiTheme.label_settings(15, Color("#ffffff"), 4)
+	_crit_settings = UiTheme.label_settings(22, Color("#ff9a3c"), 5)
 
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -76,7 +75,7 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	_stats = UiTheme.label("", UiTheme.label_settings(20))
 	_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top_right.add_child(_stats)
-	var controls := UiTheme.label("WASD yürü · BOŞLUK zıpla · FARE bak · ESC duraklat", UiTheme.label_settings(14, UiTheme.MUTED, 4))
+	var controls := UiTheme.label("WASD yürü · BOŞLUK zıpla · TIKLA + FARE bak · ESC duraklat · F1 hile", UiTheme.label_settings(14, UiTheme.MUTED, 4))
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top_right.add_child(controls)
 
@@ -89,9 +88,6 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	_toast.position.y = 110
 	_toast.modulate.a = 0.0
 	_root.add_child(_toast)
-
-	_start_hint = _overlay()
-	_start_hint.get_child(0).add_child(_centered_label("Oynamak için tıkla", 30))
 
 	_death = _overlay()
 	var death_box := _death.get_child(0) as VBoxContainer
@@ -113,6 +109,7 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	_death.visible = false
 
 	progression.account_level_up.connect(func(lv: int) -> void: _show_toast("HESAP SEVİYESİ %d!" % lv))
+	enemies.kind_unlocked.connect(func(kind_name: String) -> void: _show_toast("YENİ DÜŞMAN: %s" % kind_name.to_upper()))
 	enemies.enemy_killed.connect(_on_enemy_killed)
 
 
@@ -125,10 +122,6 @@ func hide_death() -> void:
 	_death.visible = false
 
 
-func hide_hint() -> void:
-	_start_hint.visible = false
-
-
 ## Updates the stat grid in the character panel; `stats` is a list of [name, value].
 func set_stats(stats: Array) -> void:
 	if _stat_values.size() != stats.size():
@@ -136,10 +129,10 @@ func set_stats(stats: Array) -> void:
 			child.queue_free()
 		_stat_values.clear()
 		for s: Array in stats:
-			_stats_grid.add_child(UiTheme.label(str(s[0]), UiTheme.label_settings(16, UiTheme.MUTED, 4)))
-			var value := UiTheme.label("", UiTheme.label_settings(18, UiTheme.TEXT, 4))
+			_stats_grid.add_child(UiTheme.label(str(s[0]), UiTheme.label_settings(12, UiTheme.MUTED, 3)))
+			var value := UiTheme.label("", UiTheme.label_settings(13, UiTheme.TEXT, 3))
 			value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			value.custom_minimum_size.x = 74
+			value.custom_minimum_size.x = 56
 			_stats_grid.add_child(value)
 			_stat_values.append(value)
 	for i in stats.size():
@@ -159,7 +152,6 @@ func show_hit(at_position: Vector3, amount: float, crit: bool) -> void:
 func _process(_delta: float) -> void:
 	if player == null or not visible:
 		return
-	_start_hint.visible = not _death.visible and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED
 	_account.text = "%s   ·   Hesap Sv. %d" % [progression.profile.name, progression.account_level()]
 	_account_bar.max_value = progression.exp_to_next_account_level()
 	_account_bar.value = progression.account_exp()
@@ -186,7 +178,7 @@ func _on_enemy_killed(at_position: Vector3, exp_amount: int, gold_amount: int) -
 	var screen := camera.unproject_position(at_position + Vector3.UP * 0.8) * world_scale
 	_float_text("+%d EXP" % exp_amount, _float_settings, screen)
 	if gold_amount > 0:
-		_float_text("+%d altın" % gold_amount, _gold_settings, screen + Vector2(0, 24))
+		_float_text("+%d altın" % gold_amount, _gold_settings, screen + Vector2(0, 16))
 
 
 func _float_text(text: String, settings: LabelSettings, at: Vector2) -> void:
@@ -210,55 +202,55 @@ func _show_toast(text: String) -> void:
 ## Bottom-center panel: portrait, name and level, health/exp bars, gold, stats.
 func _build_character_panel() -> void:
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiTheme.box(Color(0.06, 0.08, 0.11, 0.82), 14, 14))
+	panel.add_theme_stylebox_override("panel", UiTheme.box(Color(0.06, 0.08, 0.11, 0.8), 10, 8))
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 12)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 8)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_root.add_child(panel)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", 10)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(row)
 
 	# Portrait with the level badge under it.
 	var portrait_box := VBoxContainer.new()
-	portrait_box.add_theme_constant_override("separation", 4)
+	portrait_box.add_theme_constant_override("separation", 2)
 	row.add_child(portrait_box)
 	var portrait := PanelContainer.new()
 	var portrait_style := UiTheme.box(Color("#3d6b4a"), 10, 0)
-	portrait_style.set_border_width_all(3)
+	portrait_style.set_border_width_all(2)
 	portrait_style.border_color = UiTheme.ACCENT
 	portrait.add_theme_stylebox_override("panel", portrait_style)
-	portrait.custom_minimum_size = Vector2(76, 76)
+	portrait.custom_minimum_size = Vector2(48, 48)
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_box.add_child(portrait)
-	_portrait_letter = UiTheme.label("", UiTheme.label_settings(40, Color.WHITE, 8))
+	_portrait_letter = UiTheme.label("", UiTheme.label_settings(26, Color.WHITE, 6))
 	_portrait_letter.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_portrait_letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	portrait.add_child(_portrait_letter)
-	_level = UiTheme.label("", UiTheme.label_settings(20, UiTheme.ACCENT, 5))
+	_level = UiTheme.label("", UiTheme.label_settings(14, UiTheme.ACCENT, 4))
 	_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	portrait_box.add_child(_level)
 
 	# Name, health, exp and gold.
 	var bars := VBoxContainer.new()
-	bars.add_theme_constant_override("separation", 6)
-	bars.custom_minimum_size.x = 280
+	bars.add_theme_constant_override("separation", 4)
+	bars.custom_minimum_size.x = 200
 	bars.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(bars)
 	var name_row := HBoxContainer.new()
 	bars.add_child(name_row)
-	_name = UiTheme.label("", UiTheme.label_settings(22))
+	_name = UiTheme.label("", UiTheme.label_settings(16, UiTheme.TEXT, 4))
 	_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_row.add_child(_name)
-	_gold = UiTheme.label("", UiTheme.label_settings(20, UiTheme.ACCENT, 5))
+	_gold = UiTheme.label("", UiTheme.label_settings(14, UiTheme.ACCENT, 4))
 	name_row.add_child(_gold)
-	var hp := _labeled_bar(Color("#e0484f"), 22)
+	var hp := _labeled_bar(Color("#e0484f"), 15)
 	_hp_bar = hp[0]
 	_hp_text = hp[1]
 	bars.add_child(_hp_bar)
-	var xp := _labeled_bar(Color("#5fb8ff"), 16)
+	var xp := _labeled_bar(Color("#5fb8ff"), 11)
 	_exp_bar = xp[0]
 	_exp_text = xp[1]
 	bars.add_child(_exp_bar)
@@ -267,16 +259,16 @@ func _build_character_panel() -> void:
 
 	_stats_grid = GridContainer.new()
 	_stats_grid.columns = 4
-	_stats_grid.add_theme_constant_override("h_separation", 14)
-	_stats_grid.add_theme_constant_override("v_separation", 2)
+	_stats_grid.add_theme_constant_override("h_separation", 8)
+	_stats_grid.add_theme_constant_override("v_separation", 0)
 	_stats_grid.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_stats_grid)
 
 
 ## A progress bar with its text drawn centered on top of it.
 func _labeled_bar(color: Color, height: float) -> Array:
-	var bar := _bar(color, Vector2(280, height))
-	var text := UiTheme.label("", UiTheme.label_settings(14 if height < 20 else 16, UiTheme.TEXT, 4))
+	var bar := _bar(color, Vector2(200, height))
+	var text := UiTheme.label("", UiTheme.label_settings(10 if height < 13 else 12, UiTheme.TEXT, 3))
 	text.set_anchors_preset(Control.PRESET_FULL_RECT)
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

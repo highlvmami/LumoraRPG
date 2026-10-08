@@ -13,6 +13,7 @@ const CameraRig := preload("res://scripts/player/camera_rig.gd")
 const EnemyManager := preload("res://scripts/enemies/enemy_manager.gd")
 const AutoBow := preload("res://scripts/combat/auto_bow.gd")
 const RangeRing := preload("res://scripts/combat/range_ring.gd")
+const LootOrbs := preload("res://scripts/combat/loot_orbs.gd")
 const ProfileStore := preload("res://scripts/progression/profile_store.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const Shop := preload("res://scripts/progression/shop.gd")
@@ -22,6 +23,7 @@ const MainMenu := preload("res://scripts/ui/main_menu.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 const LevelUpScreen := preload("res://scripts/ui/level_up_screen.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
+const CheatMenu := preload("res://scripts/ui/cheat_menu.gd")
 
 ## How many screen pixels each 3D pixel covers, per graphics quality.
 const PIXEL_SCALES := {"low": 3, "medium": 2, "high": 1}
@@ -35,12 +37,14 @@ var menu_camera: Camera3D
 var enemies: EnemyManager
 var bow: AutoBow
 var range_ring: RangeRing
+var loot_orbs: LootOrbs
 var progression: Progression
 var shop: Shop
 var boosts := RunBoosts.new()
 var hud: Hud
 var level_up_screen: LevelUpScreen
 var pause_menu: PauseMenu
+var cheat_menu: CheatMenu
 var login_screen: LoginScreen
 var main_menu: MainMenu
 var store := ProfileStore.new()
@@ -91,7 +95,7 @@ func _process(delta: float) -> void:
 		_update_menu_camera(delta)
 		return
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-	if _was_captured and not captured:
+	if _was_captured and not captured and not cheat_menu.is_open():
 		pause_menu.open()
 	_was_captured = captured
 
@@ -125,6 +129,11 @@ func login(username: String) -> void:
 	bow.setup(player, enemies)
 	bow.fired.connect(player.play_attack)
 
+	loot_orbs = LootOrbs.new()
+	loot_orbs.name = "LootOrbs"
+	world.add_child(loot_orbs)
+	loot_orbs.setup(terrain)
+
 	range_ring = RangeRing.new()
 	range_ring.name = "RangeRing"
 	range_ring.terrain = terrain
@@ -156,6 +165,13 @@ func login(username: String) -> void:
 	pause_menu.quality_selected.connect(set_quality)
 	set_quality(str(profile.get("quality", DEFAULT_QUALITY)))
 
+	cheat_menu = CheatMenu.new()
+	add_child(cheat_menu)
+	cheat_menu.setup()
+	cheat_menu.changed.connect(_apply_stats)
+	cheat_menu.god_mode_toggled.connect(func(on: bool) -> void: player.god_mode = on)
+	cheat_menu.action_requested.connect(cheat)
+
 	main_menu = MainMenu.new()
 	add_child(main_menu)
 	main_menu.setup(progression, shop)
@@ -183,7 +199,9 @@ func show_menu() -> void:
 	player.visible = false
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	range_ring.visible = false
+	loot_orbs.clear()
 	hud.visible = false
+	cheat_menu.visible = false
 	camera_rig.capture_enabled = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	menu_camera.current = true
@@ -200,7 +218,9 @@ func start_run() -> void:
 	boosts.reset()
 	enemies.clear()
 	bow.clear()
+	loot_orbs.clear()
 	_run_gold = 0
+	cheat_menu.visible = true
 
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	player.visible = true
@@ -218,14 +238,14 @@ func start_run() -> void:
 
 ## Combines base stats, character level, market items and this run's boosts.
 func _apply_stats() -> void:
-	player.speed_multiplier = 1.0 + shop.bonus("speedBonus") + boosts.total("moveSpeed")
-	player.regen = boosts.total("regen")
+	player.speed_multiplier = 1.0 + shop.bonus("speedBonus") + _extra("moveSpeed")
+	player.regen = _extra("regen")
 	player.set_max_hp(_max_hp())
-	bow.damage_multiplier = progression.damage_multiplier() + shop.bonus("damageBonus") + boosts.total("damage")
-	bow.attack_speed_multiplier = 1.0 + shop.bonus("attackSpeedBonus") + boosts.total("attackSpeed")
-	bow.range_bonus = shop.bonus("rangeBonus") + boosts.total("range")
-	bow.crit_chance = minf(1.0, bow.base_crit_chance + boosts.total("critChance"))
-	bow.crit_multiplier = bow.base_crit_multiplier + boosts.total("critDamage")
+	bow.damage_multiplier = progression.damage_multiplier() + shop.bonus("damageBonus") + _extra("damage")
+	bow.attack_speed_multiplier = 1.0 + shop.bonus("attackSpeedBonus") + _extra("attackSpeed")
+	bow.range_bonus = shop.bonus("rangeBonus") + _extra("range")
+	bow.crit_chance = minf(1.0, bow.base_crit_chance + _extra("critChance"))
+	bow.crit_multiplier = bow.base_crit_multiplier + _extra("critDamage")
 	range_ring.radius = bow.attack_range()
 	hud.set_stats(stat_list())
 
@@ -245,7 +265,39 @@ func stat_list() -> Array:
 
 
 func _max_hp() -> float:
-	return float(player.t.maxHp) + progression.max_hp_bonus() + shop.bonus("maxHpBonus") + boosts.total("maxHp")
+	return float(player.t.maxHp) + progression.max_hp_bonus() + shop.bonus("maxHpBonus") + _extra("maxHp")
+
+
+## Run boosts plus the developer cheat bonus for a stat.
+func _extra(stat: String) -> float:
+	return boosts.total(stat) + (cheat_menu.total(stat) if cheat_menu else 0.0)
+
+
+## Developer cheat actions from the cheat menu.
+func cheat(id: String) -> void:
+	if not in_run:
+		return
+	var around := func(n: int, kind: String) -> void:
+		for i in n:
+			var angle := TAU * i / n
+			enemies.spawn(kind, player.global_position + Vector3(cos(angle), 0, sin(angle)) * 9.0)
+	match id:
+		"gold":
+			progression.add_gold(100)
+		"level":
+			progression.add_exp(progression.exp_to_next_level() - progression.level_exp)
+		"heal":
+			player.hp = player.max_hp
+		"clear":
+			enemies.kill_all_silently()
+		"spawn_wolf":
+			around.call(5, "wolf")
+		"spawn_spider":
+			around.call(3, "spider")
+		"spawn_thrower":
+			around.call(3, "thrower")
+		"time":
+			enemies.run_time += 60.0
 
 
 func _can_pause() -> bool:
@@ -255,7 +307,6 @@ func _can_pause() -> bool:
 func _on_popup_closed() -> void:
 	# Don't treat the mouse release from the popup as a new "lost focus" pause.
 	_was_captured = false
-	hud.hide_hint()
 
 
 ## Low quality renders the world at fewer pixels (faster), high at full resolution.
@@ -273,7 +324,8 @@ func set_quality(quality: String) -> void:
 		store.save_to_disk()
 
 
-func _on_enemy_killed(_at: Vector3, exp_amount: int, gold_amount: int) -> void:
+func _on_enemy_killed(at: Vector3, exp_amount: int, gold_amount: int) -> void:
+	loot_orbs.burst(at, exp_amount, gold_amount)
 	progression.add_exp(exp_amount)
 	progression.add_gold(gold_amount)
 	_run_gold += gold_amount

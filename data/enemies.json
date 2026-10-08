@@ -1,13 +1,31 @@
 {
-	"slime": {
-		"hp": 10.0,
-		"speed": 3.4,
-		"damage": 8.0,
-		"xp": 3,
-		"radius": 0.6,
-		"color": "#7bd65a",
-		"gold": 1
-	},
+	"kinds": [
+		{
+			"id": "slime", "name": "Balçık",
+			"hp": 10.0, "speed": 3.4, "damage": 8.0, "xp": 3, "gold": 1,
+			"radius": 0.6, "center": 0.36,
+			"unlockAt": 0, "weight": 10
+		},
+		{
+			"id": "wolf", "name": "Kurt",
+			"hp": 8.0, "speed": 6.4, "damage": 7.0, "xp": 4, "gold": 1,
+			"radius": 0.55, "center": 0.6,
+			"unlockAt": 30, "weight": 6
+		},
+		{
+			"id": "thrower", "name": "Taşçı Goblin",
+			"hp": 14.0, "speed": 3.2, "damage": 5.0, "xp": 6, "gold": 2,
+			"radius": 0.5, "center": 0.9,
+			"unlockAt": 60, "weight": 4,
+			"ranged": { "range": 15.0, "keepAway": 9.0, "cooldown": 2.4, "projectileSpeed": 12.0, "damage": 11.0 }
+		},
+		{
+			"id": "spider", "name": "Dev Örümcek",
+			"hp": 40.0, "speed": 2.6, "damage": 20.0, "xp": 10, "gold": 3,
+			"radius": 0.85, "center": 0.5,
+			"unlockAt": 90, "weight": 3
+		}
+	],
 	"spawn": {
 		"startInterval": 1.4,
 		"minInterval": 0.3,
@@ -15,6 +33,9 @@
 		"maxAlive": 120,
 		"ringMin": 20.0,
 		"ringMax": 28.0,
-		"hpGrowthPerMinute": 0.25
+		"hpGrowthPerMinute": 0.3,
+		"damageGrowthPerMinute": 0.15,
+		"speedGrowthPerMinute": 0.05,
+		"maxSpeedGrowth": 0.4
 	}
 }

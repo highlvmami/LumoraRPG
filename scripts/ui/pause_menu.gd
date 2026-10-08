@@ -4,6 +4,7 @@ extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
 const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
+const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 
 const QUALITIES := [["low", "Düşük"], ["medium", "Orta"], ["high", "Yüksek"]]
 
@@ -149,11 +150,9 @@ func _refresh(stats: Array) -> void:
 		var n: int = pair[1]
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 10)
-		var swatch := ColorRect.new()
-		swatch.color = Color(str(d.color))
-		swatch.custom_minimum_size = Vector2(16, 16)
-		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		line.add_child(swatch)
+		var icon := PixelIcons.rect(str(d.get("icon", "")), 28)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(icon)
 		line.add_child(UiTheme.label("%s  x%d" % [d.name, n], UiTheme.label_settings(20)))
 		var detail := UiTheme.label("(%s)" % d.desc, UiTheme.label_settings(16, UiTheme.MUTED, 4))
 		detail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
