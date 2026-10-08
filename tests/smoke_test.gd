@@ -1,6 +1,7 @@
 ## Headless smoke test: logs in, uses the main menu, drives the player with
 ## simulated input and checks movement, enemies, auto-attack, exp/gold/levels,
-## level-up boost choices, the pause menu, saving and the death flow.
+## level-up boost choices, the pause menu, enemy kinds, loot orbs, the cheat
+## menu, saving and the death flow.
 ## Run: godot --headless --path . -s res://tests/smoke_test.gd
 extends SceneTree
 
@@ -78,8 +79,11 @@ func _run() -> void:
 	var progression: RefCounted = main.get("progression")
 	var level_up: Node = main.get("level_up_screen")
 	var boosts: RefCounted = main.get("boosts")
+	var loot: Node = main.get("loot_orbs")
+	var orbs_seen := 0
 	for i in 1500:
 		await physics_frame
+		orbs_seen = maxi(orbs_seen, int(loot.call("count")))
 		# Level-ups pause the game until a boost is picked.
 		if bool(level_up.get("visible")):
 			level_up.call("pick", 0)
@@ -94,6 +98,7 @@ func _run() -> void:
 	var profile: Dictionary = progression.get("profile")
 	_check(int(profile.accountExp) > 0 or int(profile.accountLevel) > 1, "kills give account exp")
 	_check(int(profile.gold) > 60, "kills give gold (%d)" % int(profile.gold))
+	_check(orbs_seen > 0, "killed enemies drop exp/gold orbs (%d seen)" % orbs_seen)
 
 	# Level-up: the game pauses and offers 3 boosts; picking one applies it.
 	level_up.call("close")
@@ -129,6 +134,41 @@ func _run() -> void:
 	pause.call("resume")
 	await _frames(1)
 	_check(not bool(pause.get("visible")) and not paused, "resume closes the pause menu")
+
+	# Every enemy kind can spawn; ranged goblins throw at the player.
+	var cheats: Node = main.get("cheat_menu")
+	cheats.call("_on_god_toggled", true)  # keep the player alive meanwhile
+	var near := player.global_position
+	for kind: String in ["wolf", "spider", "thrower"]:
+		_check(bool(enemies.call("spawn", kind, near + Vector3(10, 0, 0))), "%s can spawn" % kind)
+		_check(int(enemies.call("count_kind", kind)) >= 1, "%s is alive" % kind)
+	for i in 300:
+		await physics_frame
+		if bool(level_up.get("visible")):
+			level_up.call("pick", 0)
+		if int(enemies.get("shots_fired")) > 0:
+			break
+	_check(int(enemies.get("shots_fired")) > 0, "goblin throws at the player")
+	enemies.set("run_time", 95.0)
+	await _frames(2)
+	_check((enemies.get("_announced") as Dictionary).size() == 4, "all enemy kinds unlock as time goes on")
+	_check(float(enemies.call("growth", "hpGrowthPerMinute")) > 1.4, "enemies get tougher over time")
+
+	# Developer cheat menu: stat bonuses, god mode, actions.
+	var dmg_before := float(bow.get("damage_multiplier"))
+	cheats.call("_step", "damage", 1)
+	_check(absf(float(bow.get("damage_multiplier")) - dmg_before - 0.25) < 0.001, "cheat raises damage")
+	cheats.call("_on_god_toggled", true)
+	var hp_before := float(player.get("hp"))
+	player.call("take_damage", 50.0)
+	_check(float(player.get("hp")) == hp_before, "god mode ignores damage")
+	var gold_before := int(profile.gold)
+	main.call("cheat", "gold")
+	_check(int(profile.gold) == gold_before + 100, "cheat gives gold")
+	main.call("cheat", "clear")
+	_check(int(enemies.call("count")) == 0, "cheat clears enemies")
+	cheats.call("reset_all")
+	_check(not bool(player.get("god_mode")) and absf(float(bow.get("damage_multiplier")) - dmg_before) < 0.001, "cheat reset restores stats")
 
 	# Death ends the run and saves the account; restarting resets the character.
 	player.call("take_damage", 100000.0)

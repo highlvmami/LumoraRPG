@@ -22,6 +22,8 @@ Oyunda canavarlar etrafında doğar, karakterin menzil çemberine giren en yakı
 
 Her seviye atlayışta oyun durur ve 3 rastgele güçlendirmeden (boost) birini seçersin: hasar, saldırı hızı, saldırı alanı, kritik şansı, kritik hasarı, can, hız veya can yenileme. Boostlar o oyun boyunca geçerlidir. Alt ortadaki panel canını, EXP'ni, altınını ve tüm istatistiklerini gösterir.
 
+Düşmanlar zamanla çeşitlenir ve güçlenir: balçık (başta), hızlı **kurt** (30 sn), uzaktan taş atan **goblin** (1 dk) ve canı/hasarı yüksek **dev örümcek** (1.5 dk). Ölen düşmanlar mavi EXP ve sarı altın topları saçar.
+
 ## Kontroller
 
 | Tuş | Eylem |
@@ -30,6 +32,7 @@ Her seviye atlayışta oyun durur ve 3 rastgele güçlendirmeden (boost) birini 
 | Boşluk | Zıpla |
 | Fare | Kamerayı döndür (önce oyun penceresine tıkla) |
 | Esc / P | Oyunu duraklat (devam, kalite, ana menü, boostlar) |
+| F1 | Geliştirici hile menüsü (sağ kenardaki HİLE düğmesi de açar) |
 
 ## Klasörler
 

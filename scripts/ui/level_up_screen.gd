@@ -4,6 +4,7 @@ extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
 const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
+const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 
 ## Emitted after a boost is added, so stats can be recalculated.
 signal chosen(id: String)
@@ -124,14 +125,16 @@ func _card(d: Dictionary, index: int) -> Button:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(box)
 
+	# Pixel icon on a tinted tile, with the hotkey in the corner.
 	var icon := PanelContainer.new()
-	icon.add_theme_stylebox_override("panel", UiTheme.box(color, 12, 0))
-	icon.custom_minimum_size = Vector2(72, 72)
+	icon.add_theme_stylebox_override("panel", UiTheme.box(color.darkened(0.55), 12, 8))
+	icon.custom_minimum_size = Vector2(104, 104)
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var key := UiTheme.label(str(index + 1), UiTheme.label_settings(38, Color.WHITE, 8))
-	key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	key.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	icon.add_child(PixelIcons.rect(str(d.get("icon", "")), 88))
+	var key := UiTheme.label(str(index + 1), UiTheme.label_settings(18, Color.WHITE, 5))
+	key.size_flags_horizontal = Control.SIZE_SHRINK_END
+	key.size_flags_vertical = Control.SIZE_SHRINK_END
 	icon.add_child(key)
 	box.add_child(icon)
 

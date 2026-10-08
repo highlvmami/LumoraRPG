@@ -17,6 +17,8 @@ var dead := false
 var speed_multiplier := 1.0
 ## Health regained per second.
 var regen := 0.0
+## Developer cheat: ignore all damage.
+var god_mode := false
 ## Direction the character faces, in radians around Y (0 = +Z).
 var facing := 0.0
 
@@ -77,7 +79,7 @@ func play_attack(direction: Vector3) -> void:
 
 
 func take_damage(amount: float) -> void:
-	if dead or _invulnerable > 0.0:
+	if dead or god_mode or _invulnerable > 0.0:
 		return
 	hp = maxf(0.0, hp - amount)
 	_invulnerable = t.invulnerableTime
