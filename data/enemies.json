@@ -1,0 +1,19 @@
+{
+	"slime": {
+		"hp": 10.0,
+		"speed": 3.4,
+		"damage": 8.0,
+		"xp": 3,
+		"radius": 0.6,
+		"color": "#7bd65a"
+	},
+	"spawn": {
+		"startInterval": 1.4,
+		"minInterval": 0.3,
+		"rampSeconds": 240.0,
+		"maxAlive": 120,
+		"ringMin": 20.0,
+		"ringMax": 28.0,
+		"hpGrowthPerMinute": 0.25
+	}
+}
