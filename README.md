@@ -10,7 +10,7 @@ https://highlvmami.github.io/LumoraRPG/ — `main` dalına her birleştirmede ot
 
 ## Windows'ta oyna (daha hızlı)
 
-[LumoraRPG-windows.zip](https://github.com/highlvmami/LumoraRPG/releases/download/latest/LumoraRPG-windows.zip) — zip'i aç, `LumoraRPG.exe`'ye çift tıkla. Her birleştirmede otomatik güncellenir. Windows "tanınmayan uygulama" uyarısı verirse **Daha fazla bilgi → Yine de çalıştır**. Masaüstü sürümünün kayıtları tarayıcıdakinden ayrıdır.
+[LumoraRPG-windows.zip](https://github.com/highlvmami/LumoraRPG/releases/download/latest/LumoraRPG-windows.zip) — zip'i aç, `LumoraRPG.exe`'ye çift tıkla. Oyun her açılışta kendini otomatik günceller (sadece küçük oyun paketini indirir), zip'i bir kere indirmen yeterli. Windows "tanınmayan uygulama" uyarısı verirse **Daha fazla bilgi → Yine de çalıştır**. Masaüstü sürümünün kayıtları tarayıcıdakinden ayrıdır.
 
 ## Godot ile çalıştırma
 

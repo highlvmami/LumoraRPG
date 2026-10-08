@@ -46,6 +46,11 @@ jobs:
           rm templates.tpz
           ls "$dest"
 
+      - name: Stamp build number
+        run: |
+          echo "${GITHUB_RUN_NUMBER}|${GODOT_VERSION%-stable}" > version.txt
+          cat version.txt
+
       - name: Export for web
         run: |
           mkdir -p build/web
@@ -67,13 +72,20 @@ jobs:
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" export-win.log
           test -f build/windows/LumoraRPG.exe
           (cd build/windows && zip -q -9 ../LumoraRPG-windows.zip LumoraRPG.exe)
+          # The game alone (no engine) for the exe's self-update.
+          "$RUNNER_TEMP/godot" --headless --path . --export-pack "Windows Desktop" build/game.pck 2>&1 | tee export-pck.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" export-pck.log
+          cp version.txt build/version.txt
           ls -la build build/windows
 
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:
           name: LumoraRPG-windows
-          path: build/LumoraRPG-windows.zip
+          path: |
+            build/LumoraRPG-windows.zip
+            build/game.pck
+            build/version.txt
           retention-days: 7
 
   deploy:
@@ -108,4 +120,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest LumoraRPG-windows.zip --target "$GITHUB_SHA" --title "LumoraRPG (Windows, son sürüm)" --notes "main dalının son hali. Zip'i aç, LumoraRPG.exe'ye çift tıkla. Windows uyarı verirse: Daha fazla bilgi → Yine de çalıştır."
+          gh release create latest LumoraRPG-windows.zip game.pck version.txt --target "$GITHUB_SHA" --title "LumoraRPG (Windows, son sürüm)" --notes "main dalının son hali. Zip'i aç, LumoraRPG.exe'ye çift tıkla. Windows uyarı verirse: Daha fazla bilgi → Yine de çalıştır. Oyun açılırken kendini otomatik günceller."
