@@ -35,13 +35,27 @@ func login(name: String) -> Dictionary:
 	if not profiles.has(name):
 		profiles[name] = {
 			"name": name,
-			"accountLevel": 1,
-			"accountExp": 0,
-			"bestLevel": 0,
-			"totalKills": 0,
-			"runs": 0,
 			"createdAt": Time.get_datetime_string_from_system(true),
 		}
+	var profile: Dictionary = profiles[name]
+	_fill_defaults(profile)
 	_data.last = name
 	save_to_disk()
-	return profiles[name]
+	return profile
+
+
+## Adds fields that newer versions of the game expect, so old saves keep working.
+static func _fill_defaults(profile: Dictionary) -> void:
+	var defaults := {
+		"accountLevel": 1,
+		"accountExp": 0,
+		"bestLevel": 0,
+		"totalKills": 0,
+		"runs": 0,
+		"gold": 0,
+		"items": [],
+		"friends": [],
+	}
+	for key: String in defaults:
+		if not profile.has(key):
+			profile[key] = defaults[key]

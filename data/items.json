@@ -1,0 +1,37 @@
+{
+	"sharp_arrows": {
+		"name": "Keskin Oklar",
+		"description": "+%15 hasar",
+		"price": 40,
+		"color": "#ffcc55",
+		"damageBonus": 0.15
+	},
+	"leather_armor": {
+		"name": "Deri Zırh",
+		"description": "+25 can",
+		"price": 60,
+		"color": "#a0703c",
+		"maxHpBonus": 25.0
+	},
+	"swift_boots": {
+		"name": "Çevik Çizme",
+		"description": "+%10 hareket hızı",
+		"price": 80,
+		"color": "#5fb8ff",
+		"speedBonus": 0.10
+	},
+	"quick_string": {
+		"name": "Gergin Kiriş",
+		"description": "+%15 saldırı hızı",
+		"price": 100,
+		"color": "#c78bff",
+		"attackSpeedBonus": 0.15
+	},
+	"eagle_eye": {
+		"name": "Kartal Gözü",
+		"description": "+2 saldırı menzili",
+		"price": 150,
+		"color": "#7bd65a",
+		"rangeBonus": 2.0
+	}
+}
