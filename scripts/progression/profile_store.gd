@@ -25,6 +25,15 @@ func save_to_disk() -> void:
 	file.store_string(JSON.stringify(_data, "\t"))
 
 
+## Every other account saved on this device (for friend suggestions).
+func other_profiles(name: String) -> Array:
+	var out: Array = []
+	for key: String in _data.profiles:
+		if key != name:
+			out.append(_data.profiles[key])
+	return out
+
+
 func last_name() -> String:
 	return str(_data.get("last", ""))
 

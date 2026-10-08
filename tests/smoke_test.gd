@@ -38,6 +38,15 @@ func _run() -> void:
 		menu.call("open_section", section_id)
 		await _frames(1)
 	_check(bool(menu.call("add_friend", "arkadas1")), "a friend can be added")
+	var store_ref: RefCounted = main.get("store")
+	(store_ref.get("_data").profiles as Dictionary)["komsu_oyuncu"] = {"name": "komsu_oyuncu", "accountLevel": 3, "friends": ["arkadas1"]}
+	var suggested: Array = menu.call("friend_suggestions")
+	_check(suggested.size() == 1 and str(suggested[0].name) == "komsu_oyuncu" and int(suggested[0].mutual) == 1, "other players on this device are suggested as friends")
+	menu.call("open_section", "friends")
+	menu.call("open_section", "achievements")
+	await _frames(1)
+	var ach: RefCounted = main.get("achievements")
+	_check((ach.get("defs") as Array).size() >= 10, "there are many achievements")
 	var shop: RefCounted = main.get("shop")
 	var profile0: Dictionary = main.get("progression").get("profile")
 	_check(not bool(menu.call("buy", "power")), "cannot buy without gold")
@@ -240,7 +249,7 @@ func _run() -> void:
 	_check(int(enemies.get("shots_fired")) > 0, "goblin throws at the player")
 	enemies.set("run_time", 95.0)
 	await _frames(2)
-	_check((enemies.get("_announced") as Dictionary).size() == 5, "all enemy kinds unlock as time goes on")
+	_check((enemies.get("_announced") as Dictionary).size() == 6, "all enemy kinds unlock as time goes on")
 	_check(float(enemies.call("growth", "hpGrowthPerMinute")) > 1.4, "enemies get tougher over time")
 
 	# Every extra weapon damages enemies around the player.
@@ -267,6 +276,8 @@ func _run() -> void:
 	enemies.connect("boss_defeated", func(boss_name: String) -> void: defeated.append(boss_name))
 	if bool(level_up.get("visible")):
 		level_up.call("pick", 0)
+	for n in 4:
+		enemies.call("spawn", "slime", player.global_position + Vector3(6, 0, n))
 	main.call("cheat", "boss")
 	await _frames(2)
 	await process_frame
@@ -274,11 +285,58 @@ func _run() -> void:
 	var boss := int(enemies.call("boss_index"))
 	_check(boss >= 0, "boss spawns")
 	_check(bool(hud.get("_boss_box").get("visible")), "boss health bar is shown")
+	await _frames(30)
+	_check(int(enemies.call("count")) == 1, "the boss fights alone (other enemies leave, none spawn)")
+	var hits_before := int(enemies.get("boss_attack_hits"))
+	enemies.call("start_boss_attack", int(enemies.call("boss_index")), "meteor")
+	_check(int(enemies.get("attacks").call("active_count")) > 0, "a boss attack first shows red warning zones")
+	var meteor_hit := false
+	for n in 150:
+		await physics_frame
+		if bool(level_up.get("visible")):
+			level_up.call("pick", 0)
+		if int(enemies.get("boss_attack_hits")) > hits_before:
+			meteor_hit = true
+			break
+	_check(meteor_hit, "standing in the warning zone gets you hit")
+	for attack: String in ["slam", "charge"]:
+		enemies.call("start_boss_attack", int(enemies.call("boss_index")), attack)
+		for n in 120:
+			await physics_frame
+			if bool(level_up.get("visible")):
+				level_up.call("pick", 0)
+	_check(int(enemies.get("boss_attacks_started")) >= 3, "the forest giant uses different attacks")
+	player.set("hp", float(player.get("max_hp")))
+	boss = int(enemies.call("boss_index"))
 	if boss >= 0:
 		enemies.call("damage", boss, 1000000.0)
 	await _frames(2)
 	_check(defeated.size() == 1 and int(enemies.call("boss_index")) < 0, "boss can be defeated")
 	_check((inv.call("chests") as Array).size() == 1, "the boss drops a chest")
+	main.call("cheat", "spider_boss")
+	await _frames(2)
+	var queen := int(enemies.call("boss_index"))
+	_check(queen >= 0 and str(enemies.call("kind_name", queen)) == "Örümcek Kraliçe", "the spider queen boss spawns")
+	if queen >= 0:
+		var spot := player.global_position
+		enemies.call("start_boss_attack", queen, "leap")
+		for n in 140:
+			await physics_frame
+			if bool(level_up.get("visible")):
+				level_up.call("pick", 0)
+		queen = int(enemies.call("boss_index"))
+		var landed := Vector2(spot.x, spot.z).distance_to(Vector2(enemies.call("position_of", queen).x, enemies.call("position_of", queen).z))
+		_check(landed < 5.0, "the spider queen leaps onto the marked spot (%.1f m away)" % landed)
+		enemies.call("start_boss_attack", queen, "web")
+		for n in 90:
+			await physics_frame
+			if bool(level_up.get("visible")):
+				level_up.call("pick", 0)
+		queen = int(enemies.call("boss_index"))
+		enemies.call("damage", queen, 1000000.0)
+	await _frames(2)
+	_check(defeated.size() == 2, "the spider queen can be defeated")
+	_check(bool(ach.call("is_done", "giant_slayer")) and bool(ach.call("is_done", "first_blood")), "beating a boss and killing unlock achievements")
 	var stash_now := (inv.call("items") as Array).size()
 	main.call("_drop_item", 3)
 	_check((inv.call("items") as Array).size() == stash_now + 1, "enemy item drops go to the backpack")

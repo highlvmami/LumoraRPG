@@ -23,6 +23,7 @@ const Progression := preload("res://scripts/progression/progression.gd")
 const Shop := preload("res://scripts/progression/shop.gd")
 const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
+const Achievements := preload("res://scripts/progression/achievements.gd")
 const ChestWheel := preload("res://scripts/ui/chest_wheel.gd")
 const LoginScreen := preload("res://scripts/ui/login_screen.gd")
 const MainMenu := preload("res://scripts/ui/main_menu.gd")
@@ -49,6 +50,7 @@ var progression: Progression
 var shop: Shop
 var boosts := RunBoosts.new()
 var inventory: Inventory
+var achievements: Achievements
 var chest_wheel: ChestWheel
 var hud: Hud
 var level_up_screen: LevelUpScreen
@@ -121,6 +123,9 @@ func login(username: String) -> void:
 	progression = Progression.new(store, profile)
 	shop = Shop.new(profile, store)
 	inventory = Inventory.new(profile, store)
+	achievements = Achievements.new(profile, store)
+	achievements.reward_gold = progression.add_gold
+	achievements.unlocked.connect(_on_achievement)
 	_rng.randomize()
 
 	player = Player.new()
@@ -200,6 +205,7 @@ func login(username: String) -> void:
 	main_menu = MainMenu.new()
 	add_child(main_menu)
 	main_menu.setup(progression, shop, inventory)
+	main_menu.achievements = achievements
 	main_menu.play_pressed.connect(start_run)
 	main_menu.chest_open_requested.connect(open_chest)
 
@@ -312,6 +318,9 @@ func open_chest(uid: int) -> Dictionary:
 	if ch.is_empty():
 		return {}
 	var it := inventory.open_chest(uid)
+	if not it.is_empty():
+		achievements.add("chestsOpened")
+		achievements.check()
 	if it.is_empty():
 		main_menu.notify("Çanta dolu! Önce eşya sat.")
 		return {}
@@ -442,9 +451,8 @@ func cheat(id: String) -> void:
 			around.call(3, "thrower")
 		"time":
 			enemies.run_time += 60.0
-		"boss":
-			enemies.spawn("boss", player.global_position + Vector3(0, 0, 14), true)
-			enemies.boss_spawned.emit(enemies.kind_name(enemies.boss_index()))
+		"boss", "spider_boss":
+			enemies.spawn_boss(id, player.global_position + Vector3(0, 0, 14))
 		"weapons":
 			for d: Dictionary in weapons.defs:
 				if d.get("starter", false) and weapons.level(d.id) == 0:
@@ -485,6 +493,8 @@ func _on_enemy_killed(at: Vector3, exp_amount: int, gold_amount: int) -> void:
 	progression.add_exp(exp_gain)
 	progression.add_gold(gold_gain)
 	_run_gold += gold_gain
+	achievements.add("goldEarned", gold_gain)
+	_check_achievements()
 	if in_run and _rng.randf() < float(inventory.gear.drops.enemyItemChance):
 		_drop_item(inventory.gear.roll_weighted(inventory.gear.drops.enemyOdds))
 
@@ -494,6 +504,8 @@ func _on_boss_defeated(_boss_name: String) -> void:
 	var odds: Array = inventory.gear.drops.bossChestOdds
 	_drop_chest(inventory.gear.roll_weighted(odds[mini(_bosses_killed, odds.size() - 1)]))
 	_bosses_killed += 1
+	achievements.add("bossKills")
+	_check_achievements()
 
 
 func _drop_item(rarity_index: int) -> void:
@@ -502,6 +514,7 @@ func _drop_item(rarity_index: int) -> void:
 		hud.toast("ÇANTA DOLU!")
 		return
 	var text := "%s (%s)" % [inventory.gear.item_name(it), inventory.gear.rarity(rarity_index).name]
+	achievements.add("itemsFound")
 	_run_loot.append(text)
 	hud.toast("EŞYA: " + text.to_upper())
 
@@ -518,10 +531,29 @@ func _end_run() -> void:
 	if not _character.is_empty():
 		_character.bestLevel = maxi(int(_character.get("bestLevel", 0)), progression.level)
 	progression.end_run(enemies.kills)
+	achievements.record_best("bestTime", enemies.run_time)
+	achievements.live = {}
+	achievements.check()
 	inventory.save()
 
 
+## Checks achievements with the numbers of the run in progress.
+func _check_achievements() -> void:
+	if in_run:
+		achievements.live = {"kills": enemies.kills, "level": progression.level, "time": enemies.run_time}
+	achievements.check()
+
+
+func _on_achievement(def: Dictionary) -> void:
+	var text := "BAŞARIM: %s (+%d altın)" % [str(def.name).to_upper(), int(def.reward)]
+	if in_run and hud:
+		hud.toast(text)
+	elif main_menu:
+		main_menu.notify("Başarım kazandın: %s (+%d altın)" % [def.name, int(def.reward)])
+
+
 func _on_level_up(level: int) -> void:
+	_check_achievements()
 	_apply_stats()
 	if in_run and not player.dead:
 		level_up_screen.queue_level_up(level)

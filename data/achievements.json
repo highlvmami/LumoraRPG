@@ -1,0 +1,21 @@
+{
+	"achievements": [
+		{ "id": "first_blood", "name": "İlk Kan", "desc": "İlk canavarını kes", "icon": "sword", "stat": "kills", "target": 1, "reward": 10 },
+		{ "id": "hunter", "name": "Avcı", "desc": "Toplam 100 canavar kes", "icon": "sword", "stat": "kills", "target": 100, "reward": 30 },
+		{ "id": "slayer", "name": "Katliam", "desc": "Toplam 1.000 canavar kes", "icon": "skull", "stat": "kills", "target": 1000, "reward": 100 },
+		{ "id": "legend_hunter", "name": "Efsanevi Avcı", "desc": "Toplam 5.000 canavar kes", "icon": "skull", "stat": "kills", "target": 5000, "reward": 300 },
+		{ "id": "giant_slayer", "name": "Dev Avcısı", "desc": "İlk boss'unu yen", "icon": "fire", "stat": "bossKills", "target": 1, "reward": 50 },
+		{ "id": "boss_master", "name": "Boss Ustası", "desc": "Toplam 5 boss yen", "icon": "fire", "stat": "bossKills", "target": 5, "reward": 200 },
+		{ "id": "growing", "name": "Güçlenen", "desc": "Bir oyunda 10. seviyeye ulaş", "icon": "bolt", "stat": "bestLevel", "target": 10, "reward": 30 },
+		{ "id": "hero", "name": "Kahraman", "desc": "Bir oyunda 25. seviyeye ulaş", "icon": "bolt", "stat": "bestLevel", "target": 25, "reward": 150 },
+		{ "id": "survivor", "name": "Hayatta Kalan", "desc": "Bir oyunda 5 dakika dayan", "icon": "heart", "stat": "bestTime", "target": 300, "reward": 50 },
+		{ "id": "immortal", "name": "Ölümsüz", "desc": "Bir oyunda 10 dakika dayan", "icon": "regen", "stat": "bestTime", "target": 600, "reward": 200 },
+		{ "id": "stubborn", "name": "Azimli", "desc": "10 oyun oyna", "icon": "boot", "stat": "runs", "target": 10, "reward": 40 },
+		{ "id": "rich", "name": "Zengin", "desc": "Toplam 1.000 altın kazan", "icon": "chest", "stat": "goldEarned", "target": 1000, "reward": 60 },
+		{ "id": "collector", "name": "Toplayıcı", "desc": "10 eşya bul", "icon": "armor", "stat": "itemsFound", "target": 10, "reward": 40 },
+		{ "id": "chest_hunter", "name": "Kasa Avcısı", "desc": "5 kasa aç", "icon": "chest", "stat": "chestsOpened", "target": 5, "reward": 60 },
+		{ "id": "investor", "name": "Yatırımcı", "desc": "Market'ten 10 seviye geliştirme al", "icon": "clover", "stat": "upgrades", "target": 10, "reward": 50 },
+		{ "id": "social", "name": "Sosyal", "desc": "3 arkadaş ekle", "icon": "heart", "stat": "friends", "target": 3, "reward": 20 },
+		{ "id": "veteran", "name": "Usta", "desc": "Hesap seviyesi 10'a ulaş", "icon": "eye", "stat": "accountLevel", "target": 10, "reward": 100 }
+	]
+}

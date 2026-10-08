@@ -27,10 +27,28 @@
 		},
 		{
 			"id": "boss", "name": "Orman Devi",
-			"hp": 500.0, "speed": 2.4, "damage": 30.0, "xp": 80, "gold": 40,
-			"radius": 1.6, "center": 1.7,
+			"hp": 900.0, "speed": 2.6, "damage": 30.0, "xp": 80, "gold": 40,
+			"radius": 2.8, "center": 3.0, "scale": 1.8,
 			"unlockAt": 0, "weight": 0, "boss": true,
-			"ranged": { "range": 30.0, "keepAway": 0.0, "cooldown": 4.5, "projectileSpeed": 9.0, "damage": 14.0, "height": 2.4, "ring": 12 }
+			"attackCooldown": 1.6,
+			"attacks": [
+				{ "type": "slam", "telegraph": 1.3, "radius": 7.0, "damage": 35.0 },
+				{ "type": "charge", "telegraph": 1.1, "length": 22.0, "width": 3.4, "speed": 28.0, "damage": 40.0 },
+				{ "type": "meteor", "telegraph": 1.6, "count": 7, "radius": 2.4, "spread": 9.0, "damage": 30.0, "color": "#ff5a1f" }
+			]
+		},
+		{
+			"id": "spider_boss", "name": "Örümcek Kraliçe",
+			"hp": 1200.0, "speed": 3.4, "damage": 30.0, "xp": 120, "gold": 60,
+			"radius": 2.6, "center": 1.6, "scale": 3.2,
+			"unlockAt": 0, "weight": 0, "boss": true,
+			"attackCooldown": 1.3,
+			"attacks": [
+				{ "type": "leap", "telegraph": 1.1, "radius": 4.5, "damage": 40.0 },
+				{ "type": "web", "telegraph": 1.0, "count": 5, "spreadDegrees": 22.0, "length": 24.0, "width": 1.6, "damage": 28.0, "color": "#e04dff" },
+				{ "type": "meteor", "telegraph": 1.5, "count": 8, "radius": 2.0, "spread": 10.0, "damage": 26.0, "color": "#7dff3a" },
+				{ "type": "charge", "telegraph": 0.9, "length": 18.0, "width": 3.0, "speed": 32.0, "damage": 35.0 }
+			]
 		}
 	],
 	"spawn": {
@@ -44,6 +62,7 @@
 		"damageGrowthPerMinute": 0.15,
 		"speedGrowthPerMinute": 0.05,
 		"maxSpeedGrowth": 0.4,
-		"bossTimes": [300, 600]
+		"bossTimes": [300, 600, 900, 1200],
+		"bossOrder": ["boss", "spider_boss"]
 	}
 }

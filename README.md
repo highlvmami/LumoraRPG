@@ -32,7 +32,9 @@ Her seviye atlayışta oyun durur ve 3 rastgele güçlendirmeden (boost) birini 
 
 Düşmanlar zamanla çeşitlenir ve güçlenir: balçık (başta), hızlı **kurt** (30 sn), uzaktan taş atan **goblin** (1 dk) ve canı/hasarı yüksek **dev örümcek** (1.5 dk). Ölen düşmanlar mavi EXP ve sarı altın topları saçar.
 
-Seviye kartlarında yeni **silahlar** da çıkar (sınıf silahının yanında en fazla 3 silah, her biri 5 seviye): **Dönen Kılıçlar**, **Ateş Topu**, **Yıldırım** ve **Kutsal Alan**. 5. ve 10. dakikada boss **Orman Devi** gelir; ekranın üstünde can barı görünür, her yöne taş saçar.
+Seviye kartlarında yeni **silahlar** da çıkar (sınıf silahının yanında en fazla 3 silah, her biri 5 seviye): **Dönen Kılıçlar**, **Ateş Topu**, **Yıldırım** ve **Kutsal Alan**. Her 5 dakikada bir boss gelir: önce dev **Orman Devi**, sonra **Örümcek Kraliçe** (sırayla). Boss gelince diğer canavarlar çekilir ve boss tek başına savaşır; ekranın üstünde can barı görünür. Boss'lar saldırmadan önce vuracakları yeri yerde **kırmızı alanla** gösterir, alan dolunca vurur: Orman Devi yere vurur, ileri atılır ve gökten kaya yağdırır; Örümcek Kraliçe üstüne sıçrar, ağ fırlatır, gökten yumurta yağdırır ve atılır. Alandan zamanında çıkan hasar almaz.
+
+**Başarımlar** menüsünde 17 hedef vardır (canavar kesme, boss yenme, seviye, hayatta kalma süresi, altın, eşya, kasa, geliştirme, arkadaş); her biri tamamlanınca altın ödülü verir. **Arkadaşlar** bölümünde bu cihazda oynayan diğer oyuncular (ortak arkadaşı olanlar önce) arkadaş olarak önerilir.
 
 ## Kontroller
 
