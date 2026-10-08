@@ -15,6 +15,8 @@ var hp := 100.0
 var dead := false
 ## 1.0 = base move speed (items can raise it).
 var speed_multiplier := 1.0
+## Health regained per second.
+var regen := 0.0
 ## Direction the character faces, in radians around Y (0 = +Z).
 var facing := 0.0
 
@@ -86,6 +88,10 @@ func take_damage(amount: float) -> void:
 		died.emit()
 
 
+func move_speed() -> float:
+	return float(t.moveSpeed) * speed_multiplier
+
+
 func horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
 
@@ -95,6 +101,8 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		step(delta, Vector2.ZERO, false)
 		return
+	if regen > 0.0 and hp < max_hp:
+		hp = minf(max_hp, hp + regen * delta)
 	var raw := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var world := Vector3(raw.x, 0.0, raw.y).rotated(Vector3.UP, camera_yaw)
 	step(delta, Vector2(world.x, world.z), Input.is_action_just_pressed("jump"))

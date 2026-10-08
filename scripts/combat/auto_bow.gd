@@ -10,6 +10,8 @@ const MAX_ARROWS := 64
 
 ## Emitted when an arrow is shot, so the character can play its attack animation.
 signal fired(direction: Vector3)
+## Emitted for every arrow that hits, so the HUD can show damage numbers.
+signal hit_landed(at_position: Vector3, amount: float, crit: bool)
 
 var player: CharacterBody3D
 var enemies: EnemyManager
@@ -19,6 +21,13 @@ var damage_multiplier := 1.0
 ## 1.0 = base attack speed; 1.15 = 15% faster.
 var attack_speed_multiplier := 1.0
 var range_bonus := 0.0
+## 0..1 chance that a hit is critical.
+var crit_chance := 0.05
+## Damage multiplier of a critical hit.
+var crit_multiplier := 1.5
+## Crit stats of the weapon before any boosts.
+var base_crit_chance := 0.05
+var base_crit_multiplier := 1.5
 
 var _w: Dictionary
 var _cooldown := 0.0
@@ -32,6 +41,10 @@ func setup(p_player: CharacterBody3D, p_enemies: EnemyManager) -> void:
 	player = p_player
 	enemies = p_enemies
 	_w = Config.load_json("res://data/weapons.json").bow
+	base_crit_chance = float(_w.critChance)
+	base_crit_multiplier = float(_w.critMultiplier)
+	crit_chance = base_crit_chance
+	crit_multiplier = base_crit_multiplier
 
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(0.12, 0.12, 0.9)
@@ -69,6 +82,15 @@ func attack_range() -> float:
 	return float(_w["range"]) + range_bonus
 
 
+## Damage of one normal (non-critical) arrow.
+func hit_damage() -> float:
+	return float(_w.damage) * damage_multiplier
+
+
+func shots_per_second() -> float:
+	return attack_speed_multiplier / float(_w.cooldown)
+
+
 func _try_fire() -> void:
 	var origin := player.global_position + Vector3.UP * 1.3
 	var target := enemies.nearest(origin, attack_range())
@@ -89,7 +111,10 @@ func _update_arrows(delta: float) -> void:
 		_arrow_life[i] -= delta
 		var hit := enemies.hit_test(_arrow_pos[i], _w.hitRadius)
 		if hit >= 0:
-			enemies.damage(hit, float(_w.damage) * damage_multiplier, _arrow_vel[i].normalized())
+			var crit := randf() < crit_chance
+			var dmg := hit_damage() * (crit_multiplier if crit else 1.0)
+			hit_landed.emit(enemies.position_of(hit), dmg, crit)
+			enemies.damage(hit, dmg, _arrow_vel[i].normalized())
 		if hit >= 0 or _arrow_life[i] <= 0.0:
 			_remove(i)
 		else:

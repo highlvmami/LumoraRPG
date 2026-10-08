@@ -20,6 +20,8 @@ Girişte bir kullanıcı adı yaz (yeni ad = yeni hesap; hesap bu cihazda saklan
 
 Oyunda canavarlar etrafında doğar, karakterin menzil çemberine giren en yakın canavara otomatik ok atar. Her ölen canavar EXP ve altın verir: **karakter seviyesi** her oyunda 1'den başlar ve seni güçlendirir, **hesap seviyesi** kalıcıdır. Altınla Market'ten eşya alırsın; çantandaki eşyalar her oyunda bonus verir.
 
+Her seviye atlayışta oyun durur ve 3 rastgele güçlendirmeden (boost) birini seçersin: hasar, saldırı hızı, saldırı alanı, kritik şansı, kritik hasarı, can, hız veya can yenileme. Boostlar o oyun boyunca geçerlidir. Alt ortadaki panel canını, EXP'ni, altınını ve tüm istatistiklerini gösterir.
+
 ## Kontroller
 
 | Tuş | Eylem |
@@ -27,7 +29,7 @@ Oyunda canavarlar etrafında doğar, karakterin menzil çemberine giren en yakı
 | WASD / ok tuşları | Yürü |
 | Boşluk | Zıpla |
 | Fare | Kamerayı döndür (önce oyun penceresine tıkla) |
-| Esc | Fareyi serbest bırak |
+| Esc / P | Oyunu duraklat (devam, kalite, ana menü, boostlar) |
 
 ## Klasörler
 
