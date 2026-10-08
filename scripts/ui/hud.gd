@@ -136,6 +136,8 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	enemies.kind_unlocked.connect(func(kind_name: String) -> void: _show_toast("YENİ DÜŞMAN: %s" % kind_name.to_upper()))
 	enemies.boss_spawned.connect(func(boss_name: String) -> void: _show_toast("BOSS GELDİ: %s!" % boss_name.to_upper()))
 	enemies.boss_defeated.connect(func(_boss_name: String) -> void: _show_toast("BOSS YENİLDİ!"))
+	enemies.boss_phase_changed.connect(func(boss_name: String, phase: int) -> void:
+		_show_toast(("%s ÖFKELENDİ! Saldırıları hızlanıyor" if phase == 2 else "%s ÇILDIRDI! Yeni saldırılar geliyor") % boss_name.to_upper()))
 	enemies.enemy_killed.connect(_on_enemy_killed)
 
 
@@ -218,7 +220,7 @@ func _process(_delta: float) -> void:
 	var boss := enemies.boss_index()
 	_boss_box.visible = boss >= 0
 	if boss >= 0:
-		_boss_name.text = enemies.kind_name(boss).to_upper()
+		_boss_name.text = enemies.kind_name(boss).to_upper() + ["", "  ·  ÖFKELİ", "  ·  ÇILGIN"][enemies.boss_phase() - 1]
 		_boss_bar.value = enemies.health_ratio(boss)
 	var t := int(enemies.run_time)
 	_stats.text = "%d:%02d   ·   %d canavar   ·   FPS %d" % [t / 60, t % 60, enemies.kills, Engine.get_frames_per_second()]

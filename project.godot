@@ -20,6 +20,11 @@ window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[gui]
+
+; Item stats show right away when hovering an item.
+timers/tooltip_delay_sec=0.05
+
 [rendering]
 
 ; Browsers only support the Compatibility renderer.

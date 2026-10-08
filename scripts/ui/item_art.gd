@@ -1,6 +1,8 @@
 ## Detailed, scalable drawing of a gear item for menus (vector shapes, so it
 ## stays sharp at any size). Rarer items get more detail: very rare/epic add
 ## trims, gems and a glow, legendary/divine add ornaments and sparkles.
+## Chests have their own drawing per chest tier: a plain crate, an iron-bound
+## chest, an ornate gem-locked trunk and a golden winged treasure chest.
 ## Also builds the rich hover tooltip for items.
 extends Control
 
@@ -19,6 +21,8 @@ const OUTLINE := Color(0, 0, 0, 0.75)
 var base := ""
 ## 0-2 detail tier, see Gear.tier.
 var tier := 0
+## Chest tier 0-3 when this draws a chest.
+var chest_tier := 0
 var color := Color.WHITE
 var _time := 0.0
 
@@ -34,8 +38,18 @@ static func make(item: Dictionary, rarity_color: Color, detail_tier: int, art_si
 	return art
 
 
+## A drawing of a chest of `chest_index` (0 common .. 3 legendary).
+static func chest(chest_index: int, chest_color: Color, art_size: float) -> Control:
+	var art := make({"base": "chest"}, chest_color, [0, 1, 2, 2][clampi(chest_index, 0, 3)], art_size)
+	art.set("chest_tier", clampi(chest_index, 0, 3))
+	return art
+
+
 ## Tooltip panel: name, rarity, slot, who can wear it and every stat.
-static func tooltip(gear: RefCounted, item: Dictionary, class_names: Dictionary) -> Control:
+## `compare` = {"worn": item worn in that slot ({} if none), "who": wearer
+## name, "can_wear": bool} adds the difference to the worn item next to each
+## stat: green when this item is better, red when worse.
+static func tooltip(gear: RefCounted, item: Dictionary, class_names: Dictionary, compare := {}) -> Control:
 	var rarity := int(item.rarity)
 	var c: Color = gear.call("rarity_color", rarity)
 	var panel := PanelContainer.new()
@@ -57,8 +71,48 @@ static func tooltip(gear: RefCounted, item: Dictionary, class_names: Dictionary)
 	names.add_child(UiTheme.label("%s  ·  %s" % [gear.call("slot_name", gear.call("item_slot", item)), "Tüm sınıflar" if cls == "" else str(class_names.get(cls, cls))], UiTheme.label_settings(13, UiTheme.MUTED, 3)))
 	head.add_child(names)
 	col.add_child(HSeparator.new())
-	for line: String in gear.call("stat_lines", item):
-		col.add_child(UiTheme.label(line, UiTheme.label_settings(15, Color("#8fe39a"), 3)))
+	var stats: Dictionary = item.stats
+	if compare.is_empty():
+		for line: String in gear.call("stat_lines", item):
+			col.add_child(UiTheme.label(line, UiTheme.label_settings(15, Color("#8fe39a"), 3)))
+	else:
+		var worn: Dictionary = compare.get("worn", {})
+		var worn_stats: Dictionary = worn.get("stats", {})
+		var note := "Takılı: %s" % gear.call("item_name", worn) if not worn.is_empty() else "Bu yuvada takılı eşya yok"
+		col.add_child(UiTheme.label("%s  (%s)" % [note, compare.get("who", "")], UiTheme.label_settings(12, UiTheme.MUTED, 2)))
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.add_theme_constant_override("h_separation", 18)
+		grid.add_theme_constant_override("v_separation", 2)
+		col.add_child(grid)
+		var better := 0
+		var worse := 0
+		for stat: String in gear.call("stat_order"):
+			var mine := float(stats.get(stat, 0.0))
+			var theirs := float(worn_stats.get(stat, 0.0))
+			if not stats.has(stat) and not worn_stats.has(stat):
+				continue
+			var diff := mine - theirs
+			if stats.has(stat):
+				grid.add_child(UiTheme.label(str(gear.call("stat_text", stat, mine)), UiTheme.label_settings(15, UiTheme.TEXT, 3)))
+			else:
+				grid.add_child(UiTheme.label("—  " + str(gear.call("stat_label", stat)), UiTheme.label_settings(15, UiTheme.MUTED, 3)))
+			if bool(gear.call("is_tiny", stat, diff)):
+				grid.add_child(UiTheme.label("=", UiTheme.label_settings(15, UiTheme.MUTED, 3)))
+			else:
+				var up := diff > 0.0
+				if up:
+					better += 1
+				else:
+					worse += 1
+				grid.add_child(UiTheme.label(("▲ " if up else "▼ ") + str(gear.call("signed_text", stat, diff)), UiTheme.label_settings(15, Color("#5ee06a") if up else Color("#ff5a5a"), 3)))
+		var verdict := "Takılıdan daha iyi" if better > 0 and worse == 0 else ("Takılıdan daha zayıf" if worse > 0 and better == 0 else "Bazı yönlerden daha iyi")
+		if better == 0 and worse == 0:
+			verdict = "Takılıyla aynı"
+		var verdict_color := Color("#5ee06a") if worse == 0 and better > 0 else (Color("#ff5a5a") if better == 0 and worse > 0 else UiTheme.ACCENT)
+		col.add_child(UiTheme.label(verdict, UiTheme.label_settings(13, verdict_color, 3)))
+		if not bool(compare.get("can_wear", true)):
+			col.add_child(UiTheme.label("Bu karakter bu eşyayı kullanamaz", UiTheme.label_settings(12, Color("#ff5a5a"), 2)))
 	col.add_child(UiTheme.label("Satış: %d altın" % int(gear.call("sell_price", item)), UiTheme.label_settings(12, UiTheme.ACCENT, 3)))
 	return panel
 
@@ -72,6 +126,9 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var s := minf(size.x, size.y) / 100.0
 	draw_set_transform(Vector2((size.x - 100.0 * s) * 0.5, (size.y - 100.0 * s) * 0.5), 0.0, Vector2(s, s))
+	if base == "chest":
+		_draw_chest()
+		return
 	_draw_glow()
 	match base:
 		"sword":
@@ -301,15 +358,160 @@ func _draw_ring() -> void:
 
 
 func _draw_chest() -> void:
-	var wood := WOOD.lerp(color, 0.25)
-	_poly([Vector2(14, 44), Vector2(86, 44), Vector2(86, 88), Vector2(14, 88)], wood)
-	var lid := []
-	for i in 9:
-		var a := PI + PI * i / 8.0
-		lid.append(Vector2(50, 44) + Vector2(cos(a) * 36.0, sin(a) * 22.0))
-	_poly(lid, wood.lightened(0.1))
-	for x: float in [24.0, 76.0]:
-		_poly([Vector2(x - 4, 24), Vector2(x + 4, 24), Vector2(x + 4, 88), Vector2(x - 4, 88)], color.darkened(0.2))
-	_poly([Vector2(14, 44), Vector2(86, 44), Vector2(86, 50), Vector2(14, 50)], color.darkened(0.3))
-	_poly([Vector2(43, 46), Vector2(57, 46), Vector2(57, 62), Vector2(43, 62)], GOLD)
-	draw_circle(Vector2(50, 53), 2.5, OUTLINE)
+	match chest_tier:
+		1:
+			_chest_iron()
+		2:
+			_chest_ornate()
+		3:
+			_chest_legendary()
+		_:
+			_chest_crate()
+
+
+## Common: a plain wooden crate with plank lines and iron corners.
+func _chest_crate() -> void:
+	var wood := WOOD.lerp(color, 0.12)
+	_poly([Vector2(16, 42), Vector2(84, 42), Vector2(84, 88), Vector2(16, 88)], wood)
+	for y: float in [57.0, 72.0]:
+		draw_line(Vector2(17, y), Vector2(83, y), WOOD_DARK, 2.0)
+	_poly([Vector2(12, 32), Vector2(88, 32), Vector2(88, 44), Vector2(12, 44)], wood.lightened(0.12))
+	draw_line(Vector2(13, 38), Vector2(87, 38), WOOD_DARK, 1.5)
+	for x: float in [16.0, 78.0]:
+		_poly([Vector2(x, 44), Vector2(x + 6, 44), Vector2(x + 6, 88), Vector2(x, 88)], STEEL_DARK)
+		draw_circle(Vector2(x + 3, 50), 1.4, STEEL)
+		draw_circle(Vector2(x + 3, 82), 1.4, STEEL)
+	_poly([Vector2(46, 40), Vector2(54, 40), Vector2(54, 52), Vector2(46, 52)], STEEL_DARK)
+
+
+## Rare: a rounded-lid chest bound with tinted steel, rivets and a keyhole lock.
+func _chest_iron() -> void:
+	var wood := WOOD.lerp(color, 0.18)
+	var steel := STEEL.lerp(color, 0.35)
+	_poly([Vector2(14, 48), Vector2(86, 48), Vector2(86, 88), Vector2(14, 88)], wood)
+	draw_line(Vector2(15, 68), Vector2(85, 68), WOOD_DARK, 1.6)
+	var lid := [Vector2(14, 48)]
+	for i in 11:
+		var a := PI + PI * i / 10.0
+		lid.append(Vector2(50, 48) + Vector2(cos(a) * 36.0, sin(a) * 24.0))
+	lid.append(Vector2(86, 48))
+	_poly(lid, wood.lightened(0.12))
+	for x: float in [26.0, 74.0]:
+		var top := 48.0 - sqrt(maxf(0.0, 1.0 - pow((x - 50.0) / 36.0, 2.0))) * 24.0
+		_poly([Vector2(x - 4, top), Vector2(x + 4, top), Vector2(x + 4, 88), Vector2(x - 4, 88)], steel)
+		for y: float in [top + 6.0, 56.0, 72.0, 84.0]:
+			draw_circle(Vector2(x, y), 1.5, steel.lightened(0.5))
+	_poly([Vector2(14, 46), Vector2(86, 46), Vector2(86, 52), Vector2(14, 52)], steel.darkened(0.25))
+	# Corner plates.
+	_poly([Vector2(14, 88), Vector2(14, 76), Vector2(24, 88)], steel)
+	_poly([Vector2(86, 88), Vector2(86, 76), Vector2(76, 88)], steel)
+	# Lock plate with a keyhole.
+	_poly([Vector2(41, 46), Vector2(59, 46), Vector2(59, 60), Vector2(50, 68), Vector2(41, 60)], GOLD)
+	draw_circle(Vector2(50, 54), 2.6, OUTLINE)
+	_poly([Vector2(48.8, 55), Vector2(51.2, 55), Vector2(52, 61), Vector2(48, 61)], OUTLINE, false)
+
+
+## Epic: a trunk widening to the top, gold-trimmed, a glowing seam under the
+## lid, swirls, side handles, little feet and a big gem lock.
+func _chest_ornate() -> void:
+	var pulse := 0.5 + 0.5 * sin(_time * 3.0)
+	for i in 6:
+		draw_circle(Vector2(50, 54), 50.0 - i * 6.0, Color(color, 0.05 + 0.03 * i * (0.6 + 0.4 * pulse) / 3.0))
+	var body := color.darkened(0.55).lerp(WOOD_DARK, 0.3)
+	# Feet.
+	for x: float in [20.0, 80.0]:
+		_poly([Vector2(x - 6, 88), Vector2(x + 6, 88), Vector2(x + 4, 95), Vector2(x - 4, 95)], GOLD_DARK)
+	_poly([Vector2(10, 52), Vector2(90, 52), Vector2(84, 90), Vector2(16, 90)], body)
+	_poly([Vector2(50, 52), Vector2(90, 52), Vector2(84, 90), Vector2(50, 90)], body.darkened(0.15), false)
+	# Gold swirls on the front.
+	for side: float in [-1.0, 1.0]:
+		var cx := 50.0 + side * 22.0
+		draw_arc(Vector2(cx, 72), 7.0, 0, PI * 1.5, 12, GOLD, 2.0)
+		draw_arc(Vector2(cx + side * 3.0, 72), 3.0, PI, PI * 2.5, 8, GOLD, 1.6)
+	# Side ring handles.
+	for x: float in [8.0, 92.0]:
+		draw_arc(Vector2(x, 66), 6.0, 0, TAU, 14, OUTLINE, 4.0)
+		draw_arc(Vector2(x, 66), 6.0, 0, TAU, 14, GOLD, 2.5)
+	# Domed lid with gold ribs.
+	var lid := [Vector2(8, 52)]
+	for i in 13:
+		var a := PI + PI * i / 12.0
+		lid.append(Vector2(50, 52) + Vector2(cos(a) * 42.0, sin(a) * 30.0))
+	lid.append(Vector2(92, 52))
+	_poly(lid, body.lightened(0.15))
+	for x: float in [22.0, 50.0, 78.0]:
+		var top := 52.0 - sqrt(maxf(0.0, 1.0 - pow((x - 50.0) / 42.0, 2.0))) * 30.0
+		draw_line(Vector2(x, top + 1.0), Vector2(x, 52), GOLD, 3.0)
+	_poly([Vector2(6, 48), Vector2(94, 48), Vector2(94, 54), Vector2(6, 54)], GOLD)
+	# Light leaking out of the seam.
+	draw_line(Vector2(12, 55.5), Vector2(88, 55.5), Color(color.lightened(0.7), 0.6 + 0.4 * pulse), 2.5)
+	for i in 4:
+		var x := 22.0 + i * 19.0
+		_poly([Vector2(x - 3, 54), Vector2(x + 3, 54), Vector2(x + 8, 34), Vector2(x - 8, 34)], Color(color.lightened(0.6), 0.10 + 0.08 * pulse), false)
+	# Gem lock in a gold frame.
+	_poly([Vector2(40, 50), Vector2(60, 50), Vector2(62, 62), Vector2(50, 72), Vector2(38, 62)], GOLD)
+	_gem(Vector2(50, 60), 8.0, color.lightened(0.25))
+	_gem(Vector2(50, 28), 4.0, color.lightened(0.4))
+	_sparkle_ring(3, 44.0, color)
+
+
+## Legendary: a golden treasure chest with a crown of spikes and gems, wings
+## on its sides, claw feet, turning light rays behind and light bursting out.
+func _chest_legendary() -> void:
+	var pulse := 0.5 + 0.5 * sin(_time * 3.5)
+	# Turning light rays.
+	for i in 10:
+		var a := _time * 0.35 + TAU * i / 10.0
+		var tip_a := Vector2.from_angle(a - 0.12) * 60.0
+		var tip_b := Vector2.from_angle(a + 0.12) * 60.0
+		_poly([Vector2(50, 56), Vector2(50, 56) + tip_a, Vector2(50, 56) + tip_b], Color(color.lightened(0.5), 0.10 + 0.06 * pulse), false)
+	for i in 6:
+		draw_circle(Vector2(50, 56), 46.0 - i * 6.0, Color(GOLD, 0.05 + 0.02 * i))
+	var gold := GOLD.lerp(color, 0.25)
+	var panel_c := color.darkened(0.45)
+	# Wings.
+	for side: float in [-1.0, 1.0]:
+		var root := Vector2(50 + side * 34.0, 62)
+		for f in 3:
+			var wing_len := 26.0 - f * 5.0
+			var tip := root + Vector2(side * wing_len, -18.0 + f * 9.0)
+			_poly([root + Vector2(0, -6 + f * 5.0), tip, root + Vector2(side * wing_len * 0.5, 4.0 + f * 4.0)], Color("#fff6dc").lerp(gold, f * 0.3))
+	# Claw feet.
+	for x: float in [20.0, 80.0]:
+		_poly([Vector2(x - 7, 86), Vector2(x + 7, 86), Vector2(x + 9, 96), Vector2(x + 3, 92), Vector2(x, 97), Vector2(x - 3, 92), Vector2(x - 9, 96)], GOLD_DARK)
+	# Body: gold frame with colored panels.
+	_poly([Vector2(14, 54), Vector2(86, 54), Vector2(86, 88), Vector2(14, 88)], gold)
+	for px: Array in [[19.0, 44.0], [56.0, 81.0]]:
+		_poly([Vector2(px[0], 60), Vector2(px[1], 60), Vector2(px[1], 83), Vector2(px[0], 83)], panel_c)
+		_gem(Vector2((px[0] + px[1]) * 0.5, 71.5), 4.0, color.lightened(0.3))
+	# Tall lid with a crown.
+	var lid := [Vector2(12, 54)]
+	for i in 13:
+		var a := PI + PI * i / 12.0
+		lid.append(Vector2(50, 54) + Vector2(cos(a) * 38.0, sin(a) * 22.0))
+	lid.append(Vector2(88, 54))
+	_poly(lid, gold.lightened(0.1))
+	_poly([Vector2(20, 44), Vector2(80, 44), Vector2(84, 50), Vector2(16, 50)], panel_c)
+	var crown := [Vector2(28, 34), Vector2(30, 18), Vector2(39, 28), Vector2(50, 10), Vector2(61, 28), Vector2(70, 18), Vector2(72, 34)]
+	_poly(crown, gold)
+	_gem(Vector2(50, 22), 4.5, Color("#ff4d6d"))
+	_gem(Vector2(31, 24), 3.0, Color("#4fb8ff"))
+	_gem(Vector2(69, 24), 3.0, Color("#5fcf6a"))
+	_poly([Vector2(10, 52), Vector2(90, 52), Vector2(90, 58), Vector2(10, 58)], GOLD_DARK)
+	# Light bursting from the seam.
+	draw_line(Vector2(14, 58.5), Vector2(86, 58.5), Color(1, 1, 0.85, 0.7 + 0.3 * pulse), 3.0)
+	for i in 5:
+		var x := 20.0 + i * 15.0
+		_poly([Vector2(x - 2, 56), Vector2(x + 2, 56), Vector2(x + 7, 30), Vector2(x - 7, 30)], Color(1, 0.95, 0.7, 0.12 + 0.1 * pulse), false)
+	# Big pulsing gem lock.
+	_poly([Vector2(38, 52), Vector2(62, 52), Vector2(64, 66), Vector2(50, 78), Vector2(36, 66)], GOLD_DARK)
+	draw_circle(Vector2(50, 63), 10.0 + 2.0 * pulse, Color(color.lightened(0.5), 0.35))
+	_gem(Vector2(50, 63), 9.0, color.lightened(0.15))
+	_sparkle_ring(6, 48.0, GOLD)
+
+
+func _sparkle_ring(count: int, radius: float, c: Color) -> void:
+	for i in count:
+		var angle := _time * 0.7 + TAU * i / count
+		var at := Vector2(50, 54) + Vector2(cos(angle), sin(angle) * 0.8) * (radius + 3.0 * sin(_time * 2.5 + i))
+		_star(at, 2.5 + 1.5 * sin(_time * 4.0 + i * 1.3), Color(c.lightened(0.6), 0.95))

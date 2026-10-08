@@ -20,7 +20,7 @@ const LootOrbs := preload("res://scripts/combat/loot_orbs.gd")
 const WeaponSet := preload("res://scripts/combat/weapon_set.gd")
 const ProfileStore := preload("res://scripts/progression/profile_store.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
-const Shop := preload("res://scripts/progression/shop.gd")
+const SkillTree := preload("res://scripts/progression/skill_tree.gd")
 const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const Achievements := preload("res://scripts/progression/achievements.gd")
@@ -47,7 +47,7 @@ var range_ring: RangeRing
 var loot_orbs: LootOrbs
 var weapons: WeaponSet
 var progression: Progression
-var shop: Shop
+var skill_tree: SkillTree
 var boosts := RunBoosts.new()
 var inventory: Inventory
 var achievements: Achievements
@@ -121,7 +121,7 @@ func _process(delta: float) -> void:
 func login(username: String) -> void:
 	var profile := store.login(username)
 	progression = Progression.new(store, profile)
-	shop = Shop.new(profile, store)
+	skill_tree = SkillTree.new(profile, store)
 	inventory = Inventory.new(profile, store)
 	achievements = Achievements.new(profile, store)
 	achievements.reward_gold = progression.add_gold
@@ -204,7 +204,7 @@ func login(username: String) -> void:
 
 	main_menu = MainMenu.new()
 	add_child(main_menu)
-	main_menu.setup(progression, shop, inventory)
+	main_menu.setup(progression, skill_tree, inventory)
 	main_menu.achievements = achievements
 	main_menu.play_pressed.connect(start_run)
 	main_menu.chest_open_requested.connect(open_chest)
@@ -330,7 +330,7 @@ func open_chest(uid: int) -> Dictionary:
 	return it
 
 
-## Combines base stats, class, gear, character level, market items and boosts.
+## Combines base stats, class, gear, character level, skill tree and boosts.
 func _apply_stats() -> void:
 	player.speed_multiplier = 1.0 + _extra("moveSpeed")
 	player.regen = _extra("regen")
@@ -416,9 +416,9 @@ func _max_hp() -> float:
 	return base + progression.max_hp_bonus() + _extra("maxHp")
 
 
-## Run boosts, market upgrades, class bonus, worn gear and the developer cheat bonus for a stat.
+## Run boosts, skill tree, class bonus, worn gear and the developer cheat bonus for a stat.
 func _extra(stat: String) -> float:
-	var sum := boosts.total(stat) + (cheat_menu.total(stat) if cheat_menu else 0.0) + (shop.total(stat) if shop else 0.0)
+	var sum := boosts.total(stat) + (cheat_menu.total(stat) if cheat_menu else 0.0) + (skill_tree.total(stat) if skill_tree else 0.0)
 	if inventory and not _character.is_empty():
 		var bonus: Dictionary = inventory.class_info(class_id()).bonus
 		sum += float(bonus.get(stat, 0.0)) + inventory.gear_total(_character, stat)
@@ -611,8 +611,17 @@ func _build_world_viewport() -> void:
 
 func _build_environment() -> void:
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("#8fc7e8")
+	# A soft sky gradient with a warm horizon behind the forest.
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color("#4f97d6")
+	sky_mat.sky_horizon_color = Color("#d9ecf2")
+	sky_mat.ground_horizon_color = Color("#cfe3d0")
+	sky_mat.ground_bottom_color = Color("#4f7a46")
+	sky_mat.sun_angle_max = 20.0
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+	env.sky = sky
+	env.background_mode = Environment.BG_SKY
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#b7d3e6")
 	env.ambient_light_energy = 0.55
@@ -620,6 +629,7 @@ func _build_environment() -> void:
 	env.fog_enabled = true
 	env.fog_light_color = Color("#a9d1e8")
 	env.fog_density = 0.012
+	env.fog_sun_scatter = 0.25
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	world.add_child(world_env)

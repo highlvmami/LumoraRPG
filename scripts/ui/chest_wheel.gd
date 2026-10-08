@@ -24,6 +24,7 @@ var spinning := false
 var result: Dictionary = {}
 
 var _title: Label
+var _chest_art: CenterContainer
 var _window: Control
 var _strip: Control
 var _result_box: VBoxContainer
@@ -51,6 +52,8 @@ func setup(p_gear: Gear) -> void:
 	column.add_theme_constant_override("separation", 18)
 	dim.add_child(column)
 
+	_chest_art = CenterContainer.new()
+	column.add_child(_chest_art)
 	_title = UiTheme.label("", UiTheme.label_settings(38, UiTheme.ACCENT, 8))
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_title)
@@ -99,6 +102,9 @@ func spin(tier: int, prize: Dictionary) -> void:
 	var chest := gear.chest(tier)
 	_title.text = str(chest.name).to_upper()
 	_title.label_settings = UiTheme.label_settings(38, Color(str(chest.color)), 8)
+	for child in _chest_art.get_children():
+		child.queue_free()
+	_chest_art.add_child(ItemArt.chest(tier, Color(str(chest.color)), 110))
 	for child in _strip.get_children():
 		child.queue_free()
 	for i in TILES:
