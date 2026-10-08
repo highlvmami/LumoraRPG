@@ -1,0 +1,13 @@
+{
+	"choicesPerLevel": 3,
+	"boosts": [
+		{ "id": "damage", "name": "Keskin Uç", "desc": "+20% hasar", "stat": "damage", "amount": 0.2, "maxStacks": 10, "color": "#ff7a5c" },
+		{ "id": "attack_speed", "name": "Hızlı Çekiş", "desc": "+15% saldırı hızı", "stat": "attackSpeed", "amount": 0.15, "maxStacks": 10, "color": "#ffd866" },
+		{ "id": "range", "name": "Kartal Gözü", "desc": "+1.5 saldırı alanı", "stat": "range", "amount": 1.5, "maxStacks": 6, "color": "#8fe3ff" },
+		{ "id": "crit_chance", "name": "Şanslı Atış", "desc": "+8% kritik şansı", "stat": "critChance", "amount": 0.08, "maxStacks": 8, "color": "#ffb347" },
+		{ "id": "crit_damage", "name": "Ölümcül Vuruş", "desc": "+35% kritik hasarı", "stat": "critDamage", "amount": 0.35, "maxStacks": 8, "color": "#ff5c8a" },
+		{ "id": "max_hp", "name": "Sağlam Beden", "desc": "+20 maksimum can", "stat": "maxHp", "amount": 20.0, "maxStacks": 10, "color": "#e0484f" },
+		{ "id": "move_speed", "name": "Rüzgâr Adımı", "desc": "+8% hareket hızı", "stat": "moveSpeed", "amount": 0.08, "maxStacks": 6, "color": "#9be07a" },
+		{ "id": "regen", "name": "Yenilenme", "desc": "Saniyede +1 can", "stat": "regen", "amount": 1.0, "maxStacks": 8, "color": "#62d6a0" }
+	]
+}

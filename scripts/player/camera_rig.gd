@@ -1,5 +1,5 @@
 ## Third-person camera behind the player (Megabonk style).
-## Click to capture the mouse, move the mouse to look around, Esc to release.
+## Click to capture the mouse, move the mouse to look around (Esc opens the pause menu).
 ## A SpringArm3D pulls the camera in when a hill or tree is in the way.
 extends Node3D
 
@@ -47,8 +47,6 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and capture_enabled and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif event.is_action_pressed("release_mouse"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
 		yaw -= motion.relative.x * SENSITIVITY

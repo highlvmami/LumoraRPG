@@ -1,4 +1,5 @@
 ## Game flow: login → main menu → run → (death) → run again or back to the menu.
+## During a run: level-ups pause for a boost choice, Esc opens the pause menu.
 ## The 3D world lives in a SubViewport rendered at half resolution (pixel look),
 ## while all UI is drawn at full resolution so text stays sharp.
 extends Node
@@ -15,12 +16,16 @@ const RangeRing := preload("res://scripts/combat/range_ring.gd")
 const ProfileStore := preload("res://scripts/progression/profile_store.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const Shop := preload("res://scripts/progression/shop.gd")
+const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const LoginScreen := preload("res://scripts/ui/login_screen.gd")
 const MainMenu := preload("res://scripts/ui/main_menu.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
+const LevelUpScreen := preload("res://scripts/ui/level_up_screen.gd")
+const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 
-## How many screen pixels each 3D pixel covers.
-const PIXEL_SCALE := 2
+## How many screen pixels each 3D pixel covers, per graphics quality.
+const PIXEL_SCALES := {"low": 3, "medium": 2, "high": 1}
+const DEFAULT_QUALITY := "medium"
 
 var world: Node3D
 var terrain: Terrain
@@ -32,13 +37,21 @@ var bow: AutoBow
 var range_ring: RangeRing
 var progression: Progression
 var shop: Shop
+var boosts := RunBoosts.new()
 var hud: Hud
+var level_up_screen: LevelUpScreen
+var pause_menu: PauseMenu
 var login_screen: LoginScreen
 var main_menu: MainMenu
 var store := ProfileStore.new()
 var in_run := false
 
 var _world_cfg: Dictionary
+var _world_view: SubViewportContainer
+var _sun: DirectionalLight3D
+## True while the mouse was captured last frame; losing it mid-run pauses
+## (browsers swallow Esc and just release the mouse).
+var _was_captured := false
 var _run_gold := 0
 var _menu_angle := 0.0
 
@@ -76,6 +89,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not in_run:
 		_update_menu_camera(delta)
+		return
+	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	if _was_captured and not captured:
+		pause_menu.open()
+	_was_captured = captured
 
 
 ## Logs in (creating the account if new) and opens the main menu.
@@ -117,9 +135,26 @@ func login(username: String) -> void:
 
 	hud = Hud.new()
 	add_child(hud)
-	hud.setup(player, progression, enemies, camera_rig.camera, PIXEL_SCALE)
+	hud.setup(player, progression, enemies, camera_rig.camera, _world_view.stretch_shrink)
 	hud.restart_requested.connect(start_run)
 	hud.menu_requested.connect(show_menu)
+	bow.hit_landed.connect(hud.show_hit)
+
+	level_up_screen = LevelUpScreen.new()
+	add_child(level_up_screen)
+	level_up_screen.setup(boosts)
+	level_up_screen.chosen.connect(func(_id: String) -> void: _apply_stats())
+	level_up_screen.closed.connect(_on_popup_closed)
+
+	pause_menu = PauseMenu.new()
+	add_child(pause_menu)
+	pause_menu.setup(boosts, str(profile.get("quality", DEFAULT_QUALITY)))
+	pause_menu.can_pause = _can_pause
+	pause_menu.stats_source = stat_list
+	pause_menu.resumed.connect(_on_popup_closed)
+	pause_menu.menu_requested.connect(leave_run)
+	pause_menu.quality_selected.connect(set_quality)
+	set_quality(str(profile.get("quality", DEFAULT_QUALITY)))
 
 	main_menu = MainMenu.new()
 	add_child(main_menu)
@@ -129,8 +164,18 @@ func login(username: String) -> void:
 	show_menu()
 
 
+## Quits the current run from the pause menu; the run still counts and is saved.
+func leave_run() -> void:
+	if in_run and not player.dead:
+		progression.end_run(enemies.kills)
+	show_menu()
+
+
 func show_menu() -> void:
 	in_run = false
+	_was_captured = false
+	pause_menu.close()
+	level_up_screen.close()
 	enemies.clear()
 	enemies.active = false
 	bow.clear()
@@ -147,20 +192,20 @@ func show_menu() -> void:
 
 func start_run() -> void:
 	in_run = true
+	_was_captured = false
+	pause_menu.close()
+	level_up_screen.close()
 	main_menu.visible = false
 	progression.start_run()
+	boosts.reset()
 	enemies.clear()
 	bow.clear()
 	_run_gold = 0
 
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	player.visible = true
-	player.speed_multiplier = 1.0 + shop.bonus("speedBonus")
 	player.reset(_max_hp())
-	bow.attack_speed_multiplier = 1.0 + shop.bonus("attackSpeedBonus")
-	bow.range_bonus = shop.bonus("rangeBonus")
-	bow.damage_multiplier = _damage_multiplier()
-	range_ring.radius = bow.attack_range()
+	_apply_stats()
 	range_ring.visible = true
 
 	enemies.active = true
@@ -171,12 +216,61 @@ func start_run() -> void:
 	hud.hide_death()
 
 
+## Combines base stats, character level, market items and this run's boosts.
+func _apply_stats() -> void:
+	player.speed_multiplier = 1.0 + shop.bonus("speedBonus") + boosts.total("moveSpeed")
+	player.regen = boosts.total("regen")
+	player.set_max_hp(_max_hp())
+	bow.damage_multiplier = progression.damage_multiplier() + shop.bonus("damageBonus") + boosts.total("damage")
+	bow.attack_speed_multiplier = 1.0 + shop.bonus("attackSpeedBonus") + boosts.total("attackSpeed")
+	bow.range_bonus = shop.bonus("rangeBonus") + boosts.total("range")
+	bow.crit_chance = minf(1.0, bow.base_crit_chance + boosts.total("critChance"))
+	bow.crit_multiplier = bow.base_crit_multiplier + boosts.total("critDamage")
+	range_ring.radius = bow.attack_range()
+	hud.set_stats(stat_list())
+
+
+## The stats shown in the character panel and the pause menu, as [name, value].
+func stat_list() -> Array:
+	return [
+		["Can", "%d" % int(player.max_hp)],
+		["Hasar", "%.1f" % bow.hit_damage()],
+		["Kritik Şansı", "%%%d" % roundi(bow.crit_chance * 100.0)],
+		["Kritik Hasarı", "x%.2f" % bow.crit_multiplier],
+		["Saldırı Hızı", "%.2f/sn" % bow.shots_per_second()],
+		["Saldırı Alanı", "%.1f m" % bow.attack_range()],
+		["Hareket Hızı", "%.1f" % player.move_speed()],
+		["Can Yenileme", "%.1f/sn" % player.regen],
+	]
+
+
 func _max_hp() -> float:
-	return float(player.t.maxHp) + progression.max_hp_bonus() + shop.bonus("maxHpBonus")
+	return float(player.t.maxHp) + progression.max_hp_bonus() + shop.bonus("maxHpBonus") + boosts.total("maxHp")
 
 
-func _damage_multiplier() -> float:
-	return progression.damage_multiplier() + shop.bonus("damageBonus")
+func _can_pause() -> bool:
+	return in_run and not player.dead and not level_up_screen.visible
+
+
+func _on_popup_closed() -> void:
+	# Don't treat the mouse release from the popup as a new "lost focus" pause.
+	_was_captured = false
+	hud.hide_hint()
+
+
+## Low quality renders the world at fewer pixels (faster), high at full resolution.
+func set_quality(quality: String) -> void:
+	if not PIXEL_SCALES.has(quality):
+		quality = DEFAULT_QUALITY
+	_world_view.stretch_shrink = PIXEL_SCALES[quality]
+	_sun.shadow_enabled = quality != "low"
+	if hud:
+		hud.world_scale = _world_view.stretch_shrink
+	if pause_menu:
+		pause_menu.set_quality(quality)
+	if progression and progression.profile.get("quality", "") != quality:
+		progression.profile.quality = quality
+		store.save_to_disk()
 
 
 func _on_enemy_killed(_at: Vector3, exp_amount: int, gold_amount: int) -> void:
@@ -185,9 +279,10 @@ func _on_enemy_killed(_at: Vector3, exp_amount: int, gold_amount: int) -> void:
 	_run_gold += gold_amount
 
 
-func _on_level_up(_level: int) -> void:
-	bow.damage_multiplier = _damage_multiplier()
-	player.set_max_hp(_max_hp())
+func _on_level_up(level: int) -> void:
+	_apply_stats()
+	if in_run and not player.dead:
+		level_up_screen.queue_level_up(level)
 
 
 func _on_player_died() -> void:
@@ -206,16 +301,17 @@ func _update_menu_camera(delta: float) -> void:
 	menu_camera.look_at(Vector3(0, ground + 2.0, 0))
 
 
-## 3D renders into a SubViewport at 1/PIXEL_SCALE resolution and is scaled up
-## with nearest filtering, so the world looks pixelated but the UI stays crisp.
+## 3D renders into a SubViewport at a fraction of the screen resolution (see
+## PIXEL_SCALES), scaled up with nearest filtering: pixel world, crisp UI.
 func _build_world_viewport() -> void:
 	var container := SubViewportContainer.new()
 	container.name = "WorldView"
 	container.set_anchors_preset(Control.PRESET_FULL_RECT)
 	container.stretch = true
-	container.stretch_shrink = PIXEL_SCALE
+	container.stretch_shrink = PIXEL_SCALES[DEFAULT_QUALITY]
 	container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(container)
+	_world_view = container
 
 	var viewport := SubViewport.new()
 	viewport.name = "WorldViewport"
@@ -244,6 +340,7 @@ func _build_environment() -> void:
 	world.add_child(world_env)
 
 	var sun := DirectionalLight3D.new()
+	_sun = sun
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-50, 35, 0)
 	sun.light_color = Color("#fff1d6")
