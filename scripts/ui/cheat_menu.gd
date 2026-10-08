@@ -26,6 +26,8 @@ const ACTIONS := [
 	["spawn_spider", "3 örümcek çağır"],
 	["spawn_thrower", "3 goblin çağır"],
 	["time", "+1 dakika (zorluk)"],
+	["boss", "Boss çağır"],
+	["weapons", "Tüm silahlar max"],
 ]
 
 ## A stat bonus changed; recalculate stats.

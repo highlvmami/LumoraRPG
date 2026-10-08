@@ -24,6 +24,8 @@ Her seviye atlayışta oyun durur ve 3 rastgele güçlendirmeden (boost) birini 
 
 Düşmanlar zamanla çeşitlenir ve güçlenir: balçık (başta), hızlı **kurt** (30 sn), uzaktan taş atan **goblin** (1 dk) ve canı/hasarı yüksek **dev örümcek** (1.5 dk). Ölen düşmanlar mavi EXP ve sarı altın topları saçar.
 
+Seviye kartlarında yeni **silahlar** da çıkar (yayın yanında en fazla 3 silah, her biri 5 seviye): **Dönen Kılıçlar**, **Ateş Topu**, **Yıldırım** ve **Kutsal Alan**. 5. ve 10. dakikada boss **Orman Devi** gelir; ekranın üstünde can barı görünür, her yöne taş saçar.
+
 ## Kontroller
 
 | Tuş | Eylem |

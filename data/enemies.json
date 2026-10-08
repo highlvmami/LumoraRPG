@@ -24,6 +24,13 @@
 			"hp": 40.0, "speed": 2.6, "damage": 20.0, "xp": 10, "gold": 3,
 			"radius": 0.85, "center": 0.5,
 			"unlockAt": 90, "weight": 3
+		},
+		{
+			"id": "boss", "name": "Orman Devi",
+			"hp": 500.0, "speed": 2.4, "damage": 30.0, "xp": 80, "gold": 40,
+			"radius": 1.6, "center": 1.7,
+			"unlockAt": 0, "weight": 0, "boss": true,
+			"ranged": { "range": 30.0, "keepAway": 0.0, "cooldown": 4.5, "projectileSpeed": 9.0, "damage": 14.0, "height": 2.4, "ring": 12 }
 		}
 	],
 	"spawn": {
@@ -36,6 +43,7 @@
 		"hpGrowthPerMinute": 0.3,
 		"damageGrowthPerMinute": 0.15,
 		"speedGrowthPerMinute": 0.05,
-		"maxSpeedGrowth": 0.4
+		"maxSpeedGrowth": 0.4,
+		"bossTimes": [300, 600]
 	}
 }

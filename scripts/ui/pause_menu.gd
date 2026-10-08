@@ -1,5 +1,5 @@
 ## Esc during a run: pauses the game and shows resume, graphics quality,
-## back to the main menu, and the boosts picked in this run.
+## back to the main menu, and the weapons and boosts picked in this run.
 extends CanvasLayer
 
 const UiTheme := preload("res://scripts/ui/theme.gd")
@@ -17,6 +17,8 @@ var boosts: RunBoosts
 var can_pause: Callable = func() -> bool: return true
 ## Returns the current stats as [name, value] pairs, the same list the HUD shows.
 var stats_source: Callable = func() -> Array: return []
+## Returns the weapons carried this run as [def, level] pairs (bow included).
+var weapons_source: Callable = func() -> Array: return []
 
 var _quality_buttons := {}
 var _boost_list: VBoxContainer
@@ -91,12 +93,12 @@ func setup(p_boosts: RunBoosts, quality: String) -> void:
 	var info := VBoxContainer.new()
 	info.add_theme_constant_override("separation", 10)
 	right.add_child(info)
-	info.add_child(UiTheme.label("Bu oyundaki boostlar", UiTheme.label_settings(28, UiTheme.TEXT, 6)))
+	info.add_child(UiTheme.label("Bu oyunda aldıkların", UiTheme.label_settings(28, UiTheme.TEXT, 6)))
 	_boost_list = VBoxContainer.new()
-	_boost_list.add_theme_constant_override("separation", 8)
+	_boost_list.add_theme_constant_override("separation", 3)
 	info.add_child(_boost_list)
 	info.add_child(HSeparator.new())
-	_stats_text = UiTheme.label("", UiTheme.label_settings(18, UiTheme.MUTED, 4))
+	_stats_text = UiTheme.label("", UiTheme.label_settings(15, UiTheme.MUTED, 4))
 	info.add_child(_stats_text)
 
 
@@ -141,24 +143,28 @@ func _unhandled_input(event: InputEvent) -> void:
 func _refresh(stats: Array) -> void:
 	for child in _boost_list.get_children():
 		child.queue_free()
+	for pair: Array in weapons_source.call():
+		_boost_list.add_child(_item_line(pair[0], "Sv. %d" % int(pair[1])))
 	var picked := boosts.picked()
 	if picked.is_empty():
-		var none := UiTheme.label("Henüz boost yok.\nSeviye atlayınca 3 seçenekten birini seçersin.", UiTheme.label_settings(18, UiTheme.MUTED, 4))
+		var none := UiTheme.label("Henüz boost yok. Seviye atlayınca seçersin.", UiTheme.label_settings(18, UiTheme.MUTED, 4))
 		_boost_list.add_child(none)
 	for pair: Array in picked:
-		var d: Dictionary = pair[0]
-		var n: int = pair[1]
-		var line := HBoxContainer.new()
-		line.add_theme_constant_override("separation", 10)
-		var icon := PixelIcons.rect(str(d.get("icon", "")), 28)
-		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		line.add_child(icon)
-		line.add_child(UiTheme.label("%s  x%d" % [d.name, n], UiTheme.label_settings(20)))
-		var detail := UiTheme.label("(%s)" % d.desc, UiTheme.label_settings(16, UiTheme.MUTED, 4))
-		detail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		line.add_child(detail)
-		_boost_list.add_child(line)
+		_boost_list.add_child(_item_line(pair[0], "x%d" % int(pair[1])))
 	var lines: PackedStringArray = []
 	for s: Array in stats:
 		lines.append("%s: %s" % [s[0], s[1]])
 	_stats_text.text = "\n".join(lines)
+
+
+func _item_line(d: Dictionary, count_text: String) -> HBoxContainer:
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 10)
+	var icon := PixelIcons.rect(str(d.get("icon", "")), 22)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(icon)
+	line.add_child(UiTheme.label("%s  %s" % [d.name, count_text], UiTheme.label_settings(17, UiTheme.TEXT, 4)))
+	var detail := UiTheme.label("(%s)" % d.desc, UiTheme.label_settings(13, UiTheme.MUTED, 3))
+	detail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(detail)
+	return line

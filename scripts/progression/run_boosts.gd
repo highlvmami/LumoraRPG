@@ -44,13 +44,6 @@ func total(stat: String) -> float:
 	return sum
 
 
-## Up to `choices_per_level` random boosts that are not maxed out yet.
-func roll_choices() -> Array:
-	var open: Array = defs.filter(func(d: Dictionary) -> bool: return count(d.id) < int(d.maxStacks))
-	open.shuffle()
-	return open.slice(0, choices_per_level)
-
-
 ## Picked boosts in pick-list order, as [def, stacks] pairs.
 func picked() -> Array:
 	var out: Array = []
