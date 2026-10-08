@@ -1,9 +1,11 @@
 ## Skill tree: permanent, account-wide stat bonuses learned level by level
-## with gold. Nodes sit in branches (data/skills.json); a node opens once the
-## nodes it needs reach the required level. Each level adds a small amount
-## (e.g. +1% damage) and costs more than the last. Levels are kept in
-## profile.upgrades (the same ids the old market upgrades used, so saves keep
-## everything they bought).
+## with skill points. Every account level gives POINTS_PER_LEVEL points.
+## Nodes sit in branches (data/skills.json); a node opens once the nodes it
+## needs reach the required level. Each level adds a small amount (e.g. +1%
+## damage); deeper nodes cost more points per level (row 2: 2, row 3: 3).
+## Levels are kept in profile.upgrades (the same ids the old gold upgrades
+## used, so saves keep everything they bought) and the points spent in
+## profile.skillPointsSpent.
 extends RefCounted
 
 const Config := preload("res://scripts/core/config.gd")
@@ -11,6 +13,8 @@ const Config := preload("res://scripts/core/config.gd")
 ## Old one-off market items (before levelled upgrades) and what they cost;
 ## their gold is given back once.
 const LEGACY_PRICES := {"sharp_arrows": 40, "leather_armor": 60, "swift_boots": 80, "quick_string": 100, "eagle_eye": 150}
+## Skill points earned with every account level (level 1 has one level's worth).
+const POINTS_PER_LEVEL := 2
 
 var branches: Array
 ## Node id -> node data (branch, row, col, name, icon, stat, per, ...).
@@ -78,24 +82,39 @@ func requirement_text(id: String) -> String:
 	return ", ".join(parts)
 
 
-## Price of the next level.
-func price(id: String) -> int:
-	var d: Dictionary = nodes[id]
-	return roundi(float(d.price) * pow(float(d.priceGrowth), level(id)))
+## Skill points one level of this node costs.
+func cost(id: String) -> int:
+	return int(nodes[id].get("cost", maxi(1, int(nodes[id].row))))
+
+
+## Points earned so far: account level x POINTS_PER_LEVEL (+ developer cheat points).
+func points_earned() -> int:
+	return int(profile.get("accountLevel", 1)) * POINTS_PER_LEVEL + int(profile.get("bonusSkillPoints", 0))
+
+
+func points_left() -> int:
+	return maxi(0, points_earned() - int(profile.get("skillPointsSpent", 0)))
 
 
 func can_buy(id: String) -> bool:
-	return nodes.has(id) and is_unlocked(id) and not is_maxed(id) and int(profile.gold) >= price(id)
+	return nodes.has(id) and is_unlocked(id) and not is_maxed(id) and points_left() >= cost(id)
 
 
 ## Learns the next level. Returns true if it was learned.
 func buy(id: String) -> bool:
 	if not can_buy(id):
 		return false
-	profile.gold = int(profile.gold) - price(id)
+	profile.skillPointsSpent = int(profile.get("skillPointsSpent", 0)) + cost(id)
 	profile.upgrades[id] = level(id) + 1
 	store.call("save_to_disk")
 	return true
+
+
+## Forgets every learned level and gives all points back.
+func reset() -> void:
+	profile.upgrades = {}
+	profile.skillPointsSpent = 0
+	store.call("save_to_disk")
 
 
 ## Levels learned over the whole tree.

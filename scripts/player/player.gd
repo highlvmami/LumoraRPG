@@ -4,6 +4,8 @@ extends CharacterBody3D
 
 const Config := preload("res://scripts/core/config.gd")
 const PlayerModel := preload("res://scripts/player/player_model.gd")
+## Defense never blocks more than this share of a hit.
+const MAX_DEFENSE := 0.6
 
 signal health_changed(hp: float, max_hp: float)
 signal died
@@ -21,6 +23,8 @@ var regen := 0.0
 var god_mode := false
 ## Direction the character faces, in radians around Y (0 = +Z).
 var facing := 0.0
+## Share of incoming damage blocked (pets, up to MAX_DEFENSE).
+var defense := 0.0
 
 var t: Dictionary
 var _since_grounded := 0.0
@@ -86,7 +90,7 @@ func play_attack(direction: Vector3) -> void:
 func take_damage(amount: float) -> void:
 	if dead or god_mode or _invulnerable > 0.0:
 		return
-	hp = maxf(0.0, hp - amount)
+	hp = maxf(0.0, hp - amount * (1.0 - clampf(defense, 0.0, MAX_DEFENSE)))
 	_invulnerable = t.invulnerableTime
 	_model.flash()
 	health_changed.emit(hp, max_hp)

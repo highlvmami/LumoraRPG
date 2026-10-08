@@ -1,7 +1,8 @@
 ## Main menu after login: account level, Play, and the sections
 ## Characters (with their worn items), new character, Equipment, Backpack
-## (shared items and chests), Skill Tree (permanent upgrades), Market
-## (chests), Achievements, Profile, Friends, Logs (past runs), Versions
+## (shared items and chests), Pets (3 slots of companions), Skill Tree
+## (permanent upgrades bought with skill points), Market (chests, pet eggs),
+## Achievements, Profile, Friends, Logs (past runs), Versions
 ## (what changed) and Settings (graphics, camera, interface, account).
 extends CanvasLayer
 
@@ -33,6 +34,7 @@ const NAV := [
 	["characters", "Karakterler", "cls_warrior"],
 	["equipment", "Ekipman", "armor"],
 	["backpack", "Çanta", "chest"],
+	["pets", "Petler", "paw"],
 	["skills", "Yetenek Ağacı", "storm"],
 	["market", "Market", "clover"],
 	["achievements", "Başarımlar", "skull"],
@@ -49,6 +51,8 @@ var skill_tree: SkillTree
 var inventory: Inventory
 ## Achievements (set by the game after setup).
 var achievements: RefCounted
+## The account's pets (set by the game after setup).
+var pets: RefCounted
 var section := "characters"
 ## Item selected in the backpack (uid, -1 = none).
 var selected_item := -1
@@ -76,6 +80,8 @@ var _content: VBoxContainer
 var _section_title: Label
 var _tab_buttons := {}
 var _name_edit: LineEdit
+## Versions whose notes are open on the versions page.
+var _open_versions := {}
 
 
 func setup(p_progression: Progression, p_skill_tree: SkillTree, p_inventory: Inventory) -> void:
@@ -140,6 +146,8 @@ func show_menu() -> void:
 
 func refresh() -> void:
 	_account_label.text = "%s   ·   Hesap Seviyesi %d" % [progression.profile.name, progression.account_level()]
+	if skill_tree.points_left() > 0:
+		_account_label.text += "   ·   %d yetenek puanı" % skill_tree.points_left()
 	_account_bar.max_value = progression.exp_to_next_account_level()
 	_account_bar.value = progression.account_exp()
 	_account_bar.tooltip_text = "%d / %d EXP" % [progression.account_exp(), progression.exp_to_next_account_level()]
@@ -164,6 +172,9 @@ func open_section(id: String) -> void:
 		"backpack":
 			_section_title.text = "Çanta (tüm karakterler ortak)"
 			_build_backpack()
+		"pets":
+			_section_title.text = "Petler"
+			_build_pets()
 		"skills":
 			_section_title.text = "Yetenek Ağacı"
 			_build_skills()
@@ -221,7 +232,7 @@ func learn_skill(id: String) -> bool:
 		if not skill_tree.is_unlocked(id):
 			notify("Önce: %s" % skill_tree.requirement_text(id))
 		elif not skill_tree.is_maxed(id):
-			notify("Yeterli altının yok.")
+			notify("Yeterli yetenek puanın yok. Hesap seviyen arttıkça puan kazanırsın.")
 	_check_achievements()
 	refresh()
 	return ok
@@ -401,7 +412,12 @@ func _build_top_bar() -> Control:
 	var left := VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(left)
-	left.add_child(UiTheme.label("LUMORA", UiTheme.label_settings(40, UiTheme.ACCENT, 8)))
+	# "LUMORA" with "RPG" joined on in another color.
+	var logo := HBoxContainer.new()
+	logo.add_theme_constant_override("separation", 0)
+	logo.add_child(UiTheme.label("LUMORA", UiTheme.label_settings(40, UiTheme.ACCENT, 8)))
+	logo.add_child(UiTheme.label("RPG", UiTheme.label_settings(40, Color("#ff5a4f"), 8)))
+	left.add_child(logo)
 	_account_label = UiTheme.label("", UiTheme.label_settings(20))
 	left.add_child(_account_label)
 	_account_bar = _bar(Color("#5fb8ff"), Vector2(320, 10))
@@ -753,7 +769,255 @@ func _build_market() -> void:
 		row.add_child(button)
 		_content.add_child(row)
 
-	_text("Kalıcı geliştirmeler Yetenek Ağacı bölümüne taşındı.", 14, UiTheme.MUTED)
+	_header("Petler")
+	_content.add_child(_egg_row())
+
+
+## Buys a pet egg and shows what hatched. Returns the pet ({} if not bought).
+func hatch_pet() -> Dictionary:
+	var p: Dictionary = pets.hatch()
+	if p.is_empty():
+		notify("Yeterli altının yok." if progression.gold() < pets.egg_price() else "Pet yerin dolu. Önce birini serbest bırak.")
+		return {}
+	refresh()
+	_reveal_pet(p)
+	return p
+
+
+func equip_pet(uid: int) -> bool:
+	var ok: bool = pets.equip(uid)
+	if not ok:
+		notify("Boş pet slotu yok. Slotlar hesap seviyesi %s'da açılır." % ", ".join((pets.cfg.slotLevels as Array).map(func(v: Variant) -> String: return str(int(v)))))
+	refresh()
+	return ok
+
+
+func unequip_pet(slot: int) -> void:
+	pets.unequip(slot)
+	refresh()
+
+
+func release_pet(uid: int) -> int:
+	var gold: int = pets.release(uid)
+	if gold > 0:
+		notify("Pet serbest bırakıldı (+%d altın)." % gold)
+	refresh()
+	return gold
+
+
+## Pets: the 3 slots on top (each pet turning on its stage, locked slots
+## show the account level they open at), what they give, then every pet
+## the account has and the egg shop.
+func _build_pets() -> void:
+	var slots := HBoxContainer.new()
+	slots.add_theme_constant_override("separation", 14)
+	slots.alignment = BoxContainer.ALIGNMENT_CENTER
+	_content.add_child(slots)
+	for slot in pets.slot_count():
+		slots.add_child(_pet_slot(slot))
+	var given := PackedStringArray()
+	for stat: String in pets.cfg.stats:
+		var v: float = pets.total(stat)
+		if v > 0.0:
+			given.append(pets.stat_text(stat, v))
+	_text("Petlerden gelen: " + ("  ·  ".join(given) if not given.is_empty() else "henüz yok"), 16, Color("#8fe39a") if not given.is_empty() else UiTheme.MUTED)
+
+	_header("Petlerin (%d / %d)" % [pets.owned().size(), int(pets.cfg.maxPets)])
+	if pets.owned().is_empty():
+		_text("Henüz petin yok. Aşağıdan bir yumurta al!", 15, UiTheme.MUTED)
+	else:
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 10)
+		flow.add_theme_constant_override("v_separation", 10)
+		_content.add_child(flow)
+		var sorted: Array = pets.owned().duplicate()
+		sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(pets.info(a).rarity) > int(pets.info(b).rarity))
+		for p: Dictionary in sorted:
+			flow.add_child(_pet_card(p))
+	_header("Yumurta")
+	_content.add_child(_egg_row())
+
+
+const PET_SLOT := Vector2(210, 300)
+
+
+func _pet_slot(slot: int) -> Control:
+	var p: Dictionary = pets.in_slot(slot)
+	var open: bool = pets.is_slot_open(slot)
+	var color := Color(str(pets.rarity(int(pets.info(p).rarity)).color)) if not p.is_empty() else Color(1, 1, 1, 0.25)
+	var card := PanelContainer.new()
+	card.custom_minimum_size = PET_SLOT
+	var style := _card_style(color if open else Color(1, 1, 1, 0.1), 2 if not p.is_empty() else 1)
+	if not p.is_empty():
+		style.shadow_color = Color(color, 0.35)
+		style.shadow_size = 10
+	card.add_theme_stylebox_override("panel", style)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	card.add_child(col)
+	col.add_child(_centered("SLOT %d" % (slot + 1), UiTheme.label_settings(13, UiTheme.MUTED, 2)))
+	if not open:
+		var gap := Control.new()
+		gap.custom_minimum_size.y = 70
+		col.add_child(gap)
+		col.add_child(_centered("KİLİTLİ", UiTheme.label_settings(24, UiTheme.MUTED, 4)))
+		col.add_child(_centered("Hesap seviyesi %d olunca açılır" % pets.slot_level(slot), UiTheme.label_settings(14, UiTheme.MUTED, 2)))
+		var bar := _bar(Color("#5fb8ff"), Vector2(150, 8))
+		bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		bar.max_value = pets.slot_level(slot)
+		bar.value = progression.account_level()
+		col.add_child(bar)
+		return card
+	if p.is_empty():
+		var gap := Control.new()
+		gap.custom_minimum_size.y = 80
+		col.add_child(gap)
+		col.add_child(_centered("Boş", UiTheme.label_settings(24, UiTheme.TEXT, 4)))
+		col.add_child(_centered("Aşağıdan bir pet seçip \"Tak\"a bas.", UiTheme.label_settings(13, UiTheme.MUTED, 2)))
+		return card
+	var info: Dictionary = pets.info(p)
+	var stage := _stage(color)
+	var preview: SubViewportContainer = CharacterPreview.new()
+	preview.call("setup_pet", str(p.kind), Vector2(PET_SLOT.x - 24, 150), 2)
+	stage.add_child(preview)
+	col.add_child(stage)
+	col.add_child(_centered(str(info.name), UiTheme.label_settings(20, color.lightened(0.2), 4)))
+	col.add_child(_centered(str(pets.rarity(int(info.rarity)).name), UiTheme.label_settings(12, color, 2)))
+	for stat: String in info.stats:
+		col.add_child(_centered(pets.stat_text(stat, float(info.stats[stat])), UiTheme.label_settings(13, Color("#8fe39a"), 2)))
+	var off := Button.new()
+	off.text = "Çıkar"
+	off.add_theme_font_size_override("font_size", 13)
+	off.pressed.connect(unequip_pet.bind(slot))
+	col.add_child(off)
+	return card
+
+
+func _pet_card(p: Dictionary) -> Control:
+	var info: Dictionary = pets.info(p)
+	var rarity: Dictionary = pets.rarity(int(info.rarity))
+	var color := Color(str(rarity.color))
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(190, 0)
+	card.add_theme_stylebox_override("panel", _card_style(color.darkened(0.2), 2))
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 3)
+	card.add_child(col)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 8)
+	head.add_child(PixelIcons.rect("paw", 34))
+	var names := VBoxContainer.new()
+	names.add_child(UiTheme.label(str(info.name), UiTheme.label_settings(17, color.lightened(0.2), 3)))
+	names.add_child(UiTheme.label(str(rarity.name), UiTheme.label_settings(12, color, 2)))
+	head.add_child(names)
+	col.add_child(head)
+	for stat: String in info.stats:
+		col.add_child(UiTheme.label(pets.stat_text(stat, float(info.stats[stat])), UiTheme.label_settings(13, Color("#8fe39a"), 2)))
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 6)
+	col.add_child(buttons)
+	var slot: int = pets.slot_of(int(p.uid))
+	if slot >= 0:
+		buttons.add_child(UiTheme.label("Slot %d'de" % (slot + 1), UiTheme.label_settings(13, UiTheme.ACCENT, 2)))
+	else:
+		var on := Button.new()
+		on.text = "Tak"
+		on.add_theme_font_size_override("font_size", 13)
+		on.pressed.connect(equip_pet.bind(int(p.uid)))
+		buttons.add_child(on)
+	var free := Button.new()
+	free.text = "Bırak +%d" % int(rarity.release)
+	free.tooltip_text = "Peti serbest bırak, altın kazan."
+	free.add_theme_font_size_override("font_size", 12)
+	free.pressed.connect(func() -> void:
+		confirm("%s serbest bırakılsın mı?" % info.name, "Pet gider, %d altın kazanırsın." % int(rarity.release), "Serbest bırak", release_pet.bind(int(p.uid))))
+	buttons.add_child(free)
+	return card
+
+
+## The pet egg on sale with its odds.
+func _egg_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row.add_child(PixelIcons.rect("egg", 70))
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_child(UiTheme.label(str(pets.cfg.egg.name), UiTheme.label_settings(21, UiTheme.ACCENT, 0)))
+	var odds := PackedStringArray()
+	for r in (pets.cfg.egg.odds as Array).size():
+		var names := PackedStringArray()
+		for k: Dictionary in pets.kinds():
+			if int(k.rarity) == r:
+				names.append(str(k.name))
+		odds.append("%s (%s) %%%d" % [pets.rarity(r).name, ", ".join(names), int(pets.cfg.egg.odds[r])])
+	var odds_label := UiTheme.label("  ·  ".join(odds), UiTheme.label_settings(13, UiTheme.MUTED, 0))
+	odds_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(odds_label)
+	row.add_child(info)
+	var button := Button.new()
+	button.custom_minimum_size = Vector2(140, 0)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.text = "%d altın" % pets.egg_price()
+	button.disabled = progression.gold() < pets.egg_price()
+	button.pressed.connect(hatch_pet)
+	row.add_child(button)
+	return row
+
+
+## A popup with the pet that just hatched, turning on its stage.
+func _reveal_pet(p: Dictionary) -> void:
+	close_confirm()
+	var info: Dictionary = pets.info(p)
+	var rarity: Dictionary = pets.rarity(int(info.rarity))
+	var color := Color(str(rarity.color))
+	_confirm_layer = ColorRect.new()
+	(_confirm_layer as ColorRect).color = Color(0, 0, 0, 0.65)
+	_confirm_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(_confirm_layer)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_confirm_layer.add_child(center)
+	var panel := PanelContainer.new()
+	var style := _card_style(color, 3)
+	style.set_content_margin_all(20)
+	style.shadow_color = Color(color, 0.5)
+	style.shadow_size = 24
+	panel.add_theme_stylebox_override("panel", style)
+	center.add_child(panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	panel.add_child(col)
+	col.add_child(_centered("Yumurta çatladı!", UiTheme.label_settings(18, UiTheme.MUTED, 3)))
+	var stage := _stage(color)
+	var preview: SubViewportContainer = CharacterPreview.new()
+	preview.call("setup_pet", str(p.kind), Vector2(280, 230), 2)
+	stage.add_child(preview)
+	col.add_child(stage)
+	col.add_child(_centered(str(info.name), UiTheme.label_settings(30, color.lightened(0.2), 6)))
+	col.add_child(_centered(UiTheme.upper(str(rarity.name)), UiTheme.label_settings(15, color, 3)))
+	for stat: String in info.stats:
+		col.add_child(_centered(pets.stat_text(stat, float(info.stats[stat])), UiTheme.label_settings(15, Color("#8fe39a"), 2)))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	col.add_child(row)
+	if pets.slot_of(int(p.uid)) < 0:
+		var put := UiTheme.primary_button("Hemen tak")
+		put.add_theme_font_size_override("font_size", 20)
+		put.custom_minimum_size = Vector2(140, 40)
+		put.pressed.connect(func() -> void:
+			close_confirm()
+			equip_pet(int(p.uid)))
+		row.add_child(put)
+	var ok := Button.new()
+	ok.text = "Harika!"
+	ok.custom_minimum_size = Vector2(120, 40)
+	ok.pressed.connect(close_confirm)
+	row.add_child(ok)
+	# A little pop.
+	panel.pivot_offset = Vector2(170, 220)
+	panel.scale = Vector2(0.6, 0.6)
+	panel.create_tween().tween_property(panel, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 const SKILL_NODE := 58.0
@@ -766,7 +1030,26 @@ const SKILL_TOP := 40.0
 ## (click to learn the next level, hover for details); lines join a node to
 ## the nodes it needs and light up once those reach the required level.
 func _build_skills() -> void:
-	_text("Altınla kalıcı yetenekler öğren (tüm karakterler). Alttaki yetenekler, üstündekiler yeterli seviyeye gelince açılır.  ·  Öğrenilen seviye: %d" % skill_tree.points_spent(), 14, UiTheme.MUTED)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 16)
+	_content.add_child(head)
+	var points := UiTheme.label("Yetenek Puanı: %d" % skill_tree.points_left(), UiTheme.label_settings(24, Color("#8fe3ff"), 5))
+	head.add_child(points)
+	var info := UiTheme.label("Her hesap seviyesinde +%d puan. Tüm karakterler için kalıcıdır. Alttaki yetenekler daha çok puan ister ve üstündekiler yeterli seviyeye gelince açılır." % SkillTree.POINTS_PER_LEVEL,
+		UiTheme.label_settings(14, UiTheme.MUTED, 0))
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(info)
+	var reset := Button.new()
+	reset.text = "Puanları sıfırla"
+	reset.tooltip_text = "Öğrenilen her şeyi unut, harcanan puanları geri al."
+	reset.disabled = skill_tree.points_spent() == 0
+	reset.pressed.connect(func() -> void:
+		confirm("Yetenekler sıfırlansın mı?", "Öğrendiğin tüm yetenekler silinir, puanların geri gelir.", "Sıfırla", func() -> void:
+			skill_tree.reset()
+			notify("Yetenek puanların geri verildi.")
+			refresh()))
+	head.add_child(reset)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	_content.add_child(row)
@@ -891,8 +1174,8 @@ func _skill_tooltip(id: String, color: Color) -> Control:
 		col.add_child(UiTheme.label("En yüksek seviyede", UiTheme.label_settings(14, UiTheme.ACCENT, 3)))
 	else:
 		col.add_child(UiTheme.label("Sonraki seviye: " + skill_tree.effect_text(id, 1), UiTheme.label_settings(15, UiTheme.TEXT, 3)))
-		var afford := progression.gold() >= skill_tree.price(id)
-		col.add_child(UiTheme.label("Fiyat: %d altın" % skill_tree.price(id), UiTheme.label_settings(14, UiTheme.ACCENT if afford else Color("#ff6b6b"), 3)))
+		var afford := skill_tree.points_left() >= skill_tree.cost(id)
+		col.add_child(UiTheme.label("Maliyet: %d yetenek puanı" % skill_tree.cost(id), UiTheme.label_settings(14, Color("#8fe3ff") if afford else Color("#ff6b6b"), 3)))
 	if not skill_tree.is_unlocked(id):
 		col.add_child(UiTheme.label("Gerekli: " + skill_tree.requirement_text(id), UiTheme.label_settings(14, Color("#ff6b6b"), 3)))
 	elif not skill_tree.is_maxed(id):
@@ -1290,28 +1573,82 @@ func _build_logs() -> void:
 			grid.add_child(UiTheme.label(str(cells[n]), UiTheme.label_settings(14, color, 2)))
 
 
-## What changed in each version of the game (data/changelog.json).
+## What changed in each version of the game (data/changelog.json). Each
+## version is a card; clicking its title slides the notes open (or shut).
 func _build_versions() -> void:
 	if version_text != "":
 		_text("Şu an oynadığın: %s" % version_text, 15, UiTheme.MUTED)
+	_text("Ayrıntıları görmek için bir sürüme tıkla.", 13, UiTheme.MUTED)
 	var data: Dictionary = Config.load_json("res://data/changelog.json")
-	for v: Dictionary in data.get("versions", []):
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", _card_style(Color(1, 1, 1, 0.12), 1))
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override("separation", 3)
-		card.add_child(col)
-		var head := HBoxContainer.new()
-		var title := UiTheme.label("v%s  ·  %s" % [v.version, v.title], UiTheme.label_settings(19, UiTheme.ACCENT, 3))
-		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		head.add_child(title)
-		head.add_child(UiTheme.label(str(v.date), UiTheme.label_settings(13, UiTheme.MUTED, 2)))
-		col.add_child(head)
-		for note: String in v.notes:
-			var line := UiTheme.label("•  " + note, UiTheme.label_settings(14, UiTheme.TEXT, 2))
-			line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			col.add_child(line)
-		_content.add_child(card)
+	var versions: Array = data.get("versions", [])
+	if _open_versions.is_empty() and not versions.is_empty():
+		_open_versions[str(versions[0].version)] = true
+	for v: Dictionary in versions:
+		_content.add_child(_version_card(v))
+
+
+func _version_card(v: Dictionary) -> Control:
+	var key := str(v.version)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _card_style(Color(1, 1, 1, 0.12), 1))
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	card.add_child(col)
+	var head := Button.new()
+	head.flat = true
+	head.focus_mode = Control.FOCUS_NONE
+	head.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	head.custom_minimum_size.y = 34
+	col.add_child(head)
+	var row := HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(row)
+	var arrow := UiTheme.label("▶", UiTheme.label_settings(15, UiTheme.ACCENT, 2))
+	arrow.custom_minimum_size.x = 22
+	arrow.pivot_offset = Vector2(7, 11)
+	row.add_child(arrow)
+	var title := UiTheme.label("v%s  ·  %s" % [v.version, v.title], UiTheme.label_settings(19, UiTheme.ACCENT, 3))
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(title)
+	row.add_child(UiTheme.label("%s  ·  %d not" % [v.date, (v.notes as Array).size()], UiTheme.label_settings(13, UiTheme.MUTED, 2)))
+	# The notes sit in a clipping box whose height slides between 0 and theirs.
+	var clip := Control.new()
+	clip.clip_contents = true
+	clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(clip)
+	var notes := VBoxContainer.new()
+	notes.add_theme_constant_override("separation", 3)
+	notes.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	clip.add_child(notes)
+	var gap := Control.new()
+	gap.custom_minimum_size.y = 6
+	notes.add_child(gap)
+	for note: String in v.notes:
+		var line := UiTheme.label("•  " + note, UiTheme.label_settings(14, UiTheme.TEXT, 2))
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		notes.add_child(line)
+	var open := bool(_open_versions.get(key, false))
+	arrow.rotation = PI * 0.5 if open else 0.0
+	clip.set_meta("open", open)
+	notes.resized.connect(func() -> void:
+		if bool(clip.get_meta("open")) and not clip.has_meta("sliding"):
+			clip.custom_minimum_size.y = notes.size.y)
+	head.pressed.connect(func() -> void:
+		var now := not bool(clip.get_meta("open"))
+		clip.set_meta("open", now)
+		_open_versions[key] = now
+		clip.set_meta("sliding", true)
+		var tween := clip.create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tween.tween_property(clip, "custom_minimum_size:y", notes.size.y if now else 0.0, 0.3)
+		tween.tween_property(arrow, "rotation", PI * 0.5 if now else 0.0, 0.2)
+		tween.chain().tween_callback(func() -> void: clip.remove_meta("sliding")))
+	return card
+
+
+## Is a version's card open (true) on the versions page?
+func is_version_open(version: String) -> bool:
+	return bool(_open_versions.get(version, false))
 
 
 func _settings() -> Dictionary:
