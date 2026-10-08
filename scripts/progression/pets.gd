@@ -180,6 +180,7 @@ func hatch() -> Dictionary:
 	if pool.is_empty():
 		return {}
 	profile.gold = int(profile.gold) - egg_price()
+	_count("petsHatched")
 	return add(str(pool[_rng.randi() % pool.size()].id))
 
 
@@ -205,6 +206,13 @@ func unequip(slot: int) -> void:
 	store.call("save_to_disk")
 
 
+## Adds one to a pet counter in profile.stats (for achievements).
+func _count(stat: String) -> void:
+	if not profile.has("stats"):
+		profile.stats = {}
+	profile.stats[stat] = float((profile.stats as Dictionary).get(stat, 0.0)) + 1.0
+
+
 ## Lets a pet go for some gold. Returns the gold given (0 if unknown).
 func release(uid: int) -> int:
 	var p := pet(uid)
@@ -216,6 +224,7 @@ func release(uid: int) -> int:
 	owned().erase(p)
 	var gold := int(rarity(int(info(p).rarity)).release)
 	profile.gold = int(profile.gold) + gold
+	_count("petsReleased")
 	store.call("save_to_disk")
 	return gold
 

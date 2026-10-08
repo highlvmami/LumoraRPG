@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.21", "date": "2026-10-08", "title": "Pet başarımları ve tam ekran", "notes": [
+			"Tam ekran: üstteki düğme, Ayarlar ya da F11 (bilgisayarda bir sonraki açılışta hatırlanır)",
+			"Menü ekrana sığıyor: sol menü kısaldı, yetenek ağacı sayfaya sığacak şekilde küçülüyor",
+			"10 yeni pet başarımı: ilk yumurta, 10 yumurta, 5 petlik sürü, 5 tür ve tüm türleri keşfetme, nadir, epik ve efsanevi pet bulma, üç slotu doldurma, bir peti serbest bırakma" ] },
 		{ "version": "0.20", "date": "2026-10-08", "title": "Sıralamalar, taverna ve yeni petler", "notes": [
 			"Sıralama sayfası: hesap seviyesi, canavar kesme, boss yenme, karakter seviyesi, hayatta kalma, verilen hasar ve kazanılan altın; ilk üç altın, gümüş ve bronz",
 			"Yetenek ağacı yenilendi: ortada Lumora Kalbi, dört dal dışa doğru açılıyor ve her türün kendi rengi var",

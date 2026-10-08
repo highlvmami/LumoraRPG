@@ -23,6 +23,16 @@
 		{ "id": "destroyer", "name": "Yok Edici", "desc": "Toplam 100.000 hasar ver", "icon": "fire", "stat": "damageDealt", "target": 100000, "reward": 120 },
 		{ "id": "cataclysm", "name": "Kıyamet", "desc": "Toplam 1.000.000 hasar ver", "icon": "meteor", "stat": "damageDealt", "target": 1000000, "reward": 400 },
 		{ "id": "explorer", "name": "Kâşif", "desc": "Üç farklı haritada oyna", "icon": "eye", "stat": "mapsPlayed", "target": 3, "reward": 60 },
-		{ "id": "veteran", "name": "Usta", "desc": "Hesap seviyesi 10'a ulaş", "icon": "eye", "stat": "accountLevel", "target": 10, "reward": 100 }
+		{ "id": "veteran", "name": "Usta", "desc": "Hesap seviyesi 10'a ulaş", "icon": "eye", "stat": "accountLevel", "target": 10, "reward": 100 },
+		{ "id": "first_pet", "name": "İlk Dost", "desc": "İlk pet yumurtanı çatlat", "icon": "egg", "stat": "petsHatched", "target": 1, "reward": 50 },
+		{ "id": "egg_hunter", "name": "Yumurta Avcısı", "desc": "10 pet yumurtası çatlat", "icon": "egg", "stat": "petsHatched", "target": 10, "reward": 200 },
+		{ "id": "pack", "name": "Sürü", "desc": "Aynı anda 5 petin olsun", "icon": "paw", "stat": "petsOwned", "target": 5, "reward": 100 },
+		{ "id": "pet_collector", "name": "Pet Koleksiyoncusu", "desc": "5 farklı pet türü keşfet", "icon": "paw", "stat": "petsFound", "target": 5, "reward": 150 },
+		{ "id": "full_zoo", "name": "Tam Koleksiyon", "desc": "Bütün pet türlerini keşfet", "icon": "paw", "stat": "petsFound", "target": 9, "reward": 600 },
+		{ "id": "rare_friend", "name": "Nadir Dost", "desc": "Nadir bir pet bul", "icon": "egg", "stat": "petRarity", "target": 2, "reward": 60 },
+		{ "id": "epic_friend", "name": "Epik Dost", "desc": "Epik bir pet bul", "icon": "egg", "stat": "petRarity", "target": 3, "reward": 150 },
+		{ "id": "legend_friend", "name": "Efsanevi Dost", "desc": "Efsanevi bir pet bul", "icon": "fire", "stat": "petRarity", "target": 4, "reward": 400 },
+		{ "id": "companions", "name": "Yoldaşlar", "desc": "Üç pet slotunu da doldur", "icon": "paw", "stat": "petsEquipped", "target": 3, "reward": 200 },
+		{ "id": "farewell", "name": "Elveda Dostum", "desc": "Bir peti serbest bırak", "icon": "heart", "stat": "petsReleased", "target": 1, "reward": 20 }
 	]
 }

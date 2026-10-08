@@ -167,6 +167,9 @@ func _run() -> void:
 	followers.call("set_pets", [])
 	var gold_before_release := int(profile0.gold)
 	_check(int(menu.call("release_pet", int(bear.uid))) > 0 and int(profile0.gold) > gold_before_release and int(pets.call("slot_of", int(bear.uid))) < 0, "a pet can be released for gold")
+	for id: String in ["first_pet", "legend_friend", "companions", "farewell"]:
+		_check(bool(ach.call("is_done", id)), "pet achievement %s unlocks" % id)
+	_check(not bool(ach.call("is_done", "full_zoo")), "the full collection achievement waits for every pet kind")
 	profile0.accountLevel = 1
 	profile0.gold = gold_keep
 	var migrated: RefCounted = load("res://scripts/progression/skill_tree.gd").new({"gold": 0, "upgrades": {"brutality": 4, "greed": 2}}, main.get("store"))
@@ -718,14 +721,27 @@ func _run() -> void:
 	for section_id: String in ["logs", "versions", "settings"]:
 		menu.call("open_section", section_id)
 		await _frames(1)
+	# Full screen is kept per device; the menu fits a 1280x720 window.
+	var screen_script: GDScript = load("res://scripts/core/screen.gd")
+	screen_script.call("set_fullscreen", true)
+	_check(bool(screen_script.call("saved")), "turning on full screen is remembered on this device")
+	screen_script.call("set_fullscreen", false)
+	_check(not bool(screen_script.call("saved")), "turning off full screen is remembered too")
+	var nav_buttons: Array = (menu.get("_tab_buttons") as Dictionary).values()
+	_check(nav_buttons.all(func(b: Button) -> bool: return b.get_global_rect().end.y <= 720.0), "every menu button fits on a 720 tall screen")
+	menu.call("open_section", "skills")
+	await _frames(3)
+	var fitted_tree: Control = menu.find_children("*", "Control", true, false).filter(func(c: Node) -> bool: return c.has_method("node_center"))[0]
+	var page: Control = menu.get("_content").get_parent()
+	_check(fitted_tree.get_global_rect().end.y <= page.get_global_rect().end.y + 1.0, "the skill tree shrinks to fit the page")
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.20")) and not bool(menu.call("is_version_open", "0.19")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.21")) and not bool(menu.call("is_version_open", "0.20")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.19")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.20")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
