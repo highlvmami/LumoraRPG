@@ -16,6 +16,12 @@ static func build(id: String, radius: float) -> ArrayMesh:
 			return _golem()
 		"spider_boss":
 			return _spider(Color("#4a1f5c"), Color("#2b1236"), Color("#ffdd33"), true)
+		"king_slime":
+			return _king_slime(radius)
+		"alpha_wolf":
+			return _wolf(Color("#3a3a46"), Color("#22222c"), Color("#ff4a3a"))
+		"goblin_chief":
+			return _thrower(Color("#8a5ad0"))
 		_:
 			return _slime(radius)
 
@@ -30,10 +36,24 @@ static func _slime(r: float) -> ArrayMesh:
 	])
 
 
-static func _wolf() -> ArrayMesh:
-	var fur := Color("#8d939e")
-	var dark := Color("#5c616b")
-	var eye := Color("#ffd23f")
+## The dungeon's slime king: a big purple slime with a golden crown.
+static func _king_slime(r: float) -> ArrayMesh:
+	var body := Color("#b06ad6")
+	var eye := Color("#2a1236")
+	var gold := Color("#ffd23f")
+	var parts := [
+		[_sphere(r, r * 1.5), Vector3.ZERO, body],
+		[_box(Vector3(0.22, 0.3, 0.08)), Vector3(-0.35, 0.18, r * 0.92), eye],
+		[_box(Vector3(0.22, 0.3, 0.08)), Vector3(0.35, 0.18, r * 0.92), eye],
+		[_box(Vector3(r * 1.1, 0.22, r * 1.1)), Vector3(0, r * 0.72, 0), gold],
+	]
+	for k in 4:
+		var a := TAU * k / 4.0
+		parts.append([_box(Vector3(0.18, 0.32, 0.18)), Vector3(cos(a) * r * 0.45, r * 0.95, sin(a) * r * 0.45), gold])
+	return _compound(parts)
+
+
+static func _wolf(fur := Color("#8d939e"), dark := Color("#5c616b"), eye := Color("#ffd23f")) -> ArrayMesh:
 	var parts := [
 		[_box(Vector3(0.5, 0.45, 1.1)), Vector3(0, 0.6, 0), fur],
 		[_box(Vector3(0.42, 0.4, 0.45)), Vector3(0, 0.82, 0.68), fur],
@@ -78,9 +98,8 @@ static func _spider(body: Color, leg: Color, eye: Color, queen: bool) -> ArrayMe
 	return _compound(parts)
 
 
-static func _thrower() -> ArrayMesh:
+static func _thrower(tunic := Color("#7a4e2d")) -> ArrayMesh:
 	var skin := Color("#8bbf4a")
-	var tunic := Color("#7a4e2d")
 	var eye := Color("#ffe14d")
 	var rock := Color("#b98cff")
 	return _compound([

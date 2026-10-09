@@ -21,6 +21,7 @@ const AutoBow := preload("res://scripts/combat/auto_bow.gd")
 const RangeRing := preload("res://scripts/combat/range_ring.gd")
 const LootOrbs := preload("res://scripts/combat/loot_orbs.gd")
 const WeaponSet := preload("res://scripts/combat/weapon_set.gd")
+const DungeonGate := preload("res://scripts/combat/dungeon_gate.gd")
 const Ultimate := preload("res://scripts/combat/ultimate.gd")
 const PetFollowers := preload("res://scripts/player/pet_followers.gd")
 const Pets := preload("res://scripts/progression/pets.gd")
@@ -58,6 +59,7 @@ var bow: AutoBow
 var range_ring: RangeRing
 var loot_orbs: LootOrbs
 var weapons: WeaponSet
+var dungeon: DungeonGate
 var ultimate: Ultimate
 var pets: Pets
 var pet_followers: PetFollowers
@@ -250,6 +252,16 @@ func login(username: String, remember := false) -> void:
 	world.add_child(weapons)
 	weapons.setup(player, enemies, bow, terrain)
 	weapons.attacked.connect(player.play_attack)
+
+	dungeon = DungeonGate.new()
+	dungeon.name = "DungeonGate"
+	world.add_child(dungeon)
+	dungeon.setup(player, enemies, terrain, float(_world_cfg.playableHalfSize))
+	dungeon.opened.connect(func() -> void: hud.toast("ZİNDAN KAPISI AÇILDI! MOR KAPIYA GİR"))
+	dungeon.fight_started.connect(func(guardian: String) -> void:
+		hud.show_title(UiTheme.upper(guardian), "Zindan muhafızını 60 saniyede yen!"))
+	dungeon.cleared.connect(_on_dungeon_cleared)
+	dungeon.failed.connect(func() -> void: hud.toast("MUHAFIZ KAÇTI, KAPI KAPANDI"))
 
 	ultimate = Ultimate.new()
 	ultimate.name = "Ultimate"
@@ -481,6 +493,8 @@ func show_menu() -> void:
 	bow.clear()
 	bow.active = false
 	weapons.active = false
+	dungeon.active = false
+	dungeon.reset()
 	weapons.reset()
 	ultimate.active = false
 	ultimate.reset()
@@ -552,6 +566,9 @@ func start_run(guest_map := "") -> void:
 	enemies.active = true
 	bow.active = archer
 	weapons.active = true
+	# Dungeon gates open in solo runs (the host runs the enemies in co-op).
+	dungeon.reset()
+	dungeon.active = not guest and coop.partner_count() == 0
 	ultimate.reset()
 	ultimate.class_id = class_id()
 	ultimate.active = true
@@ -902,6 +919,17 @@ func _on_boss_defeated(_boss_name: String) -> void:
 	_check_achievements()
 
 
+## A dungeon gate's guardian is beaten: gold and a chest (rarer for later gates).
+func _on_dungeon_cleared(guardian: String, count: int) -> void:
+	var gold_gain := 40 + 30 * count
+	progression.add_gold(gold_gain)
+	_run_gold += gold_gain
+	_drop_chest(1 if count >= 3 or _rng.randf() < 0.3 else 0)
+	achievements.add("dungeons")
+	hud.toast("%s YENİLDİ! +%d ALTIN" % [UiTheme.upper(guardian), gold_gain])
+	_check_achievements()
+
+
 func _drop_item(rarity_index: int) -> void:
 	var it := inventory.add_random_item(rarity_index)
 	if it.is_empty():
@@ -997,6 +1025,8 @@ func _on_player_died() -> void:
 	enemies.active = coop.running
 	bow.active = false
 	weapons.active = false
+	dungeon.active = false
+	dungeon.reset()
 	ultimate.active = false
 	_end_run()
 	camera_rig.capture_enabled = false
