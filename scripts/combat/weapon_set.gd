@@ -32,6 +32,12 @@ var bow: AutoBow
 var terrain: Terrain
 var active := false
 var defs: Array = []
+## Weapon evolutions (data/weapons.json "evolutions"): a maxed weapon plus a
+## certain boost turns into a super weapon.
+var evolutions: Array = []
+## Evolved weapons this run: weapon id -> its evolved def (numbers already
+## raised, name, icon and color of the evolution).
+var evolved := {}
 ## Weapon slots including the starter weapon (or the bow).
 var slots := 4
 ## True when the bow (outside this node) takes the first slot.
@@ -71,6 +77,7 @@ func setup(p_player: CharacterBody3D, p_enemies: EnemyManager, p_bow: AutoBow, p
 	terrain = p_terrain
 	var cfg := Config.load_json("res://data/weapons.json")
 	defs = cfg.extra
+	evolutions = cfg.get("evolutions", [])
 	slots = int(cfg.slots)
 
 	var blade := BoxMesh.new()
@@ -101,6 +108,7 @@ func setup(p_player: CharacterBody3D, p_enemies: EnemyManager, p_bow: AutoBow, p
 
 func reset() -> void:
 	levels.clear()
+	evolved.clear()
 	damage_dealt.clear()
 	_timers.clear()
 	_orbit_hits.clear()
@@ -113,6 +121,8 @@ func reset() -> void:
 
 
 func def(id: String) -> Dictionary:
+	if evolved.has(id):
+		return evolved[id]
 	for d: Dictionary in defs:
 		if d.id == id:
 			return d
@@ -128,7 +138,7 @@ func owned() -> Array:
 	var out: Array = []
 	for d: Dictionary in defs:
 		if level(d.id) > 0:
-			out.append([d, level(d.id)])
+			out.append([def(d.id), level(d.id)])
 	return out
 
 
@@ -165,6 +175,40 @@ func reach(id: String) -> float:
 	if d.has("radius"):
 		return (float(d.radius) + float(d.get("radiusPerLevel", 0.0)) * (lv - 1)) * _area()
 	return float(d.get("range", 0.0)) + bow.range_bonus
+
+
+## Turns weapon `evo.weapon` into its evolution.
+func evolve(evo: Dictionary) -> void:
+	var id := str(evo.weapon)
+	var base: Dictionary = def(id)
+	if base.is_empty() or evolved.has(id):
+		return
+	evolved[id] = evolved_def(base, evo)
+
+
+## A weapon's numbers after evolution `evo`: more damage, faster attacks,
+## a bigger area and more blades or bolts, with the evolution's look.
+static func evolved_def(base: Dictionary, evo: Dictionary) -> Dictionary:
+	var d := base.duplicate()
+	var speed := float(evo.get("speed", 1.0))
+	var area := float(evo.get("area", 1.0))
+	d.damage = float(base.damage) * float(evo.get("damage", 1.0))
+	for key: String in ["cooldown", "tick", "hitCooldown"]:
+		if d.has(key):
+			d[key] = float(d[key]) / speed
+	if d.has("spin"):
+		d.spin = float(d.spin) * speed
+	for key: String in ["radius", "blast", "arcDegrees"]:
+		if d.has(key):
+			d[key] = minf(float(d[key]) * area, 330.0) if key == "arcDegrees" else float(d[key]) * area
+	for key: String in ["count", "strikes"]:
+		if d.has(key):
+			d[key] = int(d[key]) + int(evo.get("extraCount", 0))
+	for key: String in ["name", "icon", "color", "desc"]:
+		d[key] = evo[key]
+	d.upgrade = str(evo.desc)
+	d.evolved = true
+	return d
 
 
 func add(id: String) -> void:

@@ -11,6 +11,28 @@
 		"critMultiplier": 1.5
 	},
 	"slots": 6,
+	"evolutions": [
+		{ "id": "eagle_bow", "weapon": "bow", "boost": "crit_chance", "boostStacks": 3, "name": "Kartal Yayı", "icon": "bow_t2", "color": "#ffd23f",
+			"desc": "Yay + 3 Şanslı Atış: oklar 1.6 kat hasar verir, %40 daha hızlı atılır", "damage": 1.6, "speed": 1.4 },
+		{ "id": "storm_blade", "weapon": "slash", "boost": "crit_damage", "name": "Fırtına Kılıcı", "icon": "sword_t2", "color": "#8fe3ff",
+			"desc": "Kılıç Savuruşu + Ölümcül Vuruş: 2 kat hasar, daha hızlı ve geniş savuruş", "damage": 2.0, "speed": 1.4, "area": 1.3 },
+		{ "id": "star_orb", "weapon": "magic", "boost": "attack_speed", "name": "Yıldız Küresi", "icon": "staff_t2", "color": "#ffe066",
+			"desc": "Büyü Küresi + Hızlı Çekiş: 1.8 kat hasar, kat kat daha hızlı küreler", "damage": 1.8, "speed": 1.6 },
+		{ "id": "blade_storm", "weapon": "orbit", "boost": "move_speed", "name": "Kılıç Kasırgası", "icon": "blades", "color": "#ff7aa8",
+			"desc": "Dönen Kılıçlar + Rüzgâr Adımı: +3 kılıç, 1.8 kat hasar, daha hızlı dönüş", "damage": 1.8, "speed": 1.5, "area": 1.25, "extraCount": 3 },
+		{ "id": "hellfire", "weapon": "fireball", "boost": "crit_chance", "name": "Cehennem Ateşi", "icon": "fire", "color": "#ff3a1a",
+			"desc": "Ateş Topu + Şanslı Atış: 2 kat hasar, dev patlamalar", "damage": 2.0, "speed": 1.5, "area": 1.4 },
+		{ "id": "thunder_god", "weapon": "lightning", "boost": "range", "name": "Gök Gürültüsü", "icon": "storm", "color": "#5ad2ff",
+			"desc": "Yıldırım + Kartal Gözü: +3 yıldırım, 1.8 kat hasar", "damage": 1.8, "speed": 1.5, "extraCount": 3 },
+		{ "id": "holy_light", "weapon": "aura", "boost": "regen", "name": "Kutsal Işık", "icon": "aura", "color": "#fff6a0",
+			"desc": "Kutsal Alan + Yenilenme: 2.2 kat hasar, çok daha geniş alan", "damage": 2.2, "speed": 1.3, "area": 1.4 },
+		{ "id": "arrow_storm", "weapon": "arrow_rain", "boost": "double_arrow", "name": "Ok Fırtınası", "icon": "arrow_rain", "color": "#ffb23f",
+			"desc": "Ok Yağmuru + Çift Ok: 2 kat hasar, daha sık ve geniş yağmur", "damage": 2.0, "speed": 1.6, "area": 1.3 },
+		{ "id": "apocalypse", "weapon": "meteor", "boost": "damage", "name": "Kıyamet", "icon": "meteor", "color": "#ff2a2a",
+			"desc": "Meteor + Keskin Uç: 2.2 kat hasar, devasa çarpışma", "damage": 2.2, "speed": 1.4, "area": 1.4 },
+		{ "id": "titan_shield", "weapon": "shield_bash", "boost": "max_hp", "name": "Titan Kalkanı", "icon": "shield", "color": "#c9a0ff",
+			"desc": "Kalkan Darbesi + Sağlam Beden: 2 kat hasar, daha sık ve geniş darbe", "damage": 2.0, "speed": 1.5, "area": 1.35 }
+	],
 	"extra": [
 		{
 			"id": "slash", "name": "Kılıç Savuruşu", "desc": "Önündeki düşmanları biçer", "icon": "sword", "color": "#e0e6ee",
