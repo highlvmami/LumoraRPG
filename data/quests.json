@@ -1,0 +1,23 @@
+{
+	"perDay": 3,
+	"quests": [
+		{ "id": "kills_s", "stat": "kills", "goal": 150, "name": "Avcı", "desc": "150 canavar kes", "icon": "sword", "gold": 150 },
+		{ "id": "kills_l", "stat": "kills", "goal": 500, "name": "Kıyım", "desc": "500 canavar kes", "icon": "blades", "gold": 300, "chest": 0 },
+		{ "id": "boss", "stat": "bossKills", "goal": 1, "name": "Dev Avcısı", "desc": "Bir boss yen", "icon": "skull", "gold": 250, "chest": 0 },
+		{ "id": "gold", "stat": "goldEarned", "goal": 600, "name": "Altın Toplayıcı", "desc": "Turlarda 600 altın topla", "icon": "clover", "gold": 200 },
+		{ "id": "items", "stat": "itemsFound", "goal": 3, "name": "Ganimet", "desc": "3 eşya bul", "icon": "chest", "gold": 200 },
+		{ "id": "chests", "stat": "chestsOpened", "goal": 2, "name": "Kasa Açıcı", "desc": "2 kasa aç", "icon": "chest", "gold": 150 },
+		{ "id": "runs", "stat": "runs", "goal": 3, "name": "Maceracı", "desc": "3 tur oyna", "icon": "bow", "gold": 150 },
+		{ "id": "steps", "stat": "steps", "goal": 2000, "name": "Yolcu", "desc": "2000 adım yürü", "icon": "boot", "gold": 120 },
+		{ "id": "damage", "stat": "damageDealt", "goal": 25000, "name": "Yıkıcı", "desc": "25.000 hasar ver", "icon": "fire", "gold": 220 }
+	],
+	"login": [
+		{ "gold": 100 },
+		{ "gold": 150 },
+		{ "gold": 200 },
+		{ "chest": 0 },
+		{ "gold": 300 },
+		{ "gold": 400 },
+		{ "gold": 500, "chest": 1 }
+	]
+}

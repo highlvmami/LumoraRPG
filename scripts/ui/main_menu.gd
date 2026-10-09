@@ -20,6 +20,7 @@ const PetIcons := preload("res://scripts/ui/pet_icons.gd")
 const TavernView := preload("res://scripts/ui/tavern_view.gd")
 const Config := preload("res://scripts/core/config.gd")
 const Screen := preload("res://scripts/core/screen.gd")
+const Daily := preload("res://scripts/progression/daily.gd")
 
 signal play_pressed
 ## The player wants to open this chest (the game shows the wheel).
@@ -43,6 +44,7 @@ const NAV := [
 	["pets", "Petler", "paw"],
 	["skills", "Yetenek Ağacı", "storm"],
 	["market", "Market", "clover"],
+	["quests", "Görevler", "scroll"],
 	["achievements", "Başarımlar", "skull"],
 	["leaderboard", "Sıralama", "trophy"],
 	["profile", "Profil", "eye"],
@@ -70,6 +72,8 @@ var skill_tree: SkillTree
 var inventory: Inventory
 ## Achievements (set by the game after setup).
 var achievements: RefCounted
+## Daily quests and the login reward (scripts/progression/daily.gd).
+var daily: RefCounted
 ## The account's pets (set by the game after setup).
 var pets: RefCounted
 var section := "characters"
@@ -221,6 +225,9 @@ func open_section(id: String) -> void:
 		"market":
 			_section_title.text = "Market"
 			_build_market()
+		"quests":
+			_section_title.text = "Günlük Görevler"
+			_build_quests()
 		"achievements":
 			_section_title.text = "Başarımlar"
 			_build_achievements()
@@ -1302,6 +1309,103 @@ func _fit_tree(holder: Control, view: Control) -> void:
 
 
 ## Every achievement with its progress and reward; finished ones glow gold.
+## The daily login reward calendar (7 days) and today's three quests, each
+## with its progress and a button to take the reward when done.
+func _build_quests() -> void:
+	if daily == null:
+		return
+	var chest_names: Array = inventory.gear.chests.map(func(c: Dictionary) -> String: return str(c.name))
+	_text("Her gün giriş ödülü al ve 3 yeni görevi tamamla. Görevler gece yarısı yenilenir.", 15, UiTheme.MUTED)
+	# Login calendar.
+	var rewards: Array = daily.get("login_rewards")
+	var today_index := int(daily.call("login_index"))
+	var ready := bool(daily.call("login_ready"))
+	var days := HBoxContainer.new()
+	days.add_theme_constant_override("separation", 8)
+	_content.add_child(days)
+	for i in rewards.size():
+		var taken := i < today_index or (i == today_index and not ready)
+		var now := i == today_index and ready
+		var card := PanelContainer.new()
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var style := _card_style(UiTheme.ACCENT if now else (Color("#5fcf6a") if taken else Color("#4b5563")), 2)
+		if now:
+			style.bg_color = Color(0.22, 0.18, 0.06, 0.95)
+		card.add_theme_stylebox_override("panel", style)
+		var box := VBoxContainer.new()
+		box.alignment = BoxContainer.ALIGNMENT_CENTER
+		card.add_child(box)
+		var head := UiTheme.label("%d. Gün" % (i + 1), UiTheme.label_settings(14, UiTheme.ACCENT if now else UiTheme.TEXT, 2))
+		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(head)
+		var r: Dictionary = rewards[i]
+		var icon := PixelIcons.rect("chest" if r.has("chest") else "clover", 30)
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		icon.modulate = Color(1, 1, 1, 0.5) if taken else Color.WHITE
+		box.add_child(icon)
+		var what := UiTheme.label("ALINDI" if taken else Daily.reward_text(r, chest_names), UiTheme.label_settings(11, Color("#5fcf6a") if taken else UiTheme.MUTED, 2))
+		what.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(what)
+		days.add_child(card)
+	var login_button := UiTheme.primary_button("Günlük ödülü al" if ready else "Yarın yeni ödül")
+	login_button.disabled = not ready
+	login_button.add_theme_font_size_override("font_size", 18)
+	login_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	login_button.pressed.connect(func() -> void:
+		var got: Dictionary = daily.call("claim_login")
+		if not got.is_empty():
+			notify("Günlük ödül: " + str(Daily.reward_text(got, chest_names)))
+		refresh())
+	_content.add_child(login_button)
+	# Today's quests.
+	var list: Array = daily.call("quests")
+	for i in list.size():
+		var q: Dictionary = list[i]
+		var def: Dictionary = q.def
+		var done := bool(q.done)
+		var claimed := bool(q.claimed)
+		var card := PanelContainer.new()
+		var style := _card_style(UiTheme.ACCENT if done and not claimed else (Color("#5fcf6a") if claimed else Color("#6b7280")), 2)
+		card.add_theme_stylebox_override("panel", style)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		card.add_child(row)
+		row.add_child(PixelIcons.rect(str(def.icon), 36))
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_theme_constant_override("separation", 2)
+		row.add_child(info)
+		info.add_child(UiTheme.label("%s  ·  %s" % [def.name, def.desc], UiTheme.label_settings(17, UiTheme.TEXT, 3)))
+		var bar := ProgressBar.new()
+		bar.max_value = float(q.goal)
+		bar.value = float(q.progress)
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 8)
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = UiTheme.ACCENT if done else Color("#5fb8ff")
+		fill.set_corner_radius_all(3)
+		bar.add_theme_stylebox_override("fill", fill)
+		var track := StyleBoxFlat.new()
+		track.bg_color = Color(1, 1, 1, 0.08)
+		track.set_corner_radius_all(3)
+		bar.add_theme_stylebox_override("background", track)
+		info.add_child(bar)
+		info.add_child(UiTheme.label("%s / %s  ·  Ödül: %s" % [_short(float(q.progress)), _short(float(q.goal)), Daily.reward_text({"gold": int(def.get("gold", 0)), "chest": def.chest} if def.has("chest") else {"gold": int(def.get("gold", 0))}, chest_names)], UiTheme.label_settings(12, UiTheme.MUTED, 2)))
+		var button := UiTheme.primary_button("ALINDI" if claimed else ("Ödülü al" if done else "Devam ediyor"))
+		button.disabled = claimed or not done
+		button.add_theme_font_size_override("font_size", 16)
+		button.custom_minimum_size = Vector2(150, 40)
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		button.pressed.connect(func() -> void:
+			var got: Dictionary = daily.call("claim", i)
+			if not got.is_empty():
+				notify("Görev ödülü: " + str(Daily.reward_text(got, chest_names)))
+			refresh())
+		row.add_child(button)
+		_content.add_child(card)
+
+
 func _build_achievements() -> void:
 	if achievements == null:
 		return

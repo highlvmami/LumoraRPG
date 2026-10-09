@@ -16,6 +16,20 @@ const PALETTE := {
 }
 
 const GRIDS := {
+	"scroll": [
+		"............",
+		".kkkkkkkkk..",
+		"kowwwwwwwok.",
+		".kwkkkkkwk..",
+		".kwwwwwwwk..",
+		".kwkkkkwwk..",
+		".kwwwwwwwk..",
+		".kwkkkkkwk..",
+		".kwwwwwyyk..",
+		".kwwwwwyrk..",
+		"kowwwwwwwok.",
+		".kkkkkkkkk..",
+	],
 	"mug": [
 		"............",
 		"..wwwwww....",
