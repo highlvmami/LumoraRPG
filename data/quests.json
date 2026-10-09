@@ -9,6 +9,7 @@
 		{ "id": "chests", "stat": "chestsOpened", "goal": 2, "name": "Kasa Açıcı", "desc": "2 kasa aç", "icon": "chest", "gold": 150 },
 		{ "id": "runs", "stat": "runs", "goal": 3, "name": "Maceracı", "desc": "3 tur oyna", "icon": "bow", "gold": 150 },
 		{ "id": "steps", "stat": "steps", "goal": 2000, "name": "Yolcu", "desc": "2000 adım yürü", "icon": "boot", "gold": 120 },
+		{ "id": "dungeon", "stat": "dungeons", "goal": 1, "name": "Kapıdan Geç", "desc": "Bir zindan kapısının muhafızını yen", "icon": "skull", "gold": 250, "chest": 0 },
 		{ "id": "damage", "stat": "damageDealt", "goal": 25000, "name": "Yıkıcı", "desc": "25.000 hasar ver", "icon": "fire", "gold": 220 }
 	],
 	"login": [

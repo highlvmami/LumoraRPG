@@ -1,5 +1,10 @@
 {
 	"versions": [
+		{ "version": "0.27", "date": "2026-10-09", "title": "Zindan kapıları", "notes": [
+			"Tur sırasında arada bir yakınında mor bir zindan kapısı açılır (40 saniye bekler)",
+			"Kapıya girince etrafı rün taşlarıyla çevrilir ve bir mini boss çıkar: Balçık Kral, Alfa Kurt ya da Goblin Şefi",
+			"Muhafızı 60 saniyede yenersen altın ve kasa kazanırsın; sonraki kapılar daha iyi ödül verir",
+			"Yeni başarımlar (Kapı Bekçisi, Zindan Ustası) ve yeni günlük görev" ] },
 		{ "version": "0.26", "date": "2026-10-09", "title": "Silah evrimi", "notes": [
 			"Bir silah en üst seviyeye gelince ve eşleşen güçlendirmeyi aldıysan, seviye atlarken SİLAH EVRİMİ kartı çıkar",
 			"Evrimleşen silah yeni bir isim ve renk alır; çok daha güçlü, hızlı ve geniş vurur",

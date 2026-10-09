@@ -24,6 +24,8 @@ signal enemy_killed(at_position: Vector3, exp_amount: int, gold_amount: int)
 signal kind_unlocked(kind_name: String)
 signal boss_spawned(boss_name: String)
 signal boss_defeated(boss_name: String)
+## A mini boss (a dungeon gate's guardian) was killed.
+signal mini_boss_defeated(uid: int)
 ## The boss got angrier: phase 2 (angry) or 3 (enraged).
 signal boss_phase_changed(boss_name: String, phase: int)
 ## Mirror only: a hit to send to the host (enemy uid, damage, push direction).
@@ -84,6 +86,7 @@ var _goal_yaw := PackedFloat32Array()
 ## long it stands still winding up, which attack comes next, a dash or leap
 ## it is doing (or will do after the wind-up) and attacks waiting to land.
 var _boss_cooldown := 0.0
+var _dead_uid := -1
 var _boss_hold := 0.0
 var _boss_next := 0
 ## 1 calm, 2 angry, 3 enraged (by health left).
@@ -812,7 +815,7 @@ func _update_render() -> void:
 		var bounce := absf(sin(_phase[i]))
 		var scale_v: Vector3
 		var lift: float
-		if _kinds[k].id == "slime":
+		if _kinds[k].id == "slime" or _kinds[k].id == "king_slime":
 			# Squash-and-stretch bounce reads as a hopping slime.
 			scale_v = Vector3(1.0 + 0.12 * (1.0 - bounce), 0.85 + 0.3 * bounce, 1.0 + 0.12 * (1.0 - bounce))
 			lift = float(_kinds[k].radius) * 0.6 + bounce * 0.35
@@ -889,6 +892,11 @@ func health_ratio(index: int) -> float:
 	return clampf(_hp[index] / _max_hp[index], 0.0, 1.0)
 
 
+## The data of the enemy's kind (data/enemies.json).
+func kind_of(index: int) -> Dictionary:
+	return _kinds[_kind[index]]
+
+
 func kind_name(index: int) -> String:
 	return str(_kinds[_kind[index]].name)
 
@@ -924,11 +932,34 @@ func damage(index: int, amount: float, push_dir := Vector3.ZERO) -> void:
 	_pos[index] = p
 	if _hp[index] <= 0.0:
 		var where := position_of(index)
+		_dead_uid = _uid[index]
 		_remove(index)
 		kills += 1
 		enemy_killed.emit(where, int(kd.xp), int(kd.get("gold", 0)))
 		if kd.get("boss", false):
 			boss_defeated.emit(str(kd.name))
+		elif kd.get("mini", false):
+			mini_boss_defeated.emit(_dead_uid)
+
+
+## Uid of the enemy spawned last.
+func last_uid() -> int:
+	return _next_uid - 1
+
+
+## Takes the enemy with this uid away without rewards.
+func remove_uid(uid: int) -> void:
+	var i := index_of_uid(uid)
+	if i >= 0:
+		_remove(i)
+
+
+## Ordinary enemies within `radius` of `at` leave without rewards.
+func clear_near(at: Vector3, radius: float) -> void:
+	for i in range(_pos.size() - 1, -1, -1):
+		var kd: Dictionary = _kinds[_kind[i]]
+		if not kd.get("boss", false) and not kd.get("mini", false) and Vector2(_pos[i].x - at.x, _pos[i].z - at.z).length() < radius:
+			_remove(i)
 
 
 func _remove(index: int) -> void:

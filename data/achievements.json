@@ -1,5 +1,7 @@
 {
 	"achievements": [
+		{ "id": "gatekeeper", "name": "Kapı Bekçisi", "desc": "Bir zindan kapısının muhafızını yen", "icon": "skull", "stat": "dungeons", "target": 1, "reward": 50 },
+		{ "id": "dungeon_master", "name": "Zindan Ustası", "desc": "Toplam 15 zindan muhafızı yen", "icon": "skull", "stat": "dungeons", "target": 15, "reward": 250 },
 		{ "id": "evolved", "name": "Evrim", "desc": "Bir silahı evrimleştir", "icon": "ultimate", "stat": "evolutions", "target": 1, "reward": 60 },
 		{ "id": "evolver", "name": "Silah Ustası", "desc": "Toplam 10 silah evrimleştir", "icon": "ultimate", "stat": "evolutions", "target": 10, "reward": 200 },
 		{ "id": "first_blood", "name": "İlk Kan", "desc": "İlk canavarını kes", "icon": "sword", "stat": "kills", "target": 1, "reward": 10 },
