@@ -13,6 +13,13 @@
 		"sky": ["#3fa3e8", "#fbe7c6", "#2f6f8f"], "ambient": "#ffe3c2", "ambientEnergy": 0.42,
 		"fog": "#bfdcec", "fogDensity": 0.008, "sun": "#fff0d6", "sunEnergy": 0.95
 	},
+	"snow": {
+		"name": "Karlı Dağlar", "subtitle": "Donmuş göller, kar ve dağ kulübeleri",
+		"seed": 2077, "props": "snow", "amplitude": 6.0, "trees": 170, "rocks": 60,
+		"ground": ["#e6edf5", "#d3e0ec"], "slope": "#9fb0c2", "stone": "#8a96a6",
+		"sky": ["#7fa8d6", "#e6eef6", "#a8bccf"], "ambient": "#d8e6f5", "ambientEnergy": 0.6,
+		"fog": "#dfe9f3", "fogDensity": 0.016, "sun": "#f4f8ff", "sunEnergy": 0.9
+	},
 	"dungeon": {
 		"name": "Ölümcül Zindan", "subtitle": "Meşaleler, kemikler ve karanlık",
 		"seed": 666, "props": "dungeon", "amplitude": 1.2, "tiles": true,
