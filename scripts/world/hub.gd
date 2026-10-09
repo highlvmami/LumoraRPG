@@ -1,7 +1,9 @@
 ## The hub tavern in the game: enter it from the menu to walk around a big
 ## tavern with everyone else online. Use things with E: sit on chairs,
 ## stools and benches, swing on the swings, dance on the dance floor, poke
-## the fire. Enter opens the chat, Esc leaves.
+## the fire, chat with Bora the barkeeper. Walk out of the door into the
+## evening meadow: wish at the well, fish from the dock, sit by the campfire.
+## Enter opens the chat, Esc leaves.
 ## Where you are and what you do is sent to the server about 15 times a
 ## second; the others show up as HubGuest characters.
 extends Node
@@ -14,12 +16,36 @@ const STATE_TIME := 1.0 / 15.0
 ## A state goes out at least this often so newcomers see everyone.
 const HEARTBEAT := 1.0
 ## Walking is slower than in a run.
-const WALK_SCALE := 0.6
-## The warm light inside (same keys as data/maps.json).
+const WALK_SCALE := 0.75
+## A calm evening: deep blue sky, soft moonlight, a light haze over the
+## meadow (same keys as data/maps.json).
 const ENVIRONMENT := {
-	"sky": ["#1a110a", "#3a2515", "#120a06"], "ambient": "#ffcf9a", "ambientEnergy": 0.55,
-	"fog": "#2a1a0e", "fogDensity": 0.004, "sun": "#ffe2b8", "sunEnergy": 0.45,
+	"sky": ["#141a33", "#5a4566", "#10131c"], "ambient": "#e0c4a8", "ambientEnergy": 0.5,
+	"fog": "#2c2f45", "fogDensity": 0.011, "sun": "#a8b8ff", "sunEnergy": 0.38,
 }
+
+## What the wishing well, the fishing dock and Bora the barkeeper say.
+const WISHES := [
+	"Kuyuya bir bozuk para attın. Dileğin tutsun!",
+	"Para suya düşerken hafif bir ışık parladı.",
+	"Kuyudan yankılanan bir ses: \"Şans seninle olsun...\"",
+	"Bir dilek tuttun ve içine bir huzur doldu.",
+]
+const CATCHES := [
+	"Küçük bir sazan yakaladın ve geri saldın.",
+	"Oltan biraz titredi ama balık kaçtı.",
+	"Parlak pullu bir balık! Gölete geri bıraktın.",
+	"Bir nilüfer yaprağı çıktı. Bugün balıklar uykuda.",
+	"Ördekler oltanı merakla izliyor.",
+]
+const RUMORS := [
+	"Hoş geldin yolcu! Ateşin başı bu akşam pek sıcak.",
+	"Ormanın derinlerinde dev bir örümceğin dolaştığını duydum.",
+	"Kuyuya dilek tutan şanslı olurmuş, dene istersen.",
+	"Göletteki ördekler benim, onlara iyi davran.",
+	"Çantanı dolu tut, macera insanı her an bulur.",
+	"Kedimiz Tarçın şöminenin başından hiç kalkmaz.",
+]
 
 ## The player is in the tavern.
 signal entered
@@ -161,8 +187,14 @@ func interact() -> void:
 			_object = -1
 			player.call("set_pose", false, true)
 		"fire":
-			tavern.poke_fire()
+			tavern.poke_fire(int(thing.get("which", 0)))
 			overlay.add_note("Ateşe bir odun attın, alevler yükseldi.")
+		"well":
+			overlay.add_note(WISHES.pick_random())
+		"fish":
+			overlay.add_note(CATCHES.pick_random())
+		"talk":
+			overlay.add_note("Bora: " + RUMORS.pick_random())
 
 
 ## Sits on chair, stool, bench or swing number `index`.
