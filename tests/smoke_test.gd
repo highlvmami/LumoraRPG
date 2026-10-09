@@ -493,7 +493,7 @@ func _run() -> void:
 	_check(int(enemies.get("shots_fired")) > 0, "goblin throws at the player")
 	enemies.set("run_time", 95.0)
 	await _frames(2)
-	_check((enemies.get("_announced") as Dictionary).size() == (enemies.get("_kinds") as Array).size(), "all enemy kinds unlock as time goes on")
+	_check((enemies.get("_announced") as Dictionary).size() == (enemies.get("_kinds") as Array).filter(func(k: Dictionary) -> bool: return not k.has("map")).size(), "all enemy kinds unlock as time goes on")
 	_check(float(enemies.call("growth", "hpGrowthPerMinute")) > 1.4, "enemies get tougher over time")
 
 	# Every extra weapon damages enemies around the player.
@@ -744,10 +744,18 @@ func _run() -> void:
 
 	# Maps: every map builds, a run shows its name, played maps are counted.
 	var terrain_node: Node = main.get("terrain")
-	for map_id: String in ["beach", "dungeon", "forest"]:
+	for map_id: String in ["beach", "dungeon", "snow", "forest"]:
 		main.call("load_map", map_id)
 		await _frames(2)
 		_check(str(main.get("map_id")) == map_id and main.get_node("WorldView/WorldViewport/World/Props").get_child_count() > 5, "the %s map builds" % map_id)
+		if map_id == "snow":
+			var em: Node = main.get("enemies")
+			var snowy := {}
+			for k: Dictionary in em.get("_kinds"):
+				if not k.get("mini", false) and not k.get("boss", false):
+					snowy[str(k.id)] = str(k.get("map", "snow")) == "snow" and not (em.get("_replaced") as Dictionary).has(str(k.id))
+			_check(snowy.get("snow_slime", false) and not snowy.get("slime", true) and snowy.get("yeti", false) and not snowy.get("spider", true), "the snow map has its own enemies")
+			_check(main.get_node("WorldView/WorldViewport/World/Props").find_child("Snowfall", false, false) != null, "snow falls on the snow map")
 	main.set("forced_map", "dungeon")
 	main.call("start_run")
 	await _frames(2)
@@ -869,11 +877,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.28")) and not bool(menu.call("is_version_open", "0.27")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.29")) and not bool(menu.call("is_version_open", "0.28")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.27")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.28")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

@@ -39,6 +39,8 @@ func build(terrain: Terrain, cfg: Dictionary, map := {}) -> void:
 			_build_beach(terrain, cfg, map, colliders)
 		"dungeon":
 			_build_dungeon(terrain, cfg, colliders)
+		"snow":
+			_build_snow(terrain, cfg, map, colliders)
 		_:
 			_build_forest(terrain, cfg, map, colliders)
 
@@ -857,3 +859,219 @@ func _sphere(radius: float, radial := 6, rings := 3) -> SphereMesh:
 	mesh.radial_segments = radial
 	mesh.rings = rings
 	return mesh
+
+
+## Snowy mountains: frozen lakes, snow-capped pines, icy rocks, ice
+## crystals, snowmen, small cabins with warm windows and falling snow.
+func _build_snow(terrain: Terrain, cfg: Dictionary, map: Dictionary, colliders: StaticBody3D) -> void:
+	var half: float = cfg.playableHalfSize
+	var clear: float = cfg.spawnClearRadius
+
+	# Frozen lakes: flat light-blue ice discs (registered as ponds so
+	# nothing grows on them) with a few cracks.
+	var ice_mat := Toon.material(Color(0.72, 0.88, 1.0, 0.9))
+	ice_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ice_mat.emission_enabled = true
+	ice_mat.emission = Color(0.12, 0.2, 0.3)
+	var crack_mat := Toon.material(Color("#e8f6ff"))
+	var tries := 0
+	var lakes := 0
+	while lakes < 4 and tries < 300:
+		tries += 1
+		var spot := _pick_spot(half * 0.85, clear + 6.0)
+		var r := _rng.randf_range(4.0, 7.0)
+		var low := INF
+		var high := -INF
+		for k in 9:
+			var at := spot + (Vector2.from_angle(TAU * k / 8.0) * r if k < 8 else Vector2.ZERO)
+			var h := terrain.height_at(at.x, at.y)
+			low = minf(low, h)
+			high = maxf(high, h)
+		if high - low > 1.0 or _near_pond(spot, r + 8.0):
+			continue
+		lakes += 1
+		_ponds.append(Vector3(spot.x, spot.y, r))
+		var level := low + 0.3
+		var lake := MeshInstance3D.new()
+		var disc := _cylinder(r, r, 0.06)
+		disc.radial_segments = 16
+		lake.mesh = disc
+		lake.material_override = ice_mat
+		lake.position = Vector3(spot.x, level, spot.y)
+		lake.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(lake)
+		for n in 4:
+			var crack := MeshInstance3D.new()
+			crack.mesh = _box(Vector3(0.06, 0.02, r * _rng.randf_range(0.5, 1.1)))
+			crack.material_override = crack_mat
+			crack.position = Vector3(spot.x, level + 0.04, spot.y)
+			crack.rotation.y = _rng.randf() * TAU
+			add_child(crack)
+
+	# Pines: trunk, three dark green tiers, each with a snow cap.
+	var tree_count := int(map.get("trees", cfg.trees))
+	var trunks := _multimesh(_cylinder(0.25, 0.35, 1.6), Toon.material(Color("#5a3f2a")), tree_count, false)
+	var tiers := _multimesh(_cylinder(0.0, 1.0, 1.0), Toon.material(Color.WHITE, true), tree_count * 3, true)
+	var caps := _multimesh(_cylinder(0.0, 1.0, 1.0), Toon.material(Color("#f4f8ff")), tree_count * 3, false)
+	for i in tree_count:
+		var spot := _dry_spot(half, clear)
+		var s := _rng.randf_range(0.8, 1.5)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var yaw := Basis(Vector3.UP, _rng.randf() * TAU)
+		var base := Vector3(spot.x, ground - 0.1, spot.y)
+		trunks.multimesh.set_instance_transform(i, Transform3D(yaw.scaled(Vector3.ONE * s), base + Vector3.UP * 0.8 * s))
+		var green := Color.from_hsv(_rng.randf_range(0.36, 0.42), 0.55, _rng.randf_range(0.28, 0.4))
+		for k in 3:
+			var w := (1.7 - k * 0.45) * s
+			var h := (1.9 - k * 0.3) * s
+			var y := (1.6 + k * 1.25) * s
+			tiers.multimesh.set_instance_transform(i * 3 + k, Transform3D(yaw.scaled(Vector3(w, h, w)), base + Vector3.UP * (y + h * 0.5)))
+			tiers.multimesh.set_instance_color(i * 3 + k, green)
+			caps.multimesh.set_instance_transform(i * 3 + k, Transform3D(yaw.scaled(Vector3(w * 0.62, h * 0.42, w * 0.62)), base + Vector3.UP * (y + h * 0.82)))
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), 0.4 * s, 6.0 * s)
+
+	# Icy rocks with snow on top.
+	var rock_count := int(map.get("rocks", cfg.rocks))
+	var rocks := _multimesh(_sphere(1.0), Toon.material(Color("#7d8a99")), rock_count, false)
+	var rock_snow := _multimesh(_sphere(1.0), Toon.material(Color("#f2f7ff")), rock_count, false)
+	for i in rock_count:
+		var spot := _dry_spot(half, clear * 0.6)
+		var s := _rng.randf_range(0.5, 1.7)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var basis := Basis.from_euler(Vector3(_rng.randf() * 0.3, _rng.randf() * TAU, _rng.randf() * 0.3))
+		rocks.multimesh.set_instance_transform(i, Transform3D(basis.scaled(Vector3(s * 1.2, s * 0.7, s)), Vector3(spot.x, ground + s * 0.15, spot.y)))
+		rock_snow.multimesh.set_instance_transform(i, Transform3D(basis.scaled(Vector3(s * 1.0, s * 0.3, s * 0.85)), Vector3(spot.x, ground + s * 0.6, spot.y)))
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), s * 0.9, s * 1.4)
+
+	# Ice crystals: glowing clusters of tilted pointy prisms.
+	var crystal_mat := Toon.material(Color(0.6, 0.85, 1.0, 0.85))
+	crystal_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	crystal_mat.emission_enabled = true
+	crystal_mat.emission = Color("#5ab8ff")
+	crystal_mat.emission_energy_multiplier = 0.8
+	var clusters := 14
+	var crystals := _multimesh(_cylinder(0.0, 0.3, 1.6), crystal_mat, clusters * 5, false)
+	for c in clusters:
+		var spot := _dry_spot(half, clear)
+		var ground := terrain.height_at(spot.x, spot.y)
+		for k in 5:
+			var s := _rng.randf_range(0.6, 1.5)
+			var tilt := Basis.from_euler(Vector3(_rng.randf_range(-0.5, 0.5), _rng.randf() * TAU, _rng.randf_range(-0.5, 0.5)))
+			var off := Vector3(_rng.randf_range(-0.6, 0.6), 0, _rng.randf_range(-0.6, 0.6))
+			crystals.multimesh.set_instance_transform(c * 5 + k, Transform3D(tilt.scaled(Vector3.ONE * s), Vector3(spot.x, ground + 0.6 * s, spot.y) + off))
+		if c % 3 == 0:
+			var glow := OmniLight3D.new()
+			glow.light_color = Color("#7ac8ff")
+			glow.light_energy = 0.8
+			glow.omni_range = 5.0
+			glow.position = Vector3(spot.x, ground + 1.2, spot.y)
+			add_child(glow)
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), 0.8, 1.8)
+
+	# Snowmen: three balls, a carrot nose, coal eyes and a scarf.
+	var snow_white := Toon.material(Color("#f6f9ff"))
+	for n in 8:
+		var spot := _dry_spot(half, clear * 0.5)
+		var at := Vector3(spot.x, terrain.height_at(spot.x, spot.y), spot.y)
+		var man := Node3D.new()
+		man.position = at
+		man.rotation.y = _rng.randf() * TAU
+		add_child(man)
+		for b: Vector2 in [Vector2(0.55, 0.5), Vector2(0.42, 1.25), Vector2(0.3, 1.85)]:
+			var ball := MeshInstance3D.new()
+			ball.mesh = _sphere(b.x, 10, 6)
+			ball.material_override = snow_white
+			ball.position.y = b.y
+			man.add_child(ball)
+		var nose := MeshInstance3D.new()
+		nose.mesh = _cylinder(0.0, 0.06, 0.35)
+		nose.material_override = Toon.material(Color("#ff8a2a"))
+		nose.position = Vector3(0, 1.85, 0.4)
+		nose.rotation.x = PI / 2
+		man.add_child(nose)
+		for e in [-0.1, 0.1]:
+			var eye := MeshInstance3D.new()
+			eye.mesh = _sphere(0.04)
+			eye.material_override = Toon.material(Color("#1a1a22"))
+			eye.position = Vector3(e, 1.95, 0.27)
+			man.add_child(eye)
+		var scarf := MeshInstance3D.new()
+		scarf.mesh = _cylinder(0.33, 0.36, 0.12)
+		scarf.material_override = Toon.material(Color.from_hsv(_rng.randf(), 0.7, 0.8))
+		scarf.position.y = 1.58
+		man.add_child(scarf)
+		_add_collider(colliders, at, 0.55, 2.2)
+
+	# Cabins: log walls, a snowy roof, a warm window and a chimney.
+	for n in 5:
+		var spot := _dry_spot(half * 0.9, clear + 8.0)
+		var at := Vector3(spot.x, terrain.height_at(spot.x, spot.y), spot.y)
+		var cabin := Node3D.new()
+		cabin.position = at
+		cabin.rotation.y = _rng.randf() * TAU
+		add_child(cabin)
+		_part(cabin, _box(Vector3(4.0, 2.4, 3.2)), Color("#7a5236"), Vector3(0, 1.0, 0))
+		var roof := _part(cabin, _box(Vector3(4.6, 0.3, 2.2)), Color("#f2f6ff"), Vector3(0, 2.75, 0.85))
+		roof.rotation.x = 0.6
+		var roof2 := _part(cabin, _box(Vector3(4.6, 0.3, 2.2)), Color("#f2f6ff"), Vector3(0, 2.75, -0.85))
+		roof2.rotation.x = -0.6
+		_part(cabin, _box(Vector3(0.9, 1.6, 0.1)), Color("#4a3020"), Vector3(-0.9, 0.6, 1.62))
+		var window := _part(cabin, _box(Vector3(0.8, 0.6, 0.1)), Color("#ffc860"), Vector3(0.9, 1.3, 1.62))
+		var wmat := window.material_override as StandardMaterial3D
+		wmat.emission_enabled = true
+		wmat.emission = Color("#ffb040")
+		wmat.emission_energy_multiplier = 1.6
+		_part(cabin, _box(Vector3(0.5, 1.4, 0.5)), Color("#6a6a72"), Vector3(1.3, 3.2, -0.6))
+		var warm := OmniLight3D.new()
+		warm.light_color = Color("#ffb060")
+		warm.light_energy = 1.2
+		warm.omni_range = 6.0
+		warm.position = Vector3(0.9, 1.4, 2.4)
+		cabin.add_child(warm)
+		_add_box_collider(colliders, Transform3D(Basis(Vector3.UP, cabin.rotation.y), at + Vector3(0, 1.5, 0)), Vector3(4.0, 3.0, 3.2))
+
+	# A couple of campfires to warm up at.
+	for n in 3:
+		var spot := _dry_spot(half * 0.8, clear * 0.7)
+		_add_fire(Vector3(spot.x, terrain.height_at(spot.x, spot.y) + 0.25, spot.y), 0.25, 1.4, 7.0)
+
+	_build_snowfall(half)
+
+
+## Snowflakes slowly falling over the whole map.
+func _build_snowfall(half: float) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(1, 1, 1, 0.9)
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.14, 0.14)
+	quad.material = mat
+	var flakes := CPUParticles3D.new()
+	flakes.name = "Snowfall"
+	flakes.mesh = quad
+	flakes.amount = 1400
+	flakes.lifetime = 9.0
+	flakes.preprocess = 9.0
+	flakes.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	flakes.emission_box_extents = Vector3(half, 0.5, half)
+	flakes.position = Vector3(0, 16.0, 0)
+	flakes.direction = Vector3(0.2, -1, 0)
+	flakes.spread = 20.0
+	flakes.gravity = Vector3(0.15, -0.6, 0)
+	flakes.initial_velocity_min = 1.0
+	flakes.initial_velocity_max = 1.6
+	flakes.scale_amount_min = 0.6
+	flakes.scale_amount_max = 1.4
+	flakes.visibility_aabb = AABB(Vector3(-half, -20, -half), Vector3(half * 2.0, 40, half * 2.0))
+	add_child(flakes)
+
+
+func _part(parent: Node3D, mesh: Mesh, color: Color, pos: Vector3) -> MeshInstance3D:
+	var part := MeshInstance3D.new()
+	part.mesh = mesh
+	part.material_override = Toon.material(color)
+	part.position = pos
+	parent.add_child(part)
+	return part

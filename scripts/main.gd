@@ -165,6 +165,8 @@ func load_map(id: String) -> void:
 	terrain.build(_world_cfg, m)
 	(world.get_node("Props") as Props).build(terrain, _world_cfg, m)
 	apply_environment(m)
+	if enemies:
+		enemies.set_map(id)
 	if player:
 		player.set("_spawn_point", Vector3(0, terrain.height_at(0, 0) + 0.5, 0))
 
