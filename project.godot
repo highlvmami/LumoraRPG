@@ -11,6 +11,10 @@ run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+Sound="*res://scripts/core/sound.gd"
+
 [display]
 
 ; The UI is laid out at 1280x720 and scales smoothly with the window (sharp text).

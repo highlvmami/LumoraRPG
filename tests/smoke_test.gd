@@ -410,7 +410,13 @@ func _run() -> void:
 	for c in choices.size():
 		if choices[c].id == "crit_chance":
 			crit_index = c
-	level_up.call("pick", maxi(crit_index, 0))
+	var fallback := 0
+	for c in choices.size():
+		if choices[c].id != "move_speed":
+			fallback = c
+			break
+	# (never the boost the evolution check below needs to be missing)
+	level_up.call("pick", crit_index if crit_index >= 0 else fallback)
 	await _frames(1)
 	_check(not bool(level_up.get("visible")) and not paused, "picking a card closes the choices")
 	var picked_count := (boosts.call("picked") as Array).size() + (weapons.call("owned") as Array).size()
@@ -760,6 +766,12 @@ func _run() -> void:
 	main.call("start_run")
 	await _frames(2)
 	_check(str(main.get("map_id")) == "dungeon" and str(hud.get("_title").text) == "ÖLÜMCÜL ZİNDAN", "a run shows the map's name")
+	var sound: Node = root.get_node("Sound")
+	_check(str(sound.get("current")) == "run", "runs have their own music")
+	var track: AudioStreamWAV = sound.call("_make_track", "calm")
+	_check(track.loop_mode == AudioStreamWAV.LOOP_FORWARD and track.get_length() > 10.0, "the music is a long loop")
+	for sfx: String in ["shoot", "hit", "kill", "coin", "levelup", "boss", "chest", "click", "trade"]:
+		_check(bool(sound.call("has_sound", sfx)), "the %s sound is made" % sfx)
 	_check(float((profile.stats as Dictionary).get("mapsPlayed", 0)) >= 2, "played maps are counted")
 	_check(float((profile.stats as Dictionary).get("damageDealt", 0)) > 0.0, "damage dealt is counted for achievements")
 	var rig: Node = main.get("camera_rig")
@@ -771,6 +783,7 @@ func _run() -> void:
 	main.call("leave_run")
 	await _frames(2)
 	_check(not (profile.history as Array).is_empty() and str(profile.history[0].map) == "Ölümcül Zindan", "finished runs are logged")
+	_check(str(sound.get("current")) == "calm", "the menu plays the calm music")
 	main.set("forced_map", "forest")
 
 	# Daily quests and the login reward calendar.
@@ -877,11 +890,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.30")) and not bool(menu.call("is_version_open", "0.29")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.31")) and not bool(menu.call("is_version_open", "0.30")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.29")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.30")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

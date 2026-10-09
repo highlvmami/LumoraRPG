@@ -290,6 +290,7 @@ func login(username: String, remember := false) -> void:
 	world.add_child(range_ring)
 
 	progression.level_up.connect(_on_level_up)
+	_connect_sounds()
 
 	hud = Hud.new()
 	add_child(hud)
@@ -401,6 +402,7 @@ func apply_settings() -> void:
 	camera_rig.sensitivity_scale = float(st.get("mouseSpeed", 1.0))
 	hud.show_damage_numbers = bool(st.get("damageNumbers", true))
 	main_menu.quality = str(progression.profile.get("quality", DEFAULT_QUALITY))
+	Sound.set_volumes(float(st.get("musicVolume", 0.5)), float(st.get("sfxVolume", 0.7)))
 
 
 ## Signed in online after the menu opened (remembered account, offline
@@ -482,6 +484,7 @@ func enter_hub() -> void:
 		main_menu.notify("Taverna için çevrimiçi olmalısın.")
 		return
 	hub.enter()
+	Sound.music("calm")
 
 
 ## Leaves the hub tavern and shows the menu.
@@ -492,6 +495,7 @@ func leave_hub() -> void:
 
 
 func show_menu() -> void:
+	Sound.music("calm")
 	if hub and hub.active:
 		hub.leave()
 	if coop:
@@ -535,6 +539,8 @@ func start_run(guest_map := "") -> void:
 	var next := guest_map if guest else (forced_map if forced_map != "" else str(ids[_rng.randi() % ids.size()]))
 	if next != map_id:
 		load_map(next)
+	enemies.set_map(next)
+	Sound.music("run")
 	var played: Dictionary = achievements.profile.stats.get("maps", {})
 	played[next] = true
 	achievements.profile.stats.maps = played
@@ -641,6 +647,33 @@ func _on_net_notice(text: String) -> void:
 		main_menu.notify(text)
 
 
+## Sound effects for what happens in a run (see scripts/core/sound.gd).
+func _connect_sounds() -> void:
+	bow.fired.connect(func(_d: Vector3) -> void: Sound.play("shoot"))
+	weapons.attacked.connect(func(_d: Vector3) -> void: Sound.play("shoot", 0.8))
+	for source: Object in [bow, weapons, ultimate]:
+		source.hit_landed.connect(func(_at: Vector3, _amount: float, crit: bool) -> void: Sound.play("hit", 1.3 if crit else 1.0))
+	enemies.enemy_killed.connect(func(_at: Vector3, _e: int, _g: int) -> void: Sound.play("kill"))
+	enemies.boss_spawned.connect(func(_n: String) -> void: Sound.play("boss"))
+	enemies.boss_defeated.connect(func(_n: String) -> void: Sound.play("chest"))
+	progression.level_up.connect(func(_l: int) -> void: Sound.play("levelup"))
+	progression.exp_gained.connect(func(_a: int) -> void: Sound.play("exp"))
+	var gold_seen := [progression.gold()]
+	progression.gold_changed.connect(func(g: int) -> void:
+		if in_run and g > int(gold_seen[0]):
+			Sound.play("coin")
+		gold_seen[0] = g)
+	var hp_seen := [INF]
+	player.health_changed.connect(func(hp: float, _m: float) -> void:
+		if hp < float(hp_seen[0]) - 0.5:
+			Sound.play("hurt")
+		hp_seen[0] = hp)
+	ultimate.cast.connect(func(_v: String, _at: Vector3) -> void: Sound.play("ult"))
+	dungeon.opened.connect(func() -> void: Sound.play("gate"))
+	dungeon.cleared.connect(func(_g: String, _c: int) -> void: Sound.play("chest"))
+	daily.completed.connect(func(_d: Dictionary) -> void: Sound.play("quest"))
+
+
 ## A trade went through: the seller hands over the item and gets the gold,
 ## the buyer pays and gets the item.
 func _on_trade_done(info: Dictionary) -> void:
@@ -663,6 +696,7 @@ func _on_trade_done(info: Dictionary) -> void:
 	achievements.add("trades", 1.0)
 	inventory.save()
 	_check_achievements()
+	Sound.play("trade")
 	main_menu.refresh_trade()
 
 
@@ -709,6 +743,7 @@ func open_chest(uid: int) -> Dictionary:
 		main_menu.notify("Çanta dolu! Önce eşya sat.")
 		return {}
 	chest_wheel.spin(int(ch.tier), it)
+	Sound.play("chest")
 	main_menu.refresh()
 	return it
 
