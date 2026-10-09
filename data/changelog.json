@@ -1,5 +1,10 @@
 {
 	"versions": [
+		{ "version": "0.29", "date": "2026-10-09", "title": "Karlı Dağlar", "notes": [
+			"Yeni harita: Karlı Dağlar (donmuş göller, karlı çamlar, buz kristalleri, kardan adamlar, ışıklı kulübeler ve yağan kar)",
+			"Bu haritaya özel düşmanlar: Kar Balçığı, Ak Kurt ve Yeti",
+			"Yeni boss: Buz Devi",
+			"Yeni başarım: Dünya Gezgini (dört haritanın hepsinde oyna)" ] },
 		{ "version": "0.28", "date": "2026-10-09", "title": "Loncalar", "notes": [
 			"Yeni Lonca sayfası: lonca kur (ad + 2-4 harflik etiket) ya da listeden bir loncaya katıl (en fazla 20 kişi)",
 			"Lonca sohbeti, üyelerin seviyesi ve kimin çevrimiçi olduğu; lider üye çıkarabilir",

@@ -18,6 +18,14 @@ static func build(id: String, radius: float) -> ArrayMesh:
 			return _spider(Color("#4a1f5c"), Color("#2b1236"), Color("#ffdd33"), true)
 		"king_slime":
 			return _king_slime(radius)
+		"snow_slime":
+			return _slime(radius, Color("#a8dcff"))
+		"snow_wolf":
+			return _wolf(Color("#eef3f8"), Color("#b8c6d4"), Color("#4fb8ff"))
+		"yeti":
+			return _yeti(false)
+		"yeti_boss":
+			return _yeti(true)
 		"alpha_wolf":
 			return _wolf(Color("#3a3a46"), Color("#22222c"), Color("#ff4a3a"))
 		"goblin_chief":
@@ -26,14 +34,38 @@ static func build(id: String, radius: float) -> ArrayMesh:
 			return _slime(radius)
 
 
-static func _slime(r: float) -> ArrayMesh:
-	var body := Color("#7bd65a")
+static func _slime(r: float, body := Color("#7bd65a")) -> ArrayMesh:
 	var eye := Color("#1d2a1a")
 	return _compound([
 		[_sphere(r, r * 1.5), Vector3.ZERO, body],
 		[_box(Vector3(0.1, 0.16, 0.06)), Vector3(-0.17, 0.08, r * 0.92), eye],
 		[_box(Vector3(0.1, 0.16, 0.06)), Vector3(0.17, 0.08, r * 0.92), eye],
 	])
+
+
+## A shaggy white yeti with blue face and horns (the boss one has ice spikes).
+static func _yeti(boss: bool) -> ArrayMesh:
+	var fur := Color("#eef3f8")
+	var shade := Color("#c8d4e0")
+	var face := Color("#7a9ab8")
+	var eye := Color("#ffdd33") if boss else Color("#1a2a3a")
+	var parts := [
+		[_box(Vector3(0.4, 0.6, 0.4)), Vector3(-0.3, 0.3, 0), shade],
+		[_box(Vector3(0.4, 0.6, 0.4)), Vector3(0.3, 0.3, 0), shade],
+		[_box(Vector3(1.1, 1.0, 0.8)), Vector3(0, 1.1, 0), fur],
+		[_box(Vector3(0.7, 0.6, 0.6)), Vector3(0, 1.85, 0.05), fur],
+		[_box(Vector3(0.46, 0.36, 0.08)), Vector3(0, 1.82, 0.36), face],
+		[_box(Vector3(0.1, 0.08, 0.04)), Vector3(-0.12, 1.9, 0.41), eye],
+		[_box(Vector3(0.1, 0.08, 0.04)), Vector3(0.12, 1.9, 0.41), eye],
+		[_box(Vector3(0.32, 1.0, 0.32)), Vector3(-0.72, 1.0, 0.05), fur],
+		[_box(Vector3(0.32, 1.0, 0.32)), Vector3(0.72, 1.0, 0.05), fur],
+		[_box(Vector3(0.12, 0.3, 0.12)), Vector3(-0.3, 2.25, 0), Color("#d9c9a0")],
+		[_box(Vector3(0.12, 0.3, 0.12)), Vector3(0.3, 2.25, 0), Color("#d9c9a0")],
+	]
+	if boss:
+		for k in 5:
+			parts.append([_box(Vector3(0.18, 0.5, 0.18)), Vector3(-0.4 + k * 0.2, 1.75, -0.35), Color("#8fe3ff")])
+	return _compound(parts)
 
 
 ## The dungeon's slime king: a big purple slime with a golden crown.

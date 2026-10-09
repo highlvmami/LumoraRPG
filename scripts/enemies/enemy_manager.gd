@@ -87,6 +87,9 @@ var _goal_yaw := PackedFloat32Array()
 ## it is doing (or will do after the wind-up) and attacks waiting to land.
 var _boss_cooldown := 0.0
 var _dead_uid := -1
+## The run's map id and the kinds its own kinds replace.
+var map_id := ""
+var _replaced := {}
 var _boss_hold := 0.0
 var _boss_next := 0
 ## 1 calm, 2 angry, 3 enraged (by health left).
@@ -272,8 +275,23 @@ func _speed_growth() -> float:
 	return minf(growth("speedGrowthPerMinute"), 1.0 + float(_spawn.maxSpeedGrowth))
 
 
+## Kinds of another map never come; a map's own kind takes the place of the
+## kind it `replaces` (the snow wolf instead of the wolf).
 func _unlocked(k: Dictionary) -> bool:
+	if k.has("map") and str(k.map) != map_id:
+		return false
+	if _replaced.has(str(k.id)):
+		return false
 	return run_time >= float(k.unlockAt)
+
+
+## The map of the run (set before it starts): picks the map's own enemies and boss order.
+func set_map(id: String) -> void:
+	map_id = id
+	_replaced.clear()
+	for k: Dictionary in _kinds:
+		if k.has("replaces") and str(k.get("map", "")) == id:
+			_replaced[str(k.replaces)] = true
 
 
 func _update_spawning(delta: float) -> void:
@@ -286,7 +304,7 @@ func _update_spawning(delta: float) -> void:
 	# Bosses arrive at fixed times, in order (the list repeats).
 	var boss_times: Array = _spawn.bossTimes
 	if _next_boss < boss_times.size() and run_time >= float(boss_times[_next_boss]):
-		var order: Array = _spawn.bossOrder
+		var order: Array = (_spawn.get("bossOrderByMap", {}) as Dictionary).get(map_id, _spawn.bossOrder)
 		var a := _rng.randf() * TAU
 		spawn_boss(str(order[_next_boss % order.size()]), _spawn_anchor() + Vector3(cos(a), 0.0, sin(a)) * 16.0)
 		_next_boss += 1
@@ -815,7 +833,7 @@ func _update_render() -> void:
 		var bounce := absf(sin(_phase[i]))
 		var scale_v: Vector3
 		var lift: float
-		if _kinds[k].id == "slime" or _kinds[k].id == "king_slime":
+		if _kinds[k].id in ["slime", "king_slime", "snow_slime"]:
 			# Squash-and-stretch bounce reads as a hopping slime.
 			scale_v = Vector3(1.0 + 0.12 * (1.0 - bounce), 0.85 + 0.3 * bounce, 1.0 + 0.12 * (1.0 - bounce))
 			lift = float(_kinds[k].radius) * 0.6 + bounce * 0.35
