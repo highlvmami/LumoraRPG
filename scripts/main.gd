@@ -369,6 +369,8 @@ func login(username: String, remember := false) -> void:
 	net.guild_changed.connect(func() -> void:
 		if hub and hub.tavern:
 			hub.tavern.set_guild(net.guild))
+	net.trades_changed.connect(main_menu.refresh_trade)
+	net.trade_done.connect(_on_trade_done)
 	net.who_updated.connect(main_menu.update_friend_status)
 	net.online_list_updated.connect(main_menu.update_online_list)
 	net.leaderboard_received.connect(main_menu.on_leaderboard)
@@ -637,6 +639,31 @@ func _on_net_notice(text: String) -> void:
 		hud.toast(UiTheme.upper(text))
 	else:
 		main_menu.notify(text)
+
+
+## A trade went through: the seller hands over the item and gets the gold,
+## the buyer pays and gets the item.
+func _on_trade_done(info: Dictionary) -> void:
+	var me := net.account.to_lower()
+	var price := int(info.price)
+	var profile: Dictionary = progression.profile
+	var item_name := inventory.gear.item_name(info.item) if not inventory.gear.base(str(info.item.get("base", ""))).is_empty() else "eşya"
+	if str(info.from).to_lower() == me:
+		inventory.take_item(int(info.item.get("uid", -1)))
+		profile.gold = int(profile.gold) + price
+		_on_net_notice("%s, %s'ı %d altına aldı." % [info.to, item_name, price])
+	elif str(info.to).to_lower() == me:
+		if inventory.receive_item(info.item).is_empty():
+			_on_net_notice("Eşya çantana sığmadı.")
+			return
+		profile.gold = maxi(0, int(profile.gold) - price)
+		_on_net_notice("%s artık senin! (%d altın)" % [item_name, price])
+	else:
+		return
+	achievements.add("trades", 1.0)
+	inventory.save()
+	_check_achievements()
+	main_menu.refresh_trade()
 
 
 ## A friend invites this player to their room: ask now (menu) or later (run).

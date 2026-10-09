@@ -1,5 +1,10 @@
 {
 	"versions": [
+		{ "version": "0.30", "date": "2026-10-09", "title": "Ticaret", "notes": [
+			"Yeni Ticaret sayfası: çantandaki bir eşyayı çevrimiçi bir oyuncuya altın karşılığında teklif et (0 altın = hediye)",
+			"Sana gelen teklifleri eşyanın özellikleriyle gör, kabul et ya da reddet; kendi teklifini geri alabilirsin",
+			"Kabul edilince eşya ve altın anında yer değiştirir",
+			"Yeni başarım: Tüccar (ilk takasını yap)" ] },
 		{ "version": "0.29", "date": "2026-10-09", "title": "Karlı Dağlar", "notes": [
 			"Yeni harita: Karlı Dağlar (donmuş göller, karlı çamlar, buz kristalleri, kardan adamlar, ışıklı kulübeler ve yağan kar)",
 			"Bu haritaya özel düşmanlar: Kar Balçığı, Ak Kurt ve Yeti",

@@ -16,6 +16,20 @@ const PALETTE := {
 }
 
 const GRIDS := {
+	"trade": [
+		"............",
+		"...kkkk.....",
+		"..kyyyyk.k..",
+		".kyykkyykbk.",
+		".kyyyyyykbbk",
+		".kyykkyyk.bk",
+		"..kyyyyk..b.",
+		"...kkkk...b.",
+		".kb.......b.",
+		"kbbk...kbbbk",
+		".kbbbbbbbbk.",
+		"..kkkkkkkk..",
+	],
 	"scroll": [
 		"............",
 		".kkkkkkkkk..",

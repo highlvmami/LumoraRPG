@@ -217,7 +217,48 @@ function client() {
   b.send({ t: "guild_list" });
   assert.strictEqual((await b.next("guild_list")).guilds.length, 0, "the last one leaving closes the guild");
 
+  // Trades: offer, decline, cancel, accept; offers go away when the seller leaves.
+  a.send({ t: "trade_offer", to: "nobody", item: { uid: 1 }, price: 5 });
+  assert.match((await a.next("error")).msg, /çevrimiçi değil/);
+  a.send({ t: "trade_offer", to: "ece", item: { uid: 1 }, price: -3 });
+  assert.match((await a.next("error")).msg, /Fiyat/);
+  a.send({ t: "trade_offer", to: "ece", item: { uid: 7, rarity: 2, slot: "ring" }, price: 40 });
+  assert.strictEqual((await a.next("trades")).offers.length, 1);
+  const offered = (await b.next("trades")).offers;
+  assert.ok(offered.length === 1 && offered[0].from === "mami" && offered[0].price === 40 && offered[0].item.uid === 7);
+  a.send({ t: "trade_offer", to: "ece", item: { uid: 7 }, price: 1 });
+  assert.match((await a.next("error")).msg, /zaten/);
+  b.send({ t: "trade_answer", id: offered[0].id, accept: false });
+  assert.match((await a.next("trade_closed")).reason, /reddetti/);
+  await b.next("trade_closed");
+  assert.strictEqual((await a.next("trades")).offers.length, 0);
+  await b.next("trades");
+  a.send({ t: "trade_offer", to: "ece", item: { uid: 7 }, price: 10 });
+  await a.next("trades");
+  const again = (await b.next("trades")).offers[0];
+  a.send({ t: "trade_cancel", id: again.id });
+  assert.match((await b.next("trade_closed")).reason, /geri aldı/);
+  await a.next("trade_closed");
+  await a.next("trades");
+  await b.next("trades");
+  a.send({ t: "trade_offer", to: "ece", item: { uid: 8, rarity: 4 }, price: 25 });
+  await a.next("trades");
+  const third = (await b.next("trades")).offers[0];
+  b.send({ t: "trade_answer", id: third.id, accept: true });
+  const doneA = await a.next("trade_done");
+  const doneB = await b.next("trade_done");
+  assert.ok(doneA.from === "mami" && doneA.to === "Ece" && doneA.price === 25 && doneB.item.uid === 8);
+  b.send({ t: "trade_answer", id: third.id, accept: true });
+  let twice = "";
+  for (let i = 0; i < 4 && !/artık yok/.test(twice); i++) twice = (await b.next("error")).msg;
+  assert.match(twice, /artık yok/, "a trade cannot be taken twice");
+  await a.next("trades");
+  await b.next("trades");
+  a.send({ t: "trade_offer", to: "ece", item: { uid: 9 }, price: 1 });
+  await b.next("trades");
   a.close();
+  assert.match((await b.next("trade_closed")).reason, /çevrimdışı/, "offers end when the seller goes offline");
+
   b.close();
   wss.close();
   server.close();
