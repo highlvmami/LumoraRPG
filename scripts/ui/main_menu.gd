@@ -49,6 +49,7 @@ const NAV := [
 	["leaderboard", "Sıralama", "trophy"],
 	["profile", "Profil", "eye"],
 	["friends", "Arkadaşlar", "heart"],
+	["guild", "Lonca", "shield"],
 	["hub", "Taverna", "mug"],
 	["logs", "Kayıtlar", "double_arrow"],
 	["versions", "Sürümler", "staff"],
@@ -74,6 +75,8 @@ var inventory: Inventory
 var achievements: RefCounted
 ## Daily quests and the login reward (scripts/progression/daily.gd).
 var daily: RefCounted
+var _guild_list_asked := false
+var _guild_typing := false
 ## The account's pets (set by the game after setup).
 var pets: RefCounted
 var section := "characters"
@@ -240,6 +243,9 @@ func open_section(id: String) -> void:
 		"friends":
 			_section_title.text = "Arkadaşlar"
 			_build_friends()
+		"guild":
+			_section_title.text = "Lonca"
+			_build_guild()
 		"hub":
 			_section_title.text = "Lumora Tavernası"
 			_build_hub()
@@ -1858,6 +1864,136 @@ func ask_invite(from_name: String, code: String) -> void:
 
 
 ## Online state changed (connection, room, who is online): redraw what shows it.
+## The guild or the guild list changed on the server.
+func refresh_guild() -> void:
+	if visible and section == "guild" and not is_confirm_open():
+		open_section("guild")
+
+
+## Your guild (members, chat, leave, kick) or, without one, creating a
+## guild and the list of guilds to join. Needs the online server.
+func _build_guild() -> void:
+	if net == null or not net.is_online():
+		_text("Lonca için çevrimiçi olmalısın. Sunucuya bağlanınca bu sayfa açılır.", 16, UiTheme.MUTED)
+		return
+	if not net.in_guild():
+		_text("Bir loncaya katıl ya da kendi loncanı kur. Lonca üyeleri turlarda %%%d fazla altın kazanır, taverna adlarında lonca etiketi görünür." % roundi(0.05 * 100.0), 15, UiTheme.MUTED)
+		_header("Lonca kur")
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var name_edit := LineEdit.new()
+		name_edit.placeholder_text = "Lonca adı (3-20 harf)"
+		name_edit.max_length = 20
+		name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_edit)
+		var tag_edit := LineEdit.new()
+		tag_edit.placeholder_text = "Etiket (2-4)"
+		tag_edit.max_length = 4
+		tag_edit.custom_minimum_size.x = 130
+		row.add_child(tag_edit)
+		var create := UiTheme.primary_button("Kur")
+		create.custom_minimum_size = Vector2(110, 40)
+		create.pressed.connect(func() -> void: net.create_guild(name_edit.text, tag_edit.text))
+		row.add_child(create)
+		_content.add_child(row)
+		_header("Loncalar")
+		if net.guild_list.is_empty():
+			_text("Henüz lonca yok. İlk loncayı sen kur!", 15, UiTheme.MUTED)
+		for g: Dictionary in net.guild_list:
+			var card := PanelContainer.new()
+			card.add_theme_stylebox_override("panel", _card_style(Color("#3a5a9a"), 2))
+			var line := HBoxContainer.new()
+			line.add_theme_constant_override("separation", 12)
+			card.add_child(line)
+			var title := UiTheme.label("[%s] %s" % [g.get("tag", ""), g.get("name", "")], UiTheme.label_settings(18, UiTheme.TEXT, 2))
+			title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			line.add_child(title)
+			line.add_child(UiTheme.label("%d / 20 üye  ·  Lider: %s" % [int(g.get("members", 0)), g.get("leader", "")], UiTheme.label_settings(13, UiTheme.MUTED, 2)))
+			var join := Button.new()
+			join.text = "Katıl"
+			join.disabled = int(g.get("members", 0)) >= 20
+			join.pressed.connect(func() -> void: net.join_guild(str(g.name)))
+			line.add_child(join)
+			_content.add_child(card)
+		if not _guild_list_asked:
+			_guild_list_asked = true
+			net.ask_guild_list()
+		else:
+			_guild_list_asked = false
+		return
+	var g: Dictionary = net.guild
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 14)
+	var title := UiTheme.label("[%s] %s" % [g.tag, g.name], UiTheme.label_settings(26, Color("#9fc3ff"), 4))
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(title)
+	var leave := Button.new()
+	leave.text = "Loncadan ayrıl"
+	_danger(leave)
+	leave.pressed.connect(func() -> void: net.leave_guild())
+	top.add_child(leave)
+	_content.add_child(top)
+	_text("%d / 20 üye  ·  Lonca bonusu: turlarda +%%5 altın" % (g.members as Array).size(), 14, UiTheme.MUTED)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 14)
+	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_content.add_child(cols)
+	var members := VBoxContainer.new()
+	members.custom_minimum_size.x = 330
+	members.add_theme_constant_override("separation", 4)
+	cols.add_child(members)
+	for m: Dictionary in g.members:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var dot := ColorRect.new()
+		dot.custom_minimum_size = Vector2(10, 10)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		dot.color = Color("#3ddc84") if bool(m.online) else Color("#6b7280")
+		row.add_child(dot)
+		var leader: bool = str(m.name).to_lower() == str(g.leader).to_lower()
+		var who := UiTheme.label(("★ " if leader else "") + str(m.name), UiTheme.label_settings(16, UiTheme.ACCENT if leader else UiTheme.TEXT, 2))
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(who)
+		row.add_child(_level_tag(int(m.level)))
+		if net.is_guild_leader() and not leader:
+			var kick := Button.new()
+			kick.text = "Çıkar"
+			kick.add_theme_font_size_override("font_size", 12)
+			kick.pressed.connect(func() -> void: net.kick_from_guild(str(m.name)))
+			row.add_child(kick)
+		members.add_child(row)
+	# Guild chat.
+	var chat := VBoxContainer.new()
+	chat.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chat.add_theme_constant_override("separation", 6)
+	cols.add_child(chat)
+	var log_panel := PanelContainer.new()
+	log_panel.add_theme_stylebox_override("panel", _card_style(Color("#3a5a9a"), 1))
+	log_panel.custom_minimum_size.y = 250
+	chat.add_child(log_panel)
+	var lines := VBoxContainer.new()
+	lines.add_theme_constant_override("separation", 2)
+	log_panel.add_child(lines)
+	var recent: Array = (g.chat as Array).slice(-11)
+	if recent.is_empty():
+		lines.add_child(UiTheme.label("Lonca sohbeti boş. İlk mesajı yaz!", UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+	for l: Dictionary in recent:
+		var text := UiTheme.label("%s: %s" % [l.name, l.text], UiTheme.label_settings(14, UiTheme.TEXT, 0))
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lines.add_child(text)
+	var say := LineEdit.new()
+	say.placeholder_text = "Loncaya yaz ve Enter'a bas"
+	say.max_length = 200
+	say.text_submitted.connect(func(t: String) -> void:
+		if net.send_guild_chat(t):
+			say.text = ""
+			_guild_typing = true)
+	chat.add_child(say)
+	if _guild_typing:
+		_guild_typing = false
+		say.grab_focus.call_deferred()
+
+
 func refresh_online() -> void:
 	if net == null:
 		return

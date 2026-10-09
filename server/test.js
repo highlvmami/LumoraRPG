@@ -183,6 +183,40 @@ function client() {
   await b.next("hub_chat");
   await b.next("hub");
 
+  // Guilds: create, list, join, chat, kick, leave; the tag shows in the hub.
+  a.send({ t: "guild" });
+  assert.strictEqual((await a.next("guild")).guild, null);
+  a.send({ t: "guild_create", name: "x", tag: "AB" });
+  assert.match((await a.next("error")).msg, /Lonca adı/);
+  a.send({ t: "guild_create", name: "Gece Kurtları", tag: "gk" });
+  const made = (await a.next("guild")).guild;
+  assert.ok(made.name === "Gece Kurtları" && made.tag === "GK" && made.leader === "mami" && made.members.length === 1);
+  b.send({ t: "guild_create", name: "Başka", tag: "GK" });
+  assert.match((await b.next("error")).msg, /etiket/);
+  b.send({ t: "guild_list" });
+  const list = (await b.next("guild_list")).guilds;
+  assert.ok(list.length === 1 && list[0].members === 1);
+  b.send({ t: "guild_join", name: "gece kurtları" });
+  const gJoined = (await b.next("guild")).guild;
+  assert.strictEqual(gJoined.members.length, 2);
+  assert.ok(gJoined.members.every((m) => m.online), "members show who is online");
+  assert.strictEqual((await a.next("guild")).guild.members.length, 2);
+  let tagged = false;
+  for (let i = 0; i < 4 && !tagged; i++) tagged = (await b.next("hub")).members.some((m) => m.guild === "GK");
+  assert.ok(tagged, "the guild tag shows in the hub");
+  b.send({ t: "guild_chat", text: "selam lonca" });
+  assert.strictEqual((await a.next("guild_chat")).text, "selam lonca");
+  await b.next("guild_chat");
+  b.send({ t: "guild_kick", name: "mami" });
+  assert.match((await b.next("error")).msg, /lider/);
+  a.send({ t: "guild_kick", name: "Ece" });
+  assert.strictEqual((await b.next("guild")).guild, null, "a kicked member is out");
+  assert.strictEqual((await a.next("guild")).guild.members.length, 1);
+  a.send({ t: "guild_leave" });
+  assert.strictEqual((await a.next("guild")).guild, null);
+  b.send({ t: "guild_list" });
+  assert.strictEqual((await b.next("guild_list")).guilds.length, 0, "the last one leaving closes the guild");
+
   a.close();
   b.close();
   wss.close();
