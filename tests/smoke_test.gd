@@ -764,6 +764,23 @@ func _run() -> void:
 	_check(str(hub.call("action")) == "dance", "E on the dance floor starts dancing")
 	hub.call("interact")
 	_check(str(hub.call("action")) == "", "and stops it")
+	# The door is open and the meadow outside has things to use too.
+	var origin: Vector3 = hub_hall.global_position
+	var ray := PhysicsRayQueryParameters3D.create(origin + Vector3(0, 1.2, 10.0), origin + Vector3(0, 1.2, 16.0))
+	ray.exclude = [ply.get_rid()]
+	_check(hub_hall.get_world_3d().direct_space_state.intersect_ray(ray).is_empty(), "the tavern door is open to walk outside")
+	var fires := 0
+	for thing: Dictionary in things:
+		if str(thing.kind) == "fire":
+			fires += 1
+	_check(kinds.has("well") and kinds.has("fish") and kinds.has("talk") and fires == 2 and int(kinds.get("sit", 0)) >= 45, "outside: a wishing well, a fishing dock, a campfire with seats; inside: the barkeeper %s" % str(kinds))
+	for i in things.size():
+		if str(things[i].kind) in ["well", "fish", "talk"] or (str(things[i].kind) == "fire" and int(things[i].get("which", 0)) == 1):
+			ply.global_position = (things[i].pos as Vector3) + Vector3(0.3, 0.3, 0.3)
+			hub.call("interact")
+			if str(hub.call("action")) != "":
+				hub.call("interact")
+	_check(float((hub_hall.get("outside") as Node).get("_campfire_boost")) > 0.5, "throwing wood on the campfire makes it flare up")
 	main.call("leave_hub")
 	_check(not bool(hub.get("active")) and menu.visible and not ply.visible, "leaving the tavern shows the menu again")
 
@@ -783,11 +800,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.23")) and not bool(menu.call("is_version_open", "0.22")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.24")) and not bool(menu.call("is_version_open", "0.23")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.22")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.23")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
