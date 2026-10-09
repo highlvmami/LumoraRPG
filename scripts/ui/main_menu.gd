@@ -2394,6 +2394,10 @@ func _build_settings() -> void:
 	full.toggled.connect(func(on: bool) -> void: Screen.set_fullscreen(on))
 	_content.add_child(full)
 
+	_header("Ses")
+	_content.add_child(_slider_row("Müzik", "musicVolume", 0.0, 1.0, 0.05, 0.5))
+	_content.add_child(_slider_row("Efektler", "sfxVolume", 0.0, 1.0, 0.05, 0.7))
+
 	_header("Kamera")
 	_content.add_child(_slider_row("Kamera uzaklığı", "cameraZoom", 3.5, 16.0, 0.5, 7.0))
 	_content.add_child(_slider_row("Fare hassasiyeti", "mouseSpeed", 0.3, 2.5, 0.1, 1.0))

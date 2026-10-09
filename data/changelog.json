@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.31", "date": "2026-10-09", "title": "Ses ve müzik", "notes": [
+			"Oyuna sesler geldi: ok atışı, vuruş, canavar ölümü, altın, seviye atlama, kasa, boss kükremesi, ulti, zindan kapısı, görev ve buton sesleri",
+			"Menü ve taverna için sakin, turlar için hareketli müzik (geçişler yumuşak)",
+			"Ayarlar > Ses: müzik ve efekt seslerini ayrı ayrı ayarla" ] },
 		{ "version": "0.30", "date": "2026-10-09", "title": "Ticaret", "notes": [
 			"Yeni Ticaret sayfası: çantandaki bir eşyayı çevrimiçi bir oyuncuya altın karşılığında teklif et (0 altın = hediye)",
 			"Sana gelen teklifleri eşyanın özellikleriyle gör, kabul et ya da reddet; kendi teklifini geri alabilirsin",
