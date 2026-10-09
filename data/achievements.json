@@ -28,6 +28,7 @@
 		{ "id": "cataclysm", "name": "Kıyamet", "desc": "Toplam 1.000.000 hasar ver", "icon": "meteor", "stat": "damageDealt", "target": 1000000, "reward": 400 },
 		{ "id": "explorer", "name": "Kâşif", "desc": "Üç farklı haritada oyna", "icon": "eye", "stat": "mapsPlayed", "target": 3, "reward": 60 },
 		{ "id": "world_traveler", "name": "Dünya Gezgini", "desc": "Dört haritanın hepsinde oyna", "icon": "eye", "stat": "mapsPlayed", "target": 4, "reward": 120 },
+		{ "id": "trader", "name": "Tüccar", "desc": "Bir oyuncuyla takas yap", "icon": "clover", "stat": "trades", "target": 1, "reward": 50 },
 		{ "id": "veteran", "name": "Usta", "desc": "Hesap seviyesi 10'a ulaş", "icon": "eye", "stat": "accountLevel", "target": 10, "reward": 100 },
 		{ "id": "first_pet", "name": "İlk Dost", "desc": "İlk pet yumurtanı çatlat", "icon": "egg", "stat": "petsHatched", "target": 1, "reward": 50 },
 		{ "id": "egg_hunter", "name": "Yumurta Avcısı", "desc": "10 pet yumurtası çatlat", "icon": "egg", "stat": "petsHatched", "target": 10, "reward": 200 },

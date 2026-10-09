@@ -31,6 +31,10 @@
 //   {t:"guild_list"}             the biggest guilds
 //   {t:"guild_create", name, tag} {t:"guild_join", name}  {t:"guild_leave"}  {t:"guild_kick", name}
 //   {t:"guild_chat", text}       say something to your guild
+//   {t:"trade_offer", to, item, price}  offer an item from your backpack for gold
+//   {t:"trade_answer", id, accept}      accept or decline an offer made to you
+//   {t:"trade_cancel", id}              take back your offer
+//   {t:"trades"}                        your open offers
 //   {t:"ping"}
 // To a client:
 //   {t:"welcome", id}  {t:"auth", ...}  {t:"saved", at}  {t:"who", online, levels}
@@ -42,11 +46,16 @@
 //   {t:"hub_state", id, d}       another visitor of the hub tavern moved or sat down
 //   {t:"guild", guild:{name, tag, leader, members:[{name, level, online}], chat}|null}
 //   {t:"guild_list", guilds:[{name, tag, members, leader}]}  {t:"guild_chat", name, text, at}
+//   {t:"trades", offers:[{id, from, to, item, price}]}  (sent whenever your offers change)
+//   {t:"trade_done", id, from, to, item, price}  a trade went through: the seller gives the
+//                                item and gets the gold, the buyer the other way round
+//   {t:"trade_closed", id, reason}
 
 const http = require("http");
 const { WebSocketServer } = require("ws");
 const { Accounts, key } = require("./accounts.js");
 const { Guilds } = require("./guilds.js");
+const { Trades } = require("./trades.js");
 
 const PORT = Number(process.env.PORT) || 8080;
 const MAX_MEMBERS = 4;
@@ -76,6 +85,7 @@ const boardCache = new Map(); // cat -> {at, rows}
 
 const accounts = new Accounts(process.env.DATABASE_URL);
 const guilds = new Guilds(accounts.store.pool);
+const trades = new Trades();
 
 const clients = new Map(); // id -> client
 const rooms = new Map(); // code -> room
@@ -321,6 +331,61 @@ async function guildMessage(c, msg) {
   }
 }
 
+// --- Trades ---
+
+function sendTrades(name) {
+  const c = name && online(name);
+  if (c) send(c, { t: "trades", offers: trades.of(name, key).map(({ id, from, to, item, price }) => ({ id, from, to, item, price })) });
+}
+
+function closeTrade(id, reason) {
+  const o = trades.close(id);
+  if (!o) return;
+  for (const n of [o.from, o.to]) {
+    const m = online(n);
+    if (m) send(m, { t: "trade_closed", id: o.id, reason });
+    sendTrades(n);
+  }
+}
+
+function tradeMessage(c, msg) {
+  switch (msg.t) {
+    case "trades":
+      return sendTrades(c.name);
+    case "trade_offer": {
+      const to = online(msg.to);
+      const res = trades.offer(c.name, to && to.name, msg.item, msg.price, key);
+      if (res.msg) return send(c, { t: "error", msg: res.msg });
+      sendTrades(c.name);
+      return sendTrades(res.offer.to);
+    }
+    case "trade_cancel": {
+      const o = trades.get(msg.id);
+      if (!o || key(o.from) !== key(c.name)) return;
+      return closeTrade(o.id, c.name + " teklifi geri aldı.");
+    }
+    case "trade_answer": {
+      const o = trades.get(msg.id);
+      if (!o || key(o.to) !== key(c.name)) return send(c, { t: "error", msg: "Bu teklif artık yok." });
+      if (!msg.accept) return closeTrade(o.id, c.name + " teklifi reddetti.");
+      const seller = online(o.from);
+      if (!seller) return closeTrade(o.id, o.from + " çevrimiçi değil.");
+      trades.close(o.id);
+      const done = { t: "trade_done", id: o.id, from: o.from, to: o.to, item: o.item, price: o.price };
+      send(seller, done);
+      send(c, done);
+      sendTrades(o.from);
+      return sendTrades(o.to);
+    }
+  }
+}
+
+// Offers are dropped when either side goes offline.
+function dropTrades(name) {
+  if (!name || online(name)) return;
+  for (const o of trades.of(name, key)) closeTrade(o.id, name + " çevrimdışı oldu.");
+}
+
 async function topRows(cat) {
   const hit = boardCache.get(cat);
   if (hit && Date.now() - hit.at < BOARD_CACHE_MS) return hit.rows;
@@ -391,6 +456,11 @@ async function handle(c, msg) {
     case "guild_kick":
     case "guild_chat":
       return guildMessage(c, msg);
+    case "trades":
+    case "trade_offer":
+    case "trade_cancel":
+    case "trade_answer":
+      return tradeMessage(c, msg);
     case "hub_join":
       setLook(c, msg.look);
       return hubJoin(c);
@@ -464,6 +534,7 @@ wss.on("connection", (ws) => {
     leaveRoom(c);
     hubLeave(c);
     clients.delete(c.id);
+    dropTrades(c.name);
   });
 });
 
