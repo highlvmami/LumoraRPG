@@ -70,20 +70,40 @@ func _run() -> void:
 	host.net.ask_who(["Misafir"])
 	_check(await _until(func() -> bool: return host.net.level_of("Misafir") >= 1), "a friend's account level comes from the server")
 
-	# The hub tavern: both come in, sit down and chat.
-	host.main_menu.open_section("hub")
-	guest.main_menu.open_section("hub")
-	_check(await _until(func() -> bool:
-		return host.main_menu.get("_hub_view") != null and (host.main_menu.get("_hub_view").seated() as Array).size() == 2),
-		"both players sit in the hub tavern")
-	_check(int(host.main_menu.get("_hub_view").seat_count()) >= 20, "the hub tavern is a big hall")
-	guest.main_menu.get("_hub_edit").text = "Selam millet!"
-	_check(guest.main_menu.send_hub_chat(), "a chat line can be sent in the tavern")
-	_check(await _until(func() -> bool: return host.main_menu.get("_hub_log").get_parsed_text().contains("Selam millet!")),
-		"the chat line shows for the other player")
-	_check(str(host.main_menu.get("_hub_view").bubble_text(guest.net.my_id)) == "Selam millet!", "the line pops up over the speaker's head")
-	guest.main_menu.open_section("characters")
-	_check(await _until(func() -> bool: return host.net.hub_members.size() == 1), "leaving the tavern page gets the player up")
+	# The hub tavern is a map: both walk in, see each other, sit, swing and chat.
+	host.enter_hub()
+	guest.enter_hub()
+	_check(host.hub.active and guest.hub.active, "both walk into the hub tavern")
+	_check(await _until(func() -> bool: return host.hub.guest_count() == 1 and guest.hub.guest_count() == 1), "they see each other in the tavern")
+	var guest_id: int = guest.net.my_id
+	var host_id: int = host.net.my_id
+	var chair := 0
+	for i in guest.hub.tavern.interactables.size():
+		if str(guest.hub.tavern.interactables[i].kind) == "sit":
+			chair = i
+			break
+	guest.hub.sit_on(chair)
+	_check(await _until(func() -> bool: return host.hub.guest(guest_id).is_seated() and int(host.hub.guest(guest_id).object) == chair),
+		"the other player sees them sit on the chair")
+	guest.hub.interact()
+	_check(await _until(func() -> bool: return not host.hub.guest(guest_id).is_seated()), "getting up shows for the other player too")
+	var swing := 0
+	for i in guest.hub.tavern.interactables.size():
+		if str(guest.hub.tavern.interactables[i].kind) == "swing":
+			swing = i
+			break
+	guest.hub.sit_on(swing)
+	_check(await _until(func() -> bool: return str(host.hub.guest(guest_id).action) == "swing"), "the other player sees them on the swing")
+	_check(await _until(func() -> bool: return float(host.hub.tavern._swings[int(host.hub.tavern.interactables[swing].swing)].amplitude) > 0.05),
+		"the swing swings for the other player too")
+	guest.hub.interact()
+	guest.net.send_chat("Selam millet!")
+	_check(await _until(func() -> bool: return str(host.hub.guest(guest_id).bubble_text()) == "Selam millet!"), "what they say shows over their head")
+	_check(host.hub.overlay._log.get_parsed_text().contains("Selam millet!"), "and in the chat log")
+	host.leave_hub()
+	_check(not host.hub.active and host.main_menu.visible, "leaving the tavern shows the menu")
+	_check(await _until(func() -> bool: return guest.hub.guest_count() == 0), "the visitor who left is gone for the others")
+	guest.leave_hub()
 	host.main_menu.open_section("friends")
 
 	# Only the host starts; the friend's game follows on the same map.

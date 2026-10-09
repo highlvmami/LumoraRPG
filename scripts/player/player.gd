@@ -25,6 +25,10 @@ var god_mode := false
 var facing := 0.0
 ## Share of incoming damage blocked (pets, up to MAX_DEFENSE).
 var defense := 0.0
+## False ignores the keyboard (typing in the tavern chat, sitting down).
+var controls_enabled := true
+## Sitting (tavern chair or swing): the body is held in place and the model sits.
+var seated := false
 
 var t: Dictionary
 var _since_grounded := 0.0
@@ -80,6 +84,14 @@ func set_look(look: Dictionary) -> void:
 	_model.build(look)
 
 
+## Sets the model's pose: seated (legs forward) and/or dancing.
+func set_pose(sit: bool, dance := false) -> void:
+	seated = sit
+	_model.sitting = sit
+	_model.dancing = dance
+	_model.position.y = -0.27 if sit else 0.0
+
+
 ## Plays the attack animation and turns toward the shot for a moment.
 func play_attack(direction: Vector3) -> void:
 	_model.attack()
@@ -114,14 +126,17 @@ func _physics_process(delta: float) -> void:
 		return
 	if regen > 0.0 and hp < max_hp:
 		hp = minf(max_hp, hp + regen * delta)
-	var raw := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if seated:
+		velocity = Vector3.ZERO
+		return
+	var raw := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if controls_enabled else Vector2.ZERO
 	var world := Vector3(raw.x, 0.0, raw.y).rotated(Vector3.UP, camera_yaw)
-	step(delta, Vector2(world.x, world.z), Input.is_action_just_pressed("jump"))
+	step(delta, Vector2(world.x, world.z), controls_enabled and Input.is_action_just_pressed("jump"))
 
 
 func _process(delta: float) -> void:
 	_model.rotation.y = facing
-	_model.animate(delta, horizontal_speed(), is_on_floor())
+	_model.animate(delta, 0.0 if seated else horizontal_speed(), true if seated else is_on_floor())
 
 
 ## One movement tick. `move` is the desired ground direction in world space (length 0..1).

@@ -24,6 +24,8 @@ var _attack_time := 0.0
 var _class := "archer"
 ## Seated (the tavern): legs forward, hands resting on the table.
 var sitting := false
+## Dancing (the tavern's dance floor): arms up, a bounce in the step.
+var dancing := false
 
 
 func _ready() -> void:
@@ -186,6 +188,21 @@ func _build_staff(tier: int, glow: Color) -> void:
 
 ## Called every frame by the player with its current movement state.
 func animate(delta: float, speed: float, on_floor: bool) -> void:
+	if dancing and not sitting:
+		_phase += delta * 9.0
+		var beat := sin(_phase)
+		_leg_l.rotation.x = beat * 0.7
+		_leg_r.rotation.x = -beat * 0.7
+		_arm_l.rotation.x = -2.5 + sin(_phase * 0.5) * 0.5
+		_arm_r.rotation.x = -2.5 - sin(_phase * 0.5) * 0.5
+		_arm_r.rotation.z = 0.0
+		_arm_r.position.z = 0.0
+		_visual.rotation.x = 0.0
+		_visual.rotation.z = sin(_phase * 0.5) * 0.12
+		_visual.position.y = absf(beat) * 0.12
+		return
+	_visual.rotation.z = 0.0
+	_visual.position.y = 0.0
 	if sitting:
 		_phase += delta
 		_leg_l.rotation.x = -1.5

@@ -34,6 +34,9 @@ signal online_list_updated
 signal leaderboard_received(category: String, rows: Array, me: Dictionary)
 ## The hub tavern changed (someone sat down or left).
 signal hub_changed
+## Another visitor of the hub tavern moved or sat down: their id and state
+## ({p: [x, y, z], f: facing, s: speed, a: action, o: object number}).
+signal hub_state_received(from: int, state: Dictionary)
 ## A chat line in the hub tavern: who said it (id and name) and what.
 signal hub_chat_received(from: int, from_name: String, text: String)
 
@@ -193,6 +196,12 @@ func leave_hub() -> void:
 	hub_changed.emit()
 
 
+## Tells the hub tavern where this player is and what they are doing.
+func send_hub_state(state: Dictionary) -> void:
+	if _want_hub and is_online():
+		_send({"t": "hub_state", "d": state})
+
+
 func in_hub() -> bool:
 	return not hub_members.is_empty()
 
@@ -273,7 +282,7 @@ func send_game(data: Dictionary, to := -1) -> void:
 
 func _send(msg: Dictionary) -> void:
 	if _ws == null or _ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
-		if not msg.t in ["game", "who", "online_list", "save", "leaderboard", "look"]:
+		if not msg.t in ["game", "who", "online_list", "save", "leaderboard", "look", "hub_state", "chat"]:
 			notice.emit("Sunucuya bağlı değilsin. Bağlanmayı bekle.")
 		return
 	_ws.send_text(JSON.stringify(msg))
@@ -416,6 +425,9 @@ func _handle(msg: Dictionary) -> void:
 			for line: Dictionary in msg.get("chat", []):
 				hub_chat.append({"name": str(line.name), "text": str(line.text)})
 			hub_changed.emit()
+		"hub_state":
+			if _want_hub and msg.get("d") is Dictionary:
+				hub_state_received.emit(int(msg.id), msg.d)
 		"hub_chat":
 			if not _want_hub:
 				return
