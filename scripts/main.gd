@@ -30,6 +30,7 @@ const SkillTree := preload("res://scripts/progression/skill_tree.gd")
 const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const Achievements := preload("res://scripts/progression/achievements.gd")
+const Daily := preload("res://scripts/progression/daily.gd")
 const Screen := preload("res://scripts/core/screen.gd")
 const Hub := preload("res://scripts/world/hub.gd")
 const ChestWheel := preload("res://scripts/ui/chest_wheel.gd")
@@ -65,6 +66,7 @@ var skill_tree: SkillTree
 var boosts := RunBoosts.new()
 var inventory: Inventory
 var achievements: Achievements
+var daily: Daily
 var chest_wheel: ChestWheel
 var hud: Hud
 var level_up_screen: LevelUpScreen
@@ -212,6 +214,9 @@ func login(username: String, remember := false) -> void:
 	achievements = Achievements.new(profile, store)
 	achievements.reward_gold = progression.add_gold
 	achievements.unlocked.connect(_on_achievement)
+	daily = Daily.new(profile, achievements)
+	daily.grant = grant_reward
+	daily.completed.connect(_on_quest_done)
 	_rng.randomize()
 
 	player = Player.new()
@@ -311,6 +316,7 @@ func login(username: String, remember := false) -> void:
 	add_child(main_menu)
 	main_menu.setup(progression, skill_tree, inventory)
 	main_menu.achievements = achievements
+	main_menu.daily = daily
 	main_menu.pets = pets
 	main_menu.play_pressed.connect(start_run)
 	main_menu.chest_open_requested.connect(open_chest)
@@ -318,6 +324,8 @@ func login(username: String, remember := false) -> void:
 	main_menu.settings_changed.connect(apply_settings)
 	main_menu.logout_requested.connect(logout)
 	main_menu.reset_requested.connect(reset_account)
+	if daily.login_ready():
+		main_menu.notify("Günlük ödülün hazır! Görevler sayfasına bak.")
 	main_menu.version_text = _version_text()
 
 	chest_wheel = ChestWheel.new()
@@ -890,6 +898,7 @@ func _end_run() -> void:
 	achievements.record_best("bestTime", enemies.run_time)
 	achievements.live = {}
 	achievements.check()
+	daily.check()
 	inventory.save()
 
 
@@ -916,6 +925,24 @@ func _check_achievements() -> void:
 	if in_run:
 		achievements.live = {"kills": enemies.kills, "level": progression.level, "time": enemies.run_time}
 	achievements.check()
+	daily.check()
+
+
+## Gives a daily quest or login reward: {gold?, chest? (tier)}.
+func grant_reward(reward: Dictionary) -> void:
+	if int(reward.get("gold", 0)) > 0:
+		progression.add_gold(int(reward.gold))
+	if reward.has("chest") and inventory.add_chest(int(reward.chest)).is_empty():
+		# A full backpack gets the chest's price instead.
+		progression.add_gold(int(inventory.gear.chest(int(reward.chest)).price))
+	inventory.save()
+
+
+func _on_quest_done(def: Dictionary) -> void:
+	if in_run and hud:
+		hud.toast("GÖREV TAMAM: " + UiTheme.upper(str(def.name)))
+	elif main_menu:
+		main_menu.notify("Günlük görev tamamlandı: %s. Ödülünü Görevler sayfasından al." % def.name)
 
 
 func _on_achievement(def: Dictionary) -> void:

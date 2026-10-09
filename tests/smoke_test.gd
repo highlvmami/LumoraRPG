@@ -720,6 +720,30 @@ func _run() -> void:
 	_check(not (profile.history as Array).is_empty() and str(profile.history[0].map) == "Ölümcül Zindan", "finished runs are logged")
 	main.set("forced_map", "forest")
 
+	# Daily quests and the login reward calendar.
+	var daily: RefCounted = main.get("daily")
+	daily.set("forced_day", "2030-01-01")
+	var day_quests: Array = daily.call("quests")
+	_check(day_quests.size() == 3 and day_quests.all(func(q: Dictionary) -> bool: return not bool(q.done)), "three new daily quests a day %s" % str(day_quests.map(func(q: Dictionary) -> String: return str(q.def.id))))
+	var quest_gold := int(main.get("progression").call("gold"))
+	var first_def: Dictionary = day_quests[0].def
+	main.get("achievements").call("add", str(first_def.stat), float(first_def.goal))
+	if str(first_def.stat) == "kills":
+		main.get("progression").profile.totalKills = int(main.get("progression").profile.get("totalKills", 0)) + int(first_def.goal)
+	if str(first_def.stat) == "runs":
+		main.get("progression").profile.runs = int(main.get("progression").profile.get("runs", 0)) + int(first_def.goal)
+	_check(bool((daily.call("quests") as Array)[0].done), "a quest is done once its counter grew enough")
+	_check(not (daily.call("claim", 0) as Dictionary).is_empty() and int(main.get("progression").call("gold")) >= quest_gold + int(first_def.get("gold", 0)) and (daily.call("claim", 0) as Dictionary).is_empty(), "a done quest's reward is taken once")
+	_check(int(daily.call("login_index")) == 0 and not (daily.call("claim_login") as Dictionary).is_empty() and not bool(daily.call("login_ready")), "the first login reward is day 1")
+	daily.set("forced_day", "2030-01-02")
+	_check(bool(daily.call("login_ready")) and int(daily.call("login_index")) == 1, "logging in the next day moves to day 2")
+	daily.call("claim_login")
+	daily.set("forced_day", "2030-01-05")
+	_check(int(daily.call("login_index")) == 0 and (daily.call("quests") as Array).all(func(q: Dictionary) -> bool: return not bool(q.claimed)), "a missed day starts the calendar over and a new day brings new quests")
+	menu.call("open_section", "quests")
+	await _frames(2)
+	daily.set("forced_day", "")
+
 	# Menu pages: logs, versions, settings.
 	for section_id: String in ["logs", "versions", "settings"]:
 		menu.call("open_section", section_id)
@@ -800,11 +824,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.24")) and not bool(menu.call("is_version_open", "0.23")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.25")) and not bool(menu.call("is_version_open", "0.24")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.23")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.24")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

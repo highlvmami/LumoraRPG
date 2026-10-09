@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.25", "date": "2026-10-09", "title": "Günlük görevler", "notes": [
+			"Yeni Görevler sayfası: her gün 3 yeni görev (canavar kes, boss yen, altın topla, kasa aç, adım at...)",
+			"Biten görevin ödülünü (altın, bazen kasa) Görevler sayfasından alırsın; tur içinde görev bitince haber verilir",
+			"7 günlük giriş ödülü takvimi: her gün gir, ödüller büyüsün; 7. gün nadir kasa. Bir gün kaçırırsan takvim baştan başlar" ] },
 		{ "version": "0.24", "date": "2026-10-09", "title": "Tavernanın bahçesi", "notes": [
 			"Tavernanın kapısı açık: dışarıda yıldızlı bir akşamda sakin bir çayır seni bekliyor",
 			"Taş yol, fenerler, dilek kuyusu, oturulabilen kütüklerle kamp ateşi ve ateşe odun atma",
