@@ -197,6 +197,36 @@ func sell(uid: int) -> int:
 	return price
 
 
+## Takes an item out of the backpack to give it away (a trade). Returns it, or {}.
+func take_item(uid: int) -> Dictionary:
+	var it := item(uid)
+	if it.is_empty():
+		return {}
+	var c := wearer(uid)
+	if not c.is_empty():
+		(c.equipment as Dictionary).erase(gear.item_slot(it))
+	items().erase(it)
+	return it
+
+
+## Puts an item from someone else (a trade) in the backpack with a new uid.
+## Unknown bases, rarities or stats are refused. Returns the stored item or {}.
+func receive_item(it: Variant) -> Dictionary:
+	if not it is Dictionary or stash_full():
+		return {}
+	var d: Dictionary = it
+	if gear.base(str(d.get("base", ""))).is_empty() or not d.get("stats") is Dictionary:
+		return {}
+	var stats := {}
+	for stat: String in d.stats:
+		var v := float(d.stats[stat])
+		if is_finite(v):
+			stats[stat] = clampf(v, -1000.0, 1000.0)
+	var stored := {"uid": _new_uid(), "base": str(d.base), "rarity": clampi(int(d.get("rarity", 0)), 0, gear.rarities.size() - 1), "stats": stats}
+	items().append(stored)
+	return stored
+
+
 # --- Chests -----------------------------------------------------------------
 
 func chests() -> Array:

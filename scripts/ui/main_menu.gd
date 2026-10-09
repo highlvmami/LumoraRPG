@@ -50,6 +50,7 @@ const NAV := [
 	["profile", "Profil", "eye"],
 	["friends", "Arkadaşlar", "heart"],
 	["guild", "Lonca", "shield"],
+	["trade", "Ticaret", "trade"],
 	["hub", "Taverna", "mug"],
 	["logs", "Kayıtlar", "double_arrow"],
 	["versions", "Sürümler", "staff"],
@@ -246,6 +247,9 @@ func open_section(id: String) -> void:
 		"guild":
 			_section_title.text = "Lonca"
 			_build_guild()
+		"trade":
+			_section_title.text = "Ticaret"
+			_build_trade()
 		"hub":
 			_section_title.text = "Lumora Tavernası"
 			_build_hub()
@@ -524,7 +528,7 @@ func _build_nav() -> Control:
 	scroll.custom_minimum_size = Vector2(230, 0)
 	var nav := VBoxContainer.new()
 	nav.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	nav.add_theme_constant_override("separation", 3)
+	nav.add_theme_constant_override("separation", 2)
 	scroll.add_child(nav)
 	var play_button := UiTheme.primary_button("OYNA")
 	play_button.custom_minimum_size = Vector2(0, 48)
@@ -540,8 +544,8 @@ func _build_nav() -> Control:
 		button.text = "  " + str(entry[1])
 		button.toggle_mode = true
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(0, 29)
-		button.add_theme_font_size_override("font_size", 16)
+		button.custom_minimum_size = Vector2(0, 27)
+		button.add_theme_font_size_override("font_size", 15)
 		button.icon = PixelIcons.texture(str(entry[2]), UiTheme.ACCENT)
 		button.expand_icon = true
 		button.add_theme_constant_override("icon_max_width", 22)
@@ -1865,6 +1869,131 @@ func ask_invite(from_name: String, code: String) -> void:
 
 ## Online state changed (connection, room, who is online): redraw what shows it.
 ## The guild or the guild list changed on the server.
+func refresh_trade() -> void:
+	if visible and section == "trade" and not is_confirm_open():
+		open_section("trade")
+
+
+## Trading with online players: offers made to you (accept / decline), your
+## open offers (take back) and a new offer: who, which item, how much gold.
+func _build_trade() -> void:
+	if net == null or not net.is_online():
+		_text("Ticaret için çevrimiçi olmalısın. Sunucuya bağlanınca bu sayfa açılır.", 16, UiTheme.MUTED)
+		return
+	_text("Çantandaki bir eşyayı çevrimiçi bir oyuncuya altın karşılığında teklif et (0 altın = hediye). Karşı taraf kabul edince eşya ve altın yer değiştirir. Teklifler ikiniz de çevrimiçiyken geçerli.", 14, UiTheme.MUTED)
+	var gear := inventory.gear
+	_header("Sana gelen teklifler")
+	var incoming: Array = net.trade_offers(true)
+	if incoming.is_empty():
+		_text("Şimdilik teklif yok.", 15, UiTheme.MUTED)
+	for o: Dictionary in incoming:
+		var row := _trade_row(o, "%s sana teklif ediyor" % o.from)
+		var price := int(o.price)
+		var accept := UiTheme.primary_button("Al (%d altın)" % price if price > 0 else "Hediyeyi al")
+		accept.custom_minimum_size = Vector2(150, 36)
+		var short := int(progression.profile.gold) < price
+		accept.disabled = short or inventory.stash_full()
+		accept.tooltip_text = "Yeterli altının yok" if short else ("Çantan dolu" if inventory.stash_full() else "")
+		accept.pressed.connect(func() -> void: net.answer_trade(int(o.id), true))
+		row.add_child(accept)
+		var decline := Button.new()
+		decline.text = "Reddet"
+		_danger(decline)
+		decline.pressed.connect(func() -> void: net.answer_trade(int(o.id), false))
+		row.add_child(decline)
+	var mine: Array = net.trade_offers(false)
+	if not mine.is_empty():
+		_header("Senin tekliflerin")
+		for o: Dictionary in mine:
+			var row := _trade_row(o, "%s için · %d altın" % [o.to, int(o.price)])
+			var cancel := Button.new()
+			cancel.text = "Geri al"
+			cancel.pressed.connect(func() -> void: net.cancel_trade(int(o.id)))
+			row.add_child(cancel)
+
+	_header("Yeni teklif")
+	var form := HBoxContainer.new()
+	form.add_theme_constant_override("separation", 10)
+	var to := LineEdit.new()
+	to.placeholder_text = "Oyuncu adı"
+	to.max_length = 16
+	to.custom_minimum_size.x = 200
+	form.add_child(to)
+	var friends: Array = progression.profile.friends
+	if not friends.is_empty():
+		var pick := OptionButton.new()
+		pick.add_item("Arkadaş seç")
+		for f: String in friends:
+			pick.add_item(f)
+		pick.item_selected.connect(func(i: int) -> void:
+			if i > 0:
+				to.text = pick.get_item_text(i))
+		form.add_child(pick)
+	form.add_child(UiTheme.label("Fiyat:", UiTheme.label_settings(16, UiTheme.TEXT, 0)))
+	var price_box := SpinBox.new()
+	price_box.min_value = 0
+	price_box.max_value = 1000000
+	price_box.step = 10
+	price_box.value = 100
+	price_box.custom_minimum_size.x = 130
+	form.add_child(price_box)
+	_content.add_child(form)
+	var offered: Array = net.offered_uids()
+	var grid := HFlowContainer.new()
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	var any := false
+	for it: Dictionary in inventory.items():
+		if offered.has(int(it.uid)):
+			continue
+		any = true
+		var color := gear.rarity_color(int(it.rarity))
+		var b := Button.new()
+		b.text = gear.item_name(it)
+		b.custom_minimum_size = Vector2(170, 34)
+		b.add_theme_font_size_override("font_size", 13)
+		b.add_theme_color_override("font_color", color.lightened(0.2))
+		b.tooltip_text = "%s'a teklif et" % gear.item_name(it)
+		if not inventory.wearer(int(it.uid)).is_empty():
+			b.text += " (giyili)"
+		b.pressed.connect(func() -> void:
+			if to.text.strip_edges() == "":
+				notify("Önce kime teklif edeceğini yaz.")
+				return
+			net.offer_trade(to.text, it, int(price_box.value)))
+		grid.add_child(b)
+	if not any:
+		_text("Çantanda teklif edilecek eşya yok.", 15, UiTheme.MUTED)
+	else:
+		_text("Oyuncuyu ve fiyatı seç, sonra teklif etmek istediğin eşyaya tıkla:", 14, UiTheme.MUTED)
+	_content.add_child(grid)
+
+
+func _trade_row(o: Dictionary, caption: String) -> HBoxContainer:
+	var gear := inventory.gear
+	var it: Dictionary = o.item
+	var known := not gear.base(str(it.get("base", ""))).is_empty()
+	var color := gear.rarity_color(int(it.get("rarity", 0))) if known else UiTheme.MUTED
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _card_style(color, 2))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	card.add_child(row)
+	if known:
+		var art := ItemArt.make(it, color, gear.tier(int(it.rarity)), 40)
+		art.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(art)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 0)
+	info.add_child(UiTheme.label(gear.item_name(it) if known else "Bilinmeyen eşya", UiTheme.label_settings(17, color.lightened(0.15), 2)))
+	var stats := "  ·  ".join(gear.stat_lines(it)) if known and it.get("stats") is Dictionary else ""
+	info.add_child(UiTheme.label(caption + ("   " + stats if stats != "" else ""), UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+	row.add_child(info)
+	_content.add_child(card)
+	return row
+
+
 func refresh_guild() -> void:
 	if visible and section == "guild" and not is_confirm_open():
 		open_section("guild")

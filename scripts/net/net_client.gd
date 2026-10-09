@@ -43,6 +43,10 @@ signal hub_chat_received(from: int, from_name: String, text: String)
 signal guild_changed
 signal guild_list_received
 signal guild_chat_received(from_name: String, text: String)
+## Open trade offers (yours and the ones made to you) changed.
+signal trades_changed
+## A trade went through: {id, from, to, item, price}. The game moves the item and the gold.
+signal trade_done(info: Dictionary)
 
 var url := DEFAULT_URL
 var status := "offline"
@@ -68,6 +72,8 @@ var hub_chat: Array = []
 var guild: Dictionary = {}
 ## The biggest guilds: [{name, tag, members, leader}].
 var guild_list: Array = []
+## Open trade offers: [{id, from, to, item, price}].
+var trades: Array = []
 ## False stops reconnecting (tests, offline play).
 var enabled := true
 
@@ -223,6 +229,39 @@ func send_chat(text: String) -> bool:
 	return true
 
 
+## Offers an item from the backpack to an online player for `price` gold.
+func offer_trade(to: String, item: Dictionary, price: int) -> void:
+	if is_online():
+		_send({"t": "trade_offer", "to": to.strip_edges(), "item": item, "price": maxi(price, 0)})
+
+
+func answer_trade(id: int, accept: bool) -> void:
+	if is_online():
+		_send({"t": "trade_answer", "id": id, "accept": accept})
+
+
+func cancel_trade(id: int) -> void:
+	if is_online():
+		_send({"t": "trade_cancel", "id": id})
+
+
+## Offers made to this player (incoming = true) or by this player.
+func trade_offers(incoming: bool) -> Array:
+	var out: Array = []
+	for o: Dictionary in trades:
+		if (str(o.to).to_lower() == account.to_lower()) == incoming:
+			out.append(o)
+	return out
+
+
+## The uids of your items that are in an open offer.
+func offered_uids() -> Array:
+	var out: Array = []
+	for o: Dictionary in trade_offers(false):
+		out.append(int((o.item as Dictionary).get("uid", -1)))
+	return out
+
+
 func in_guild() -> bool:
 	return not guild.is_empty()
 
@@ -374,6 +413,8 @@ func _set_status(s: String) -> void:
 	if s == status:
 		return
 	status = s
+	if s != "online":
+		trades.clear()
 	status_changed.emit(s)
 
 
@@ -504,6 +545,18 @@ func _handle(msg: Dictionary) -> void:
 				if (guild.chat as Array).size() > 40:
 					(guild.chat as Array).pop_front()
 				guild_chat_received.emit(str(msg.name), str(msg.text))
+		"trades":
+			trades.clear()
+			if msg.get("offers") is Array:
+				for o: Variant in msg.offers:
+					if o is Dictionary and (o as Dictionary).get("item") is Dictionary:
+						trades.append({"id": int(o.id), "from": str(o.from), "to": str(o.to), "item": o.item, "price": int(o.price)})
+			trades_changed.emit()
+		"trade_done":
+			if msg.get("item") is Dictionary:
+				trade_done.emit({"id": int(msg.id), "from": str(msg.from), "to": str(msg.to), "item": msg.item, "price": int(msg.price)})
+		"trade_closed":
+			notice.emit(str(msg.reason))
 		"error":
 			_invite_after_room = ""
 			notice.emit(str(msg.msg))
@@ -517,6 +570,7 @@ func _on_auth(msg: Dictionary) -> void:
 		if _want_hub:
 			_send({"t": "hub_join", "look": my_look})
 		_send({"t": "guild"})
+		_send({"t": "trades"})
 		var profile: Variant = msg.get("profile")
 		signed_in.emit(account, str(msg.token), profile if profile is Dictionary else {}, float(msg.get("savedAt", 0.0)))
 		return

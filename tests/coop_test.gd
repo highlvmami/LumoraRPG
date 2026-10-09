@@ -112,6 +112,21 @@ func _run() -> void:
 	_check(host._extra("goldGain") >= 0.05, "guild members earn a little more gold")
 	guest.net.leave_guild()
 	_check(await _until(func() -> bool: return not guest.net.in_guild() and (host.net.guild.members as Array).size() == 1), "leaving the guild")
+
+	# Trade: the host sells an item to the friend for gold.
+	var sold: Dictionary = host.inventory.add_random_item(3)
+	host.progression.profile.gold = 0
+	guest.progression.profile.gold = 500
+	var guest_items: int = guest.inventory.items().size()
+	host.main_menu.open_section("trade")
+	host.net.offer_trade(guest.net.account, sold, 120)
+	_check(await _until(func() -> bool: return guest.net.trade_offers(true).size() == 1 and host.net.offered_uids().has(int(sold.uid))), "a trade offer reaches the friend")
+	guest.main_menu.open_section("trade")
+	guest.net.answer_trade(int(guest.net.trade_offers(true)[0].id), true)
+	_check(await _until(func() -> bool: return guest.inventory.items().size() == guest_items + 1 and host.inventory.item(int(sold.uid)).is_empty()), "the item moves to the buyer")
+	# (+50 each for the first-trade achievement)
+	_check(int(host.progression.profile.gold) == 120 + 50 and int(guest.progression.profile.gold) == 380 + 50, "the gold moves to the seller")
+	_check(await _until(func() -> bool: return guest.net.trades.is_empty() and host.net.trades.is_empty()), "the offer is gone after the trade")
 	host.leave_hub()
 	_check(not host.hub.active and host.main_menu.visible, "leaving the tavern shows the menu")
 	_check(await _until(func() -> bool: return guest.hub.guest_count() == 0), "the visitor who left is gone for the others")
