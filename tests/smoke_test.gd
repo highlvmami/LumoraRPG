@@ -441,6 +441,27 @@ func _run() -> void:
 	boosts.call("reset")
 	weapons.call("reset")
 	main.call("_apply_stats")
+	# Dungeon gates: walk in, a mini boss and its minions come out; beat it for gold and a chest.
+	var dungeon: Node = main.get("dungeon")
+	_check(bool(dungeon.get("active")), "dungeon gates are on in a solo run")
+	dungeon.call("open_gate")
+	_check(str(dungeon.get("state")) == "gate", "a dungeon gate opens near the player")
+	(main.get("player") as Node3D).global_position = dungeon.call("center") + Vector3(0, 0.5, 0)
+	for i in 3:
+		await physics_frame
+	var gate_enemies: Node = main.get("enemies")
+	var guardian: int = gate_enemies.call("index_of_uid", int(dungeon.call("guardian_uid")))
+	_check(str(dungeon.get("state")) == "fight" and guardian >= 0 and bool((gate_enemies.call("kind_of", guardian) as Dictionary).get("mini", false)), "walking into the gate starts a mini boss fight")
+	var chests_before := (main.get("inventory").call("chests") as Array).size()
+	var gate_gold := int(main.get("progression").call("gold"))
+	gate_enemies.call("damage", guardian, 99999.0)
+	_check(str(dungeon.get("state")) == "" and int(dungeon.get("cleared_count")) == 1 and int(main.get("progression").call("gold")) > gate_gold and (main.get("inventory").call("chests") as Array).size() == chests_before + 1, "beating the guardian gives gold and a chest")
+	dungeon.call("open_gate")
+	dungeon.call("start_fight")
+	dungeon.set("time_left", 0.01)
+	for i in 3:
+		await physics_frame
+	_check(str(dungeon.get("state")) == "" and gate_enemies.call("index_of_uid", int(dungeon.call("guardian_uid"))) < 0, "when time runs out the guardian leaves and the ring opens")
 	var hud: Node = main.get("hud")
 	_check((hud.get("_stat_values") as Array).size() == 9, "character panel shows 9 stats")
 
@@ -472,7 +493,7 @@ func _run() -> void:
 	_check(int(enemies.get("shots_fired")) > 0, "goblin throws at the player")
 	enemies.set("run_time", 95.0)
 	await _frames(2)
-	_check((enemies.get("_announced") as Dictionary).size() == 6, "all enemy kinds unlock as time goes on")
+	_check((enemies.get("_announced") as Dictionary).size() == (enemies.get("_kinds") as Array).size(), "all enemy kinds unlock as time goes on")
 	_check(float(enemies.call("growth", "hpGrowthPerMinute")) > 1.4, "enemies get tougher over time")
 
 	# Every extra weapon damages enemies around the player.
@@ -612,7 +633,7 @@ func _run() -> void:
 		enemies.call("damage", boss, 1000000.0)
 	await _frames(2)
 	_check(defeated.size() == 1 and int(enemies.call("boss_index")) < 0, "boss can be defeated")
-	_check((inv.call("chests") as Array).size() == 1, "the boss drops a chest")
+	_check((inv.call("chests") as Array).size() == 1 + int(main.get("dungeon").get("cleared_count")), "the boss drops a chest")
 	main.call("cheat", "spider_boss")
 	await _frames(2)
 	var queen := int(enemies.call("boss_index"))
@@ -848,11 +869,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.26")) and not bool(menu.call("is_version_open", "0.25")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.27")) and not bool(menu.call("is_version_open", "0.26")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.25")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.26")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
