@@ -149,6 +149,15 @@ function client() {
   assert.notStrictEqual(hubB.members[0].seat, hubB.members[1].seat, "everyone gets their own seat");
   assert.ok(hubB.members.every((m) => m.level >= 1), "hub members come with their account level");
   assert.strictEqual((await a.next("hub")).members.length, 2);
+  // Movement: numbers only, known actions only, passed to the others but not back.
+  b.send({ t: "hub_state", d: { p: [1.234, 0, -2], f: 1.5, s: 4, a: "sit", o: 7, junk: "x" } });
+  const st = await a.next("hub_state");
+  assert.strictEqual(st.id, wb.id);
+  assert.deepStrictEqual(st.d, { p: [1.23, 0, -2], f: 1.5, s: 4, a: "sit", o: 7 });
+  await new Promise((r) => setTimeout(r, 50));
+  b.send({ t: "hub_state", d: { p: ["x", null, 1e999], f: "no", a: "fly", o: -5 } });
+  const bad = await a.next("hub_state");
+  assert.deepStrictEqual(bad.d, { p: [0, 0, 0], f: 0, s: 0, a: "", o: -1 }, "bad movement data is cleaned");
   b.send({ t: "chat", text: "  merhaba\nherkese  " });
   const line = await a.next("hub_chat");
   assert.strictEqual(line.text, "merhaba herkese");

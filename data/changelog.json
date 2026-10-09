@@ -1,5 +1,11 @@
 {
 	"versions": [
+		{ "version": "0.23", "date": "2026-10-09", "title": "Gezilebilir Taverna", "notes": [
+			"Taverna artık 3D bir harita: içinde yürüyebilir, zıplayabilirsin",
+			"E ile sandalyelere, tezgah taburelerine ve şömine başına oturabilirsin",
+			"İki salıncakta sallanabilir, dans pistinde dans edebilirsin",
+			"Diğer oyuncuları canlı görürsün; Enter ile yazdığın mesaj başının üstünde belirir",
+			"Esc ile tavernadan çıkılır" ] },
 		{ "version": "0.22", "date": "2026-10-08", "title": "Lumora Tavernası ve zorlu bosslar", "notes": [
 			"Lumora Tavernası (menüde Taverna): çevrimiçi herkes gelip 24 kişilik büyük salonda oturabilir",
 			"Taverna sohbeti: yazdıkların herkesin ekranında ve karakterinin başının üstünde görünür",

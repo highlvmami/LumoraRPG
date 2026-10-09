@@ -484,6 +484,8 @@ func _run() -> void:
 			level_up.call("pick", 0)
 		if int(bow.get("arrows_fired")) != fired_before:
 			break
+	for k in 6:
+		await physics_frame
 	_check(int(bow.get("arrows_fired")) - fired_before == 2, "a double arrow shot fires two arrows (%d)" % (int(bow.get("arrows_fired")) - fired_before))
 	bow.set("double_chance", 0.0)
 
@@ -722,6 +724,49 @@ func _run() -> void:
 	for section_id: String in ["logs", "versions", "settings"]:
 		menu.call("open_section", section_id)
 		await _frames(1)
+	# The hub tavern: a map to walk around in with things to use.
+	var hub: Node = main.get("hub")
+	menu.call("close_confirm")
+	hub.call("enter")
+	for i in 40:
+		await physics_frame
+	_check(bool(hub.get("active")) and not menu.visible and (main.get("player") as Node3D).visible, "entering the hub tavern shows the character and hides the menu")
+	var hub_hall: Node3D = hub.get("tavern")
+	var kinds := {}
+	for thing: Dictionary in hub_hall.get("interactables"):
+		kinds[thing.kind] = int(kinds.get(thing.kind, 0)) + 1
+	_check(int(kinds.get("sit", 0)) >= 30 and int(kinds.get("swing", 0)) == 2 and kinds.has("dance") and kinds.has("fire"), "the hub_hall has chairs, swings, a dance floor and a fireplace %s" % str(kinds))
+	var ply: CharacterBody3D = main.get("player")
+	_check(ply.is_on_floor() and ply.global_position.y < 1.0, "the character stands on the hub_hall floor")
+	var things: Array = hub_hall.get("interactables")
+	var first_sit := 0
+	var swing_index := 0
+	var dance_index := 0
+	for i in things.size():
+		match str(things[i].kind):
+			"swing":
+				swing_index = i
+			"dance":
+				dance_index = i
+	ply.global_position = hub_hall.call("origin_of", first_sit) + Vector3(0.5, 0.3, 0.5)
+	hub.call("interact")
+	_check(str(hub.call("action")) == "sit" and ply.seated, "E sits on a chair in reach")
+	hub.call("interact")
+	_check(str(hub.call("action")) == "" and not ply.seated, "E again gets up")
+	hub.call("sit_on", swing_index)
+	for i in 150:
+		await physics_frame
+	var swing_state: Dictionary = (hub_hall.get("_swings") as Array)[int(things[swing_index].swing)]
+	_check(float(swing_state.amplitude) > 0.1 and ply.global_position.distance_to(hub_hall.call("origin_of", swing_index)) < 0.3, "a swing swings with the player on it")
+	hub.call("interact")
+	ply.global_position = (things[dance_index].pos as Vector3) + Vector3(0, 0.3, 0)
+	hub.call("interact")
+	_check(str(hub.call("action")) == "dance", "E on the dance floor starts dancing")
+	hub.call("interact")
+	_check(str(hub.call("action")) == "", "and stops it")
+	main.call("leave_hub")
+	_check(not bool(hub.get("active")) and menu.visible and not ply.visible, "leaving the tavern shows the menu again")
+
 	# Full screen is kept per device; the menu fits a 1280x720 window.
 	var screen_script: GDScript = load("res://scripts/core/screen.gd")
 	screen_script.call("set_fullscreen", true)
@@ -738,11 +783,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.22")) and not bool(menu.call("is_version_open", "0.21")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.23")) and not bool(menu.call("is_version_open", "0.22")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.21")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.22")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

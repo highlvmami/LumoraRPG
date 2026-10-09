@@ -10,6 +10,7 @@ const BINDINGS := {
 	"jump": [KEY_SPACE],
 	"pause": [KEY_ESCAPE, KEY_P],
 	"ultimate": [KEY_R, KEY_Q],
+	"interact": [KEY_E, KEY_F],
 }
 
 

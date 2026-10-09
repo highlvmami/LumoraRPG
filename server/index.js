@@ -23,8 +23,9 @@
 //   {t:"leave"}                  leave the room (a leaving host closes it)
 //   {t:"invite", to}             invite an online account to your room
 //   {t:"game", d, to?}           co-op data for the room (or one member)
-//   {t:"hub_join", look?}        sit down in the big hub tavern (everyone online can come)
-//   {t:"hub_leave"}              get up and leave the hub tavern
+//   {t:"hub_join", look?}        walk into the hub tavern (everyone online can come)
+//   {t:"hub_leave"}              leave the hub tavern
+//   {t:"hub_state", d}           where you are in the tavern: {p:[x,y,z], f, s, a, o}
 //   {t:"chat", text}             say something in the hub tavern
 //   {t:"ping"}
 // To a client:
@@ -34,6 +35,7 @@
 //   {t:"room_closed", reason}  {t:"invited", from, code}  {t:"invite_sent", to}
 //   {t:"game", from, d}  {t:"error", msg}  {t:"pong"}
 //   {t:"hub", members:[{id, name, look, seat, level}], you, chat:[{name, text, at}]}  {t:"hub_chat", id, name, text, at}
+//   {t:"hub_state", id, d}       another visitor of the hub tavern moved or sat down
 
 const http = require("http");
 const { WebSocketServer } = require("ws");
@@ -46,7 +48,9 @@ const MAX_FAILS = 8;
 const MAX_LOOK = 1500;
 const BOARD_SIZE = 20;
 const BOARD_CACHE_MS = 15000;
-const HUB_SEATS = 24;
+const HUB_MAX = 40; // visitors in the hub tavern (each gets a spot number to arrive at)
+const HUB_ACTIONS = ["", "sit", "swing", "dance"];
+const HUB_STATE_GAP_MS = 30;
 const CHAT_KEEP = 40;
 const CHAT_MAX = 200;
 const CHAT_GAP_MS = 600;
@@ -67,8 +71,8 @@ const accounts = new Accounts(process.env.DATABASE_URL);
 
 const clients = new Map(); // id -> client
 const rooms = new Map(); // code -> room
-// The hub tavern: one big room for everyone online, with seats and a chat.
-const hub = { seats: new Map(), chat: [] }; // seats: client id -> seat number
+// The hub tavern: one big room for everyone online to walk around and chat in.
+const hub = { seats: new Map(), chat: [] }; // seats: client id -> arrival spot number
 let nextId = 1;
 
 function send(c, msg) {
@@ -170,7 +174,7 @@ function hubJoin(c) {
   if (hub.seats.has(c.id)) return broadcastHub();
   const taken = new Set(hub.seats.values());
   let seat = -1;
-  for (let s = 0; s < HUB_SEATS; s++) {
+  for (let s = 0; s < HUB_MAX; s++) {
     if (!taken.has(s)) {
       seat = s;
       break;
@@ -184,6 +188,30 @@ function hubJoin(c) {
 function hubLeave(c) {
   if (!hub.seats.delete(c.id)) return;
   broadcastHub().catch((e) => console.error("hub update failed", e));
+}
+
+// Where a visitor is: numbers only, a known action, passed on to the others.
+function hubState(c, d) {
+  if (!hub.seats.has(c.id) || !d || typeof d !== "object") return;
+  const now = Date.now();
+  if (now - (c.lastState || 0) < HUB_STATE_GAP_MS) return;
+  const num = (v) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : 0);
+  const p = Array.isArray(d.p) ? d.p.slice(0, 3).map((v) => num(Number(v))) : [0, 0, 0];
+  while (p.length < 3) p.push(0);
+  const clean = {
+    p,
+    f: num(Number(d.f)),
+    s: num(Number(d.s)),
+    a: HUB_ACTIONS.includes(d.a) ? d.a : "",
+    o: Number.isInteger(d.o) && d.o >= 0 && d.o < 1000 ? d.o : -1,
+  };
+  c.lastState = now;
+  const out = JSON.stringify({ t: "hub_state", id: c.id, d: clean });
+  for (const id of hub.seats.keys()) {
+    if (id === c.id) continue;
+    const m = clients.get(id);
+    if (m && m.ws.readyState === 1) m.ws.send(out);
+  }
 }
 
 // A chat line: one line of plain text, not too long, not too often.
@@ -274,6 +302,8 @@ async function handle(c, msg) {
       return hubJoin(c);
     case "hub_leave":
       return hubLeave(c);
+    case "hub_state":
+      return hubState(c, msg.d);
     case "chat":
       return hubChat(c, msg.text);
     case "create": {
