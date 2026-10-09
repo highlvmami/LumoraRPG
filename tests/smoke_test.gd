@@ -417,6 +417,30 @@ func _run() -> void:
 	_check(picked_count == 1, "picked card is recorded")
 	if crit_index >= 0:
 		_check(float(bow.get("crit_chance")) > crit_before, "crit boost raises crit chance")
+	# Weapon evolution: a maxed weapon plus its boost turns into a super weapon.
+	var orbit_def: Dictionary = weapons.call("def", "orbit")
+	for n in int(orbit_def.maxLevel):
+		weapons.call("add", "orbit")
+	_check(not (main.call("evolution_choices") as Array).any(func(c: Dictionary) -> bool: return c.id == "blade_storm"), "no evolution without its boost")
+	boosts.call("add", "move_speed")
+	var evo_cards: Array = (main.call("evolution_choices") as Array).filter(func(c: Dictionary) -> bool: return c.id == "blade_storm")
+	_check(evo_cards.size() == 1 and (main.call("roll_level_up_choices") as Array)[0].type in ["evolve", "weapon", "boost"] and (main.call("roll_level_up_choices") as Array).any(func(c: Dictionary) -> bool: return c.type == "evolve"), "a maxed weapon with its boost offers an evolution card")
+	var blades_before := int(orbit_def.count)
+	main.call("apply_level_up_choice", evo_cards[0])
+	var evolved_def: Dictionary = weapons.call("def", "orbit")
+	_check(str(evolved_def.name) == "Kılıç Kasırgası" and int(evolved_def.count) == blades_before + 3 and float(evolved_def.damage) > float(orbit_def.damage) and (main.call("evolution_choices") as Array).is_empty(), "evolving makes the weapon stronger with a new name, only once")
+	boosts.call("add", "crit_chance")
+	boosts.call("add", "crit_chance")
+	boosts.call("add", "crit_chance")
+	var bow_evo: Array = (main.call("evolution_choices") as Array).filter(func(c: Dictionary) -> bool: return c.id == "eagle_bow")
+	if main.call("class_id") == "archer":
+		var arrow_damage := float(bow.call("hit_damage"))
+		main.call("apply_level_up_choice", bow_evo[0])
+		_check(bool(bow.call("is_evolved")) and float(bow.call("hit_damage")) > arrow_damage, "the archer's bow evolves into the eagle bow")
+		bow.call("unevolve")
+	boosts.call("reset")
+	weapons.call("reset")
+	main.call("_apply_stats")
 	var hud: Node = main.get("hud")
 	_check((hud.get("_stat_values") as Array).size() == 9, "character panel shows 9 stats")
 
@@ -824,11 +848,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.25")) and not bool(menu.call("is_version_open", "0.24")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.26")) and not bool(menu.call("is_version_open", "0.25")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.24")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.25")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

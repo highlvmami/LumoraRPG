@@ -166,7 +166,10 @@ func _card(choice: Dictionary, index: int) -> Button:
 	var tag := "YENİ SİLAH" if is_weapon and now == 0 else ("SİLAH" if is_weapon else "GÜÇLENDİRME")
 	if d.has("class") and not d.get("starter", false):
 		tag = "SINIFA ÖZEL"
-	text.add_child(UiTheme.label("%s  ·  Sv. %d" % [tag, now + 1], UiTheme.label_settings(11, UiTheme.ACCENT if is_weapon else UiTheme.MUTED, 3)))
+	if choice.type == "evolve":
+		text.add_child(UiTheme.label("★ SİLAH EVRİMİ ★", UiTheme.label_settings(11, Color("#ff9a3c"), 3)))
+	else:
+		text.add_child(UiTheme.label("%s  ·  Sv. %d" % [tag, now + 1], UiTheme.label_settings(11, UiTheme.ACCENT if is_weapon else UiTheme.MUTED, 3)))
 	text.add_child(UiTheme.label(str(d.name), UiTheme.label_settings(18, color.lightened(0.25), 4)))
 	var desc := UiTheme.label(str(d.upgrade) if is_weapon and now > 0 else str(d.desc), UiTheme.label_settings(12, UiTheme.TEXT, 3))
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

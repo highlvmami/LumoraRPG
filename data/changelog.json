@@ -1,5 +1,11 @@
 {
 	"versions": [
+		{ "version": "0.26", "date": "2026-10-09", "title": "Silah evrimi", "notes": [
+			"Bir silah en üst seviyeye gelince ve eşleşen güçlendirmeyi aldıysan, seviye atlarken SİLAH EVRİMİ kartı çıkar",
+			"Evrimleşen silah yeni bir isim ve renk alır; çok daha güçlü, hızlı ve geniş vurur",
+			"Tarifler: Kılıç Savuruşu + Ölümcül Vuruş, Büyü Küresi + Hızlı Çekiş, Dönen Kılıçlar + Rüzgâr Adımı, Ateş Topu + Şanslı Atış, Yıldırım + Kartal Gözü, Kutsal Alan + Yenilenme, Ok Yağmuru + Çift Ok, Meteor + Keskin Uç, Kalkan Darbesi + Sağlam Beden",
+			"Okçunun yayı 3 Şanslı Atış ile Kartal Yayı'na dönüşür",
+			"İki yeni başarım: Evrim ve Silah Ustası" ] },
 		{ "version": "0.25", "date": "2026-10-09", "title": "Günlük görevler", "notes": [
 			"Yeni Görevler sayfası: her gün 3 yeni görev (canavar kes, boss yen, altın topla, kasa aç, adım at...)",
 			"Biten görevin ödülünü (altın, bazen kasa) Görevler sayfasından alırsın; tur içinde görev bitince haber verilir",

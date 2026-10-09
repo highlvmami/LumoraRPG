@@ -1,5 +1,7 @@
 {
 	"achievements": [
+		{ "id": "evolved", "name": "Evrim", "desc": "Bir silahı evrimleştir", "icon": "ultimate", "stat": "evolutions", "target": 1, "reward": 60 },
+		{ "id": "evolver", "name": "Silah Ustası", "desc": "Toplam 10 silah evrimleştir", "icon": "ultimate", "stat": "evolutions", "target": 10, "reward": 200 },
 		{ "id": "first_blood", "name": "İlk Kan", "desc": "İlk canavarını kes", "icon": "sword", "stat": "kills", "target": 1, "reward": 10 },
 		{ "id": "hunter", "name": "Avcı", "desc": "Toplam 100 canavar kes", "icon": "sword", "stat": "kills", "target": 100, "reward": 30 },
 		{ "id": "slayer", "name": "Katliam", "desc": "Toplam 1.000 canavar kes", "icon": "skull", "stat": "kills", "target": 1000, "reward": 100 },

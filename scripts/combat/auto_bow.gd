@@ -39,6 +39,7 @@ var _arrow_pos := PackedVector3Array()
 var _arrow_vel := PackedVector3Array()
 var _arrow_life := PackedFloat32Array()
 var _mm: MultiMesh
+var _mat: StandardMaterial3D
 
 
 func setup(p_player: CharacterBody3D, p_enemies: EnemyManager) -> void:
@@ -59,11 +60,29 @@ func setup(p_player: CharacterBody3D, p_enemies: EnemyManager) -> void:
 	_mm.visible_instance_count = 0
 	var instance := MultiMeshInstance3D.new()
 	instance.multimesh = _mm
-	var mat := Toon.material(Color("#ffe08a"))
-	mat.emission_enabled = true
-	mat.emission = Color("#ffcc55")
-	instance.material_override = mat
+	_mat = Toon.material(Color("#ffe08a"))
+	_mat.emission_enabled = true
+	_mat.emission = Color("#ffcc55")
+	instance.material_override = _mat
 	add_child(instance)
+
+
+## Turns the bow into its evolution (WeaponSet.evolved_def numbers).
+func evolve(evolved: Dictionary) -> void:
+	_w = evolved
+	_mat.albedo_color = Color(str(evolved.color))
+	_mat.emission = Color(str(evolved.color))
+
+
+## Back to the plain bow (a new run).
+func unevolve() -> void:
+	_w = Config.load_json("res://data/weapons.json").bow
+	_mat.albedo_color = Color("#ffe08a")
+	_mat.emission = Color("#ffcc55")
+
+
+func is_evolved() -> bool:
+	return bool(_w.get("evolved", false))
 
 
 func clear() -> void:

@@ -521,6 +521,7 @@ func start_run(guest_map := "") -> void:
 	progression.start_run()
 	boosts.reset()
 	weapons.reset()
+	bow.unevolve()
 	enemies.clear()
 	bow.clear()
 	loot_orbs.clear()
@@ -693,6 +694,10 @@ func roll_level_up_choices() -> Array:
 	var pool: Array = boost_cards + weapon_cards.slice(1)
 	pool.shuffle()
 	var picks: Array = []
+	# A weapon that can evolve is always offered first.
+	var evolve_cards := evolution_choices()
+	if not evolve_cards.is_empty():
+		picks.append(evolve_cards[0])
 	if not weapon_cards.is_empty():
 		picks.append(weapon_cards[0])
 	picks.append_array(pool.slice(0, boosts.choices_per_level - picks.size()))
@@ -700,8 +705,34 @@ func roll_level_up_choices() -> Array:
 	return picks
 
 
+## Evolutions ready now: the weapon is at its top level (the archer's bow
+## just needs to be carried) and the matching boost was picked enough times.
+func evolution_choices() -> Array:
+	var out: Array = []
+	for e: Dictionary in weapons.evolutions:
+		var w := str(e.weapon)
+		if w == "bow":
+			if class_id() != "archer" or bow.is_evolved():
+				continue
+		elif weapons.evolved.has(w) or weapons.level(w) < int(weapons.def(w).get("maxLevel", 99)):
+			continue
+		if boosts.count(str(e.boost)) < int(e.get("boostStacks", 1)):
+			continue
+		out.append({"id": e.id, "type": "evolve", "def": e, "now": 0, "max": 1})
+	return out
+
+
 func apply_level_up_choice(choice: Dictionary) -> void:
-	if choice.type == "weapon":
+	if choice.type == "evolve":
+		var e: Dictionary = choice.def
+		if str(e.weapon) == "bow":
+			bow.evolve(WeaponSet.evolved_def(bow.data(), e))
+		else:
+			weapons.evolve(e)
+		hud.set_weapons(weapon_list())
+		hud.toast("SİLAH EVRİMİ: " + UiTheme.upper(str(e.name)))
+		achievements.add("evolutions")
+	elif choice.type == "weapon":
 		weapons.add(str(choice.id))
 		hud.set_weapons(weapon_list())
 	else:
