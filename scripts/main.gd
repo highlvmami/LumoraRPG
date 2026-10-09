@@ -31,6 +31,7 @@ const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const Achievements := preload("res://scripts/progression/achievements.gd")
 const Screen := preload("res://scripts/core/screen.gd")
+const Hub := preload("res://scripts/world/hub.gd")
 const ChestWheel := preload("res://scripts/ui/chest_wheel.gd")
 const LoginScreen := preload("res://scripts/ui/login_screen.gd")
 const MainMenu := preload("res://scripts/ui/main_menu.gd")
@@ -75,6 +76,8 @@ var store := ProfileStore.new()
 ## Online server connection (rooms, invites) and the live co-op run.
 var net: NetClient
 var coop: Coop
+## The hub tavern (walkable, with everyone online).
+var hub: Hub
 var in_run := false
 
 var _world_cfg: Dictionary
@@ -155,6 +158,13 @@ func load_map(id: String) -> void:
 	var m: Dictionary = maps[id]
 	terrain.build(_world_cfg, m)
 	(world.get_node("Props") as Props).build(terrain, _world_cfg, m)
+	apply_environment(m)
+	if player:
+		player.set("_spawn_point", Vector3(0, terrain.height_at(0, 0) + 0.5, 0))
+
+
+## Sky, ambient light, fog and sun (keys as in data/maps.json).
+func apply_environment(m: Dictionary) -> void:
 	_sky_mat.sky_top_color = Color(str(m.sky[0]))
 	_sky_mat.sky_horizon_color = Color(str(m.sky[1]))
 	_sky_mat.ground_horizon_color = Color(str(m.sky[1])).darkened(0.1)
@@ -165,8 +175,6 @@ func load_map(id: String) -> void:
 	_env.fog_density = float(m.fogDensity)
 	_sun.light_color = Color(str(m.sun))
 	_sun.light_energy = float(m.sunEnergy)
-	if player:
-		player.set("_spawn_point", Vector3(0, terrain.height_at(0, 0) + 0.5, 0))
 
 
 func map_name(id := "") -> String:
@@ -321,7 +329,12 @@ func login(username: String, remember := false) -> void:
 	coop.name = "Coop"
 	add_child(coop)
 	coop.setup(self, net)
+	hub = Hub.new()
+	hub.name = "Hub"
+	add_child(hub)
+	hub.setup(self, net)
 	main_menu.net = net
+	main_menu.hub_requested.connect(enter_hub)
 	net.notice.connect(_on_net_notice)
 	net.invited.connect(_on_invited)
 	net.status_changed.connect(func(_s: String) -> void: main_menu.refresh_online())
@@ -329,8 +342,6 @@ func login(username: String, remember := false) -> void:
 	net.who_updated.connect(main_menu.update_friend_status)
 	net.online_list_updated.connect(main_menu.update_online_list)
 	net.leaderboard_received.connect(main_menu.on_leaderboard)
-	net.hub_changed.connect(main_menu.update_hub)
-	net.hub_chat_received.connect(main_menu.on_hub_chat)
 	net.signed_in.connect(_on_signed_in)
 	net.sign_in_failed.connect(_on_sign_in_failed)
 	net.password_changed.connect(_on_password_changed)
@@ -431,7 +442,26 @@ func leave_run() -> void:
 	show_menu()
 
 
+## Walks into the hub tavern (the menu's Taverna page).
+func enter_hub() -> void:
+	if in_run or hub.active:
+		return
+	if not net.is_online():
+		main_menu.notify("Taverna için çevrimiçi olmalısın.")
+		return
+	hub.enter()
+
+
+## Leaves the hub tavern and shows the menu.
+func leave_hub() -> void:
+	if hub.active:
+		hub.leave()
+		show_menu()
+
+
 func show_menu() -> void:
+	if hub and hub.active:
+		hub.leave()
 	if coop:
 		coop.leave()
 	in_run = false
