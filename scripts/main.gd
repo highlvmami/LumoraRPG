@@ -82,6 +82,8 @@ var net: NetClient
 var coop: Coop
 ## The hub tavern (walkable, with everyone online).
 var hub: Hub
+## Extra gold in runs while in a guild.
+const GUILD_GOLD_BONUS := 0.05
 var in_run := false
 
 var _world_cfg: Dictionary
@@ -359,6 +361,12 @@ func login(username: String, remember := false) -> void:
 	net.invited.connect(_on_invited)
 	net.status_changed.connect(func(_s: String) -> void: main_menu.refresh_online())
 	net.room_changed.connect(main_menu.refresh_online)
+	net.guild_changed.connect(main_menu.refresh_guild)
+	net.guild_list_received.connect(main_menu.refresh_guild)
+	net.guild_chat_received.connect(func(_n: String, _t: String) -> void: main_menu.refresh_guild())
+	net.guild_changed.connect(func() -> void:
+		if hub and hub.tavern:
+			hub.tavern.set_guild(net.guild))
 	net.who_updated.connect(main_menu.update_friend_status)
 	net.online_list_updated.connect(main_menu.update_online_list)
 	net.leaderboard_received.connect(main_menu.on_leaderboard)
@@ -797,6 +805,9 @@ func _max_hp() -> float:
 ## Run boosts, skill tree, pets, class bonus, worn gear and the developer cheat bonus for a stat.
 func _extra(stat: String) -> float:
 	var sum := boosts.total(stat) + (cheat_menu.total(stat) if cheat_menu else 0.0) + (skill_tree.total(stat) if skill_tree else 0.0)
+	# Guild members earn a little more gold.
+	if stat == "goldGain" and net and net.in_guild():
+		sum += GUILD_GOLD_BONUS
 	sum += pets.total(stat) if pets else 0.0
 	if inventory and not _character.is_empty():
 		var bonus: Dictionary = inventory.class_info(class_id()).bonus

@@ -40,6 +40,7 @@ var _tiles: Array = []
 var _time := 0.0
 var _lanterns: Array = []
 var outside: HubOutside
+var _guild_sign: Label3D
 var _cat: Node3D
 var _keeper: Node3D
 var _keeper_model: PlayerModel
@@ -60,6 +61,7 @@ func build() -> void:
 	_dance_floor()
 	_decor()
 	_details()
+	_guild_table()
 	_barkeeper()
 	_lights()
 	outside = HubOutside.new()
@@ -508,6 +510,33 @@ func _details() -> void:
 	dust.color_ramp = fade
 	dust.position = Vector3(0, 3.0, 0)
 	add_child(dust)
+
+
+## The guild table (the one at the front right): a long banner on a pole,
+## a sign with your guild's name and shields on the table.
+func _guild_table() -> void:
+	var at := Vector3(5.0, 0, 4.5)
+	_box(Vector3(0.12, 3.6, 0.12), at + Vector3(1.6, 1.8, 1.9), Color("#4e321d"))
+	_box(Vector3(1.0, 0.08, 0.08), at + Vector3(1.6, 3.55, 1.9), Color("#4e321d"))
+	_box(Vector3(0.9, 1.6, 0.05), at + Vector3(1.6, 2.7, 1.9), Color("#3a5a9a"))
+	_box(Vector3(0.5, 0.5, 0.06), at + Vector3(1.6, 2.8, 1.9), Color("#ffd23f"))
+	for sx in [-0.5, 0.5]:
+		_box(Vector3(0.3, 0.36, 0.06), at + Vector3(sx, 1.18, -0.4), Color("#9fc3ff"))
+	_guild_sign = Label3D.new()
+	_guild_sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_guild_sign.pixel_size = 0.004
+	_guild_sign.font_size = 36
+	_guild_sign.outline_size = 8
+	_guild_sign.modulate = Color("#9fc3ff")
+	_guild_sign.position = at + Vector3(0, 2.6, 0)
+	add_child(_guild_sign)
+	set_guild({})
+
+
+## Shows your guild over the guild table.
+func set_guild(guild: Dictionary) -> void:
+	if _guild_sign:
+		_guild_sign.text = "LONCA MASASI" + ("\n[%s] %s" % [guild.tag, guild.name] if not guild.is_empty() else "")
 
 
 func _painting(at: Vector3, yaw: float) -> void:

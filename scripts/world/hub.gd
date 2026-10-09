@@ -121,6 +121,7 @@ func enter() -> void:
 	overlay.visible = true
 	overlay.set_prompt("")
 	_net.join_hub()
+	tavern.set_guild(_net.guild)
 	_on_hub_changed()
 	entered.emit()
 
@@ -341,11 +342,11 @@ func _on_hub_changed() -> void:
 			g = HubGuest.new()
 			g.name = "Guest%d" % id
 			tavern.add_child(g)
-			g.call("setup", id, str(m.name), int(m.get("level", 0)), tavern)
+			g.call("setup", id, _tagged(m), int(m.get("level", 0)), tavern)
 			_guests[id] = g
 			# A newcomer should see where we are right away.
 			_send_state(true)
-		g.call("set_info", str(m.name), int(m.get("level", 0)))
+		g.call("set_info", _tagged(m), int(m.get("level", 0)))
 		if m.get("look") is Dictionary and not (m.look as Dictionary).is_empty():
 			g.call("set_look", m.look)
 	for id: int in _guests.keys():
@@ -353,6 +354,12 @@ func _on_hub_changed() -> void:
 			(_guests[id] as Node).queue_free()
 			_guests.erase(id)
 	overlay.set_count(_net.hub_members.size())
+
+
+## "[GK] mami" for a guild member, else just the name.
+static func _tagged(m: Dictionary) -> String:
+	var tag := str(m.get("guild", ""))
+	return ("[%s] " % tag if tag != "" else "") + str(m.name)
 
 
 func _on_state(from: int, state: Dictionary) -> void:

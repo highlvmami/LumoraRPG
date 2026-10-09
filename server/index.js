@@ -27,6 +27,10 @@
 //   {t:"hub_leave"}              leave the hub tavern
 //   {t:"hub_state", d}           where you are in the tavern: {p:[x,y,z], f, s, a, o}
 //   {t:"chat", text}             say something in the hub tavern
+//   {t:"guild"}                  your guild (or none)
+//   {t:"guild_list"}             the biggest guilds
+//   {t:"guild_create", name, tag} {t:"guild_join", name}  {t:"guild_leave"}  {t:"guild_kick", name}
+//   {t:"guild_chat", text}       say something to your guild
 //   {t:"ping"}
 // To a client:
 //   {t:"welcome", id}  {t:"auth", ...}  {t:"saved", at}  {t:"who", online, levels}
@@ -36,10 +40,13 @@
 //   {t:"game", from, d}  {t:"error", msg}  {t:"pong"}
 //   {t:"hub", members:[{id, name, look, seat, level}], you, chat:[{name, text, at}]}  {t:"hub_chat", id, name, text, at}
 //   {t:"hub_state", id, d}       another visitor of the hub tavern moved or sat down
+//   {t:"guild", guild:{name, tag, leader, members:[{name, level, online}], chat}|null}
+//   {t:"guild_list", guilds:[{name, tag, members, leader}]}  {t:"guild_chat", name, text, at}
 
 const http = require("http");
 const { WebSocketServer } = require("ws");
 const { Accounts, key } = require("./accounts.js");
+const { Guilds } = require("./guilds.js");
 
 const PORT = Number(process.env.PORT) || 8080;
 const MAX_MEMBERS = 4;
@@ -68,6 +75,7 @@ const BOARDS = {
 const boardCache = new Map(); // cat -> {at, rows}
 
 const accounts = new Accounts(process.env.DATABASE_URL);
+const guilds = new Guilds(accounts.store.pool);
 
 const clients = new Map(); // id -> client
 const rooms = new Map(); // code -> room
@@ -156,7 +164,7 @@ async function hubInfo(you) {
     you,
     members: ids.map((id, n) => {
       const c = clients.get(id);
-      return { id, name: names[n], look: c?.look || null, seat: hub.seats.get(id), level: levels[names[n]] || 0 };
+      return { id, name: names[n], look: c?.look || null, seat: hub.seats.get(id), level: levels[names[n]] || 0, guild: guilds.of(names[n])?.tag || "" };
     }),
     chat: hub.chat,
   };
@@ -235,6 +243,84 @@ function hubChat(c, text) {
   }
 }
 
+// --- Guilds -------------------------------------------------------------------
+
+async function guildInfo(g) {
+  if (!g) return { t: "guild", guild: null };
+  const levels = await accounts.levels(g.members);
+  return {
+    t: "guild",
+    guild: {
+      name: g.name,
+      tag: g.tag,
+      leader: g.leader,
+      members: g.members.map((m) => ({ name: m, level: levels[m] || 1, online: Boolean(online(m)) })),
+      chat: g.chat,
+    },
+  };
+}
+
+// Tells every online member (and anyone listed in `also`) how the guild looks now.
+async function broadcastGuild(g, also = []) {
+  const info = await guildInfo(g);
+  for (const name of g ? g.members : []) {
+    const m = online(name);
+    if (m) send(m, info);
+  }
+  for (const name of also) {
+    const m = online(name);
+    if (m) send(m, { t: "guild", guild: null });
+  }
+  if (hub.seats.size) await broadcastHub();
+}
+
+async function guildMessage(c, msg) {
+  switch (msg.t) {
+    case "guild":
+      return send(c, await guildInfo(guilds.of(c.name)));
+    case "guild_list":
+      return send(c, { t: "guild_list", guilds: guilds.list() });
+    case "guild_create": {
+      const res = await guilds.create(c.name, msg.name, msg.tag);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      return broadcastGuild(res.guild);
+    }
+    case "guild_join": {
+      const res = await guilds.join(c.name, msg.name);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      return broadcastGuild(res.guild);
+    }
+    case "guild_leave": {
+      const res = await guilds.leave(c.name);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      return broadcastGuild(res.guild, [c.name]);
+    }
+    case "guild_kick": {
+      const who = String(msg.name || "");
+      const res = await guilds.kick(c.name, who);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      const out = online(who);
+      if (out) send(out, { t: "error", msg: "Loncadan çıkarıldın." });
+      return broadcastGuild(res.guild, [who]);
+    }
+    case "guild_chat": {
+      const now = Date.now();
+      if (now - (c.lastGuildChat || 0) < CHAT_GAP_MS) return;
+      const clean = String(msg.text ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, CHAT_MAX);
+      if (!clean) return;
+      c.lastGuildChat = now;
+      const line = { name: c.name, text: clean, at: now };
+      const g = await guilds.say(c.name, line);
+      if (!g) return send(c, { t: "error", msg: "Bir loncada değilsin." });
+      for (const name of g.members) {
+        const m = online(name);
+        if (m) send(m, { t: "guild_chat", ...line });
+      }
+      return;
+    }
+  }
+}
+
 async function topRows(cat) {
   const hit = boardCache.get(cat);
   if (hit && Date.now() - hit.at < BOARD_CACHE_MS) return hit.rows;
@@ -297,6 +383,14 @@ async function handle(c, msg) {
       if (hub.seats.has(c.id)) await broadcastHub();
       return;
     }
+    case "guild":
+    case "guild_list":
+    case "guild_create":
+    case "guild_join":
+    case "guild_leave":
+    case "guild_kick":
+    case "guild_chat":
+      return guildMessage(c, msg);
     case "hub_join":
       setLook(c, msg.look);
       return hubJoin(c);
@@ -388,6 +482,7 @@ wss.on("close", () => clearInterval(heartbeat));
 
 const ready = accounts
   .init()
+  .then(() => guilds.init())
   .catch((e) => console.error("account database failed to start", e))
   .then(
     () =>
@@ -399,4 +494,4 @@ const ready = accounts
       )
   );
 
-module.exports = { server, wss, ready, boardCache, hub };
+module.exports = { server, wss, ready, boardCache, hub, guilds };
