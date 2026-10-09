@@ -39,6 +39,10 @@ signal hub_changed
 signal hub_state_received(from: int, state: Dictionary)
 ## A chat line in the hub tavern: who said it (id and name) and what.
 signal hub_chat_received(from: int, from_name: String, text: String)
+## Your guild changed (joined, left, members, online).
+signal guild_changed
+signal guild_list_received
+signal guild_chat_received(from_name: String, text: String)
 
 var url := DEFAULT_URL
 var status := "offline"
@@ -60,6 +64,10 @@ var my_look: Dictionary = {}
 var hub_members: Array = []
 ## The last chat lines of the hub tavern: [{name, text}].
 var hub_chat: Array = []
+## Your guild: {name, tag, leader, members:[{name, level, online}], chat:[{name, text}]}, empty if none.
+var guild: Dictionary = {}
+## The biggest guilds: [{name, tag, members, leader}].
+var guild_list: Array = []
 ## False stops reconnecting (tests, offline play).
 var enabled := true
 
@@ -212,6 +220,48 @@ func send_chat(text: String) -> bool:
 	if text == "" or not in_hub():
 		return false
 	_send({"t": "chat", "text": text.left(200)})
+	return true
+
+
+func in_guild() -> bool:
+	return not guild.is_empty()
+
+
+func is_guild_leader() -> bool:
+	return in_guild() and str(guild.leader).to_lower() == account.to_lower()
+
+
+func ask_guild_list() -> void:
+	if is_online():
+		_send({"t": "guild_list"})
+
+
+func create_guild(guild_name: String, tag: String) -> void:
+	if is_online():
+		_send({"t": "guild_create", "name": guild_name.strip_edges(), "tag": tag.strip_edges()})
+
+
+func join_guild(guild_name: String) -> void:
+	if is_online():
+		_send({"t": "guild_join", "name": guild_name})
+
+
+func leave_guild() -> void:
+	if is_online():
+		_send({"t": "guild_leave"})
+
+
+func kick_from_guild(member: String) -> void:
+	if is_online():
+		_send({"t": "guild_kick", "name": member})
+
+
+## Says something to the guild. Returns false if it can't be sent.
+func send_guild_chat(text: String) -> bool:
+	text = text.strip_edges()
+	if text == "" or not in_guild():
+		return false
+	_send({"t": "guild_chat", "text": text.left(200)})
 	return true
 
 
@@ -420,7 +470,7 @@ func _handle(msg: Dictionary) -> void:
 			for m: Dictionary in msg.get("members", []):
 				var look: Variant = m.get("look")
 				hub_members.append({"id": int(m.id), "name": str(m.name), "look": look if look is Dictionary else {},
-					"seat": int(m.get("seat", -1)), "level": int(m.get("level", 0))})
+					"seat": int(m.get("seat", -1)), "level": int(m.get("level", 0)), "guild": str(m.get("guild", ""))})
 			hub_chat = []
 			for line: Dictionary in msg.get("chat", []):
 				hub_chat.append({"name": str(line.name), "text": str(line.text)})
@@ -435,6 +485,25 @@ func _handle(msg: Dictionary) -> void:
 			if hub_chat.size() > 40:
 				hub_chat.pop_front()
 			hub_chat_received.emit(int(msg.id), str(msg.name), str(msg.text))
+		"guild":
+			guild = {}
+			if msg.get("guild") is Dictionary:
+				var g: Dictionary = msg.guild
+				guild = {"name": str(g.name), "tag": str(g.tag), "leader": str(g.leader), "members": [], "chat": []}
+				for m: Dictionary in g.get("members", []):
+					(guild.members as Array).append({"name": str(m.name), "level": int(m.get("level", 1)), "online": bool(m.get("online", false))})
+				for line: Dictionary in g.get("chat", []):
+					(guild.chat as Array).append({"name": str(line.name), "text": str(line.text)})
+			guild_changed.emit()
+		"guild_list":
+			guild_list = msg.get("guilds", []) if msg.get("guilds") is Array else []
+			guild_list_received.emit()
+		"guild_chat":
+			if in_guild():
+				(guild.chat as Array).append({"name": str(msg.name), "text": str(msg.text)})
+				if (guild.chat as Array).size() > 40:
+					(guild.chat as Array).pop_front()
+				guild_chat_received.emit(str(msg.name), str(msg.text))
 		"error":
 			_invite_after_room = ""
 			notice.emit(str(msg.msg))
@@ -447,6 +516,7 @@ func _on_auth(msg: Dictionary) -> void:
 		_set_status("online")
 		if _want_hub:
 			_send({"t": "hub_join", "look": my_look})
+		_send({"t": "guild"})
 		var profile: Variant = msg.get("profile")
 		signed_in.emit(account, str(msg.token), profile if profile is Dictionary else {}, float(msg.get("savedAt", 0.0)))
 		return

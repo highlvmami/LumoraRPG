@@ -1,5 +1,10 @@
 {
 	"versions": [
+		{ "version": "0.28", "date": "2026-10-09", "title": "Loncalar", "notes": [
+			"Yeni Lonca sayfası: lonca kur (ad + 2-4 harflik etiket) ya da listeden bir loncaya katıl (en fazla 20 kişi)",
+			"Lonca sohbeti, üyelerin seviyesi ve kimin çevrimiçi olduğu; lider üye çıkarabilir",
+			"Lonca üyeleri turlarda %5 fazla altın kazanır",
+			"Tavernada lonca etiketin isminin önünde görünür, Lonca Masası'nda loncanın adı yazar" ] },
 		{ "version": "0.27", "date": "2026-10-09", "title": "Zindan kapıları", "notes": [
 			"Tur sırasında arada bir yakınında mor bir zindan kapısı açılır (40 saniye bekler)",
 			"Kapıya girince etrafı rün taşlarıyla çevrilir ve bir mini boss çıkar: Balçık Kral, Alfa Kurt ya da Goblin Şefi",
