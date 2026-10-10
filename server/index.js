@@ -33,6 +33,7 @@
 //   {t:"guild_chat", text}       say something to your guild
 //   {t:"wb_info"} / {t:"wb_hit", dmg} / {t:"wb_claim"}   weekly world boss (wb_state, wb_reward)
 //   {t:"guild_kills", n}         monsters defeated in a run (weekly guild goal)
+//   {t:"game_challenge", to, kind:"dice"|"cards", bet} / {t:"game_inbox"} / {t:"game_answer", from, accept}
 //   {t:"duel_challenge", to, fighter}  {t:"duel_inbox"}  {t:"duel_answer", from, accept, fighter}
 //   {t:"guild_donate", gold}     put gold in the guild treasury  {t:"guild_upgrade", id}  (leader) buy an upgrade
 //   {t:"guild_claim"}            take the weekly reward once the goal is reached
@@ -51,6 +52,7 @@
 //   {t:"hub_state", id, d}       another visitor of the hub tavern moved or sat down
 //   {t:"guild", guild:{name, tag, leader, members:[{name, level, online}], chat, quest:{goal, progress, reward, claimed, top, endsIn}}|null}
 //   {t:"guild_reward", gold}  {t:"guild_donated", gold}
+//   {t:"game_inbox", invites:[{from, kind, bet}]}  {t:"game_sent"}  {t:"game_declined"}  {t:"game_result", kind, bet, a, b, winner}
 //   {t:"duel_sent", to}  {t:"duel_inbox", invites:[{from, cls}]}  {t:"duel_declined", by}
 //   {t:"duel_result", a, b, winner:0|1|-1, frames:[[seconds, hpA, hpB, hitA, hitB]]}
 //   {t:"guild_list", guilds:[{name, tag, members, leader}]}  {t:"guild_chat", name, text, at}
@@ -64,6 +66,7 @@ const { WebSocketServer } = require("ws");
 const { Accounts, key } = require("./accounts.js");
 const { Guilds, UPGRADES } = require("./guilds.js");
 const { WorldBoss } = require("./worldboss.js");
+const { Games } = require("./games.js");
 const { Duels } = require("./duels.js");
 const { Trades } = require("./trades.js");
 
@@ -96,6 +99,7 @@ const boardCache = new Map(); // cat -> {at, rows}
 const accounts = new Accounts(process.env.DATABASE_URL);
 const guilds = new Guilds(accounts.store.pool);
 const worldBoss = new WorldBoss(accounts.store.pool);
+const games = new Games();
 const duels = new Duels();
 const trades = new Trades();
 
@@ -367,6 +371,37 @@ async function guildMessage(c, msg) {
   }
 }
 
+// --- Tavern games (dice and cards with a bet) ---
+
+async function gameMessage(c, msg) {
+  switch (msg.t) {
+    case "game_challenge": {
+      const target = online(String(msg.to || ""));
+      if (!target) return send(c, { t: "error", msg: "Bu oyuncu çevrimiçi değil." });
+      const res = games.challenge(c.name, target.name, String(msg.kind || ""), msg.bet);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      send(target, { t: "game_inbox", invites: games.inbox(target.name) });
+      return send(c, { t: "game_sent", to: target.name });
+    }
+    case "game_inbox":
+      return send(c, { t: "game_inbox", invites: games.inbox(c.name) });
+    case "game_answer": {
+      const res = games.answer(c.name, String(msg.from || ""), Boolean(msg.accept));
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      send(c, { t: "game_inbox", invites: games.inbox(c.name) });
+      const challenger = online(String(msg.from || ""));
+      if (res.declined) {
+        if (challenger) send(challenger, { t: "game_declined", by: c.name });
+        return;
+      }
+      const result = { t: "game_result", kind: res.kind, bet: res.bet, a: res.a, b: res.b, winner: res.winner };
+      send(c, result);
+      if (challenger) send(challenger, result);
+      return;
+    }
+  }
+}
+
 // --- Duels ---
 
 async function duelMessage(c, msg) {
@@ -544,6 +579,10 @@ async function handle(c, msg) {
     case "duel_inbox":
     case "duel_answer":
       return duelMessage(c, msg);
+    case "game_challenge":
+    case "game_inbox":
+    case "game_answer":
+      return gameMessage(c, msg);
     case "trades":
     case "trade_offer":
     case "trade_cancel":

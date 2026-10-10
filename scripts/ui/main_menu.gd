@@ -50,6 +50,7 @@ const NAV := [
 	["quests", "Görevler", "scroll"],
 	["worldboss", "Dünya Bossu", "skull"],
 	["wardrobe", "Gardırop", "cls_mage"],
+	["games", "Zar ve Kart", "trade"],
 	["difficulty", "Zorluk", "sword"],
 	["gems", "Taşlar", "trophy"],
 	["stable", "Ahır", "paw"],
@@ -69,7 +70,7 @@ const BUILDINGS := [
 	{"id": "tower", "name": "Yetenek Kulesi", "style": "tower", "wall": "#6b5a8a", "roof": "#3a2f5a", "icon": "storm", "row": "back", "slot": 0, "sections": ["skills", "pets"]},
 	{"id": "board", "name": "Görev Meydanı", "style": "house", "wall": "#b08a5a", "roof": "#7a3a2a", "icon": "scroll", "row": "back", "slot": 1, "sections": ["quests", "worldboss", "achievements", "leaderboard"]},
 	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "slot": 2, "sections": ["guild"]},
-	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade"]},
+	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade", "games"]},
 	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack", "wardrobe"]},
 	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market", "gems", "stable"]},
 	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 2, "sections": ["difficulty"]},
@@ -101,6 +102,9 @@ var _duel_clock := 0.0
 var _duel_bars: Array = []
 var _duel_title: Label
 var _duel_asked := false
+var _game_asked := false
+var _game_bet := 100
+var _game_result: Dictionary = {}
 ## The gem picked in the gems page, waiting to be set into a socket.
 var _gem_pick := ""
 var _wb_asked := -10000
@@ -319,6 +323,9 @@ func open_section(id: String) -> void:
 		"hub":
 			_section_title.text = "Lumora Tavernası"
 			_build_hub()
+		"games":
+			_section_title.text = "Zar ve Kart"
+			_build_games()
 		"difficulty":
 			_section_title.text = "Savaş Kapısı"
 			_build_difficulty()
@@ -2693,6 +2700,88 @@ func friend_suggestions() -> Array:
 
 
 ## Past runs, newest first: when, map, character, level, kills, time, gold.
+## Dice and cards against another online player, with a gold bet.
+func _build_games() -> void:
+	_text("Taverna'da bir oyuncuya zar ya da kart oyunu öner: bahsi ikiniz de kabul edersiniz, sunucu zarları atar, yüksek gelen kazanır. Kaybeden bahsi kazanana öder.", 14, UiTheme.MUTED)
+	if net == null or not net.is_online():
+		_text("Oynamak için sunucuya bağlı olmalısın.", 15, Color("#ff8a8a"))
+		return
+	_text("Altının: %d" % int(progression.profile.gold), 17, UiTheme.ACCENT)
+	if not _game_result.is_empty():
+		_build_game_result()
+	for inv: Dictionary in net.game_invites:
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 10)
+		var who := UiTheme.label("%s seni %s oyununa çağırıyor: %d altın" % [inv.from, "zar" if inv.kind == "dice" else "kart", int(inv.bet)], UiTheme.label_settings(16, Color("#ffd23f"), 2))
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(who)
+		var yes := UiTheme.primary_button("Kabul")
+		yes.disabled = int(progression.profile.gold) < int(inv.bet)
+		yes.pressed.connect(func() -> void: net.answer_game(str(inv.from), true))
+		line.add_child(yes)
+		var no := Button.new()
+		no.text = "Reddet"
+		no.pressed.connect(func() -> void: net.answer_game(str(inv.from), false))
+		line.add_child(no)
+		_content.add_child(line)
+	if not _game_asked:
+		_game_asked = true
+		net.ask_online_list()
+		net.ask_game_inbox()
+	var bet_row := HBoxContainer.new()
+	bet_row.add_theme_constant_override("separation", 10)
+	bet_row.add_child(UiTheme.label("Bahis:", UiTheme.label_settings(16, UiTheme.TEXT, 2)))
+	var spin := SpinBox.new()
+	spin.min_value = 10
+	spin.max_value = 5000
+	spin.step = 10
+	spin.value = _game_bet
+	spin.value_changed.connect(func(v: float) -> void: _game_bet = int(v))
+	bet_row.add_child(spin)
+	_content.add_child(bet_row)
+	var names: PackedStringArray = net.online_list
+	if names.is_empty():
+		_text("Şu an çevrimiçi başka oyuncu yok.", 15, UiTheme.MUTED)
+	for n in names.slice(0, 8):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var nm := UiTheme.label(n, UiTheme.label_settings(16, UiTheme.TEXT, 2))
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(nm)
+		for kind: Array in [["dice", "Zar at"], ["cards", "Kart çek"]]:
+			var b := Button.new()
+			b.text = str(kind[1])
+			b.disabled = int(progression.profile.gold) < _game_bet
+			b.pressed.connect(func() -> void: net.challenge_game(n, str(kind[0]), _game_bet))
+			row.add_child(b)
+		_content.add_child(row)
+
+
+func _build_game_result() -> void:
+	var r := _game_result
+	var me := str(net.account).to_lower()
+	var won: bool = str((r.a if int(r.winner) == 0 else r.b).name).to_lower() == me
+	_header("Son oyun: " + ("KAZANDIN +%d" if won else "KAYBETTİN -%d") % int(r.bet))
+	for side: Dictionary in [r.a, r.b]:
+		_text("%s: %s" % [side.name, _game_hand(str(r.kind), side)], 17, UiTheme.TEXT)
+
+
+static func _game_hand(kind: String, side: Dictionary) -> String:
+	var v: Array = side.v
+	if kind == "dice":
+		return "%d + %d = %d" % [int(v[0]), int(v[1]), int(side.total)]
+	var ranks := {11: "J", 12: "Q", 13: "K", 14: "A"}
+	var suits := ["♠", "♥", "♦", "♣"]
+	return "%s%s" % [ranks.get(int(v[0]), str(int(v[0]))), suits[clampi(int(v[1]), 0, 3)]]
+
+
+## A tavern game was played: shows its result on the Zar ve Kart page.
+func show_game(result: Dictionary) -> void:
+	_game_result = result
+	if visible and section == "games":
+		open_section("games")
+
+
 ## The gate: pick the difficulty for the next runs. Nightmare levels open
 ## with the account level; they make enemies tougher but pay much more.
 func _build_difficulty() -> void:
