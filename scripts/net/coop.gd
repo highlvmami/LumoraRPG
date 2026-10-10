@@ -15,6 +15,8 @@ const LOOK_TIME := 3.0
 var running := false
 ## This game is a partner's mirror of the host's run.
 var guest_run := false
+## A real-time duel: two players, no enemies; weapons aim at the other player.
+var pvp := false
 ## How many snapshots this game sent / got (tests).
 var snapshots_sent := 0
 var snapshots_received := 0
@@ -69,6 +71,18 @@ func start_as_guest() -> void:
 	_begin(true)
 
 
+## The host starts a 1v1 duel with the other player in the room.
+func start_duel_as_host() -> void:
+	_begin(false)
+	pvp = true
+	net.send_game({"k": "start", "map": "dungeon", "pvp": true})
+
+
+func start_duel_as_guest() -> void:
+	_begin(true)
+	pvp = true
+
+
 func _begin(as_guest: bool) -> void:
 	_clear_puppets()
 	running = true
@@ -90,6 +104,7 @@ func leave() -> void:
 
 func stop() -> void:
 	running = false
+	pvp = false
 	guest_run = false
 	_hits.clear()
 	_clear_puppets()
@@ -125,6 +140,9 @@ func _process(delta: float) -> void:
 		_state_timer = STATE_TIME
 		_look_timer -= STATE_TIME
 		_send_state(_look_timer <= 0.0)
+	if pvp:
+		_pvp_tick()
+		return
 	if guest_run:
 		if not _hits.is_empty():
 			net.send_game({"k": "hits", "h": _hits}, int(net.room.get("host", 0)))
@@ -140,6 +158,15 @@ func _process(delta: float) -> void:
 	# Everybody fell: the run is over for the host too.
 	if main.player.dead and main.enemies.active and main.enemies.alive_targets().is_empty():
 		main.enemies.active = false
+
+
+func _pvp_tick() -> void:
+	if _puppets.is_empty():
+		return
+	var r: Node3D = _puppets.values()[0]
+	main.enemies.set_duelist(r.global_position, 0.0, r.hp / r.max_hp)
+	if r.dead and not main.player.dead:
+		main.call("pvp_finished", true)
 
 
 func _send_state(with_look: bool) -> void:
@@ -161,6 +188,10 @@ func _host_event(d: Dictionary) -> void:
 
 
 func _on_remote_hit(uid: int, amount: float, push_dir: Vector3) -> void:
+	if running and pvp:
+		if not _puppets.is_empty():
+			net.send_game({"k": "pvp", "a": snappedf(amount, 0.1)}, int(_puppets.keys()[0]))
+		return
 	if running and guest_run:
 		_hits.append_array([uid, snappedf(amount, 0.1), snappedf(push_dir.x, 0.01), snappedf(push_dir.z, 0.01)])
 
@@ -170,7 +201,7 @@ func _on_game(from: int, d: Dictionary) -> void:
 	match str(d.get("k", "")):
 		"start":
 			if from == host:
-				main.call("join_coop_run", str(d.get("map", "forest")))
+				main.call("join_coop_run", str(d.get("map", "forest")), bool(d.get("pvp", false)))
 		"end":
 			if from == host and running and guest_run:
 				main.call("coop_host_ended")
@@ -197,6 +228,9 @@ func _on_game(from: int, d: Dictionary) -> void:
 			if running:
 				var p: Array = d.get("p", [0, 0, 0])
 				main.ultimate.play(str(d.get("v", "")), Vector3(float(p[0]), float(p[1]), float(p[2])), false)
+		"pvp":
+			if running and pvp:
+				main.player.take_damage(float(d.get("a", 0.0)))
 		"hurt":
 			if running and from == host:
 				main.player.take_damage(float(d.get("a", 0.0)))

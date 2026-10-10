@@ -1,5 +1,6 @@
 {
 	"kinds": [
+		{ "id": "duelist", "name": "Rakip", "hp": 1.0, "speed": 0.0, "damage": 0.0, "xp": 0, "gold": 0, "radius": 0.75, "center": 1.0, "unlockAt": 999999, "weight": 0, "hidden": true },
 		{
 			"id": "slime", "name": "Balçık",
 			"hp": 10.0, "speed": 3.4, "damage": 8.0, "xp": 3, "gold": 1,
