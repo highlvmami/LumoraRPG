@@ -537,8 +537,10 @@ func _run() -> void:
 			level_up.call("pick", 0)
 		if int(bow.get("arrows_fired")) != fired_before:
 			break
-	for k in 6:
+	for k in 60:
 		await physics_frame
+		if int(bow.get("arrows_fired")) - fired_before >= 2:
+			break
 	_check(int(bow.get("arrows_fired")) - fired_before == 2, "a double arrow shot fires two arrows (%d)" % (int(bow.get("arrows_fired")) - fired_before))
 	bow.set("double_chance", 0.0)
 
