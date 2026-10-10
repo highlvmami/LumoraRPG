@@ -1,5 +1,10 @@
 {
 	"versions": [
+		{ "version": "0.57", "date": "2026-10-10", "title": "Canlı pikselli şehir", "notes": [
+			"Ana menü baştan çizildi: üç sıra, ayrıntılı piksel sanatı binalar; yan duvarları ve çatıları ile hafif 3 boyutlu görünür, fareyle hareket edince derinlik hissi verir",
+			"Şehir gerçek saate uyar: gündoğumu, gün, gün batımı, yıldızlı gece ve ay; geceleri pencereler, fenerler ve ateşböcekleri yanar",
+			"Bacalardan duman çıkar, bayraklar dalgalanır, halk sokakta gezer, kuşlar ve bulutlar geçer",
+			"15 bina: menüler binalara bölündü (Pet Barınağı, Şeref Salonu, Dostlar Evi, Ahır, Kuyumcu, Zırh Atölyesi, Terzi ve diğerleri)" ] },
 		{ "version": "0.56", "date": "2026-10-10", "title": "Taverna parkuru", "notes": [
 			"Taverna bahçesinin doğusunda yeni bir parkur: yeşil başlangıç tahtasından atlayınca süre başlar, mavi kontrol noktalarından geçip altın bitişe ulaş",
 			"Düşersen son kontrol noktasına dönersin; sıralama tabelasında en hızlı on süre, kendi rekorun, bitiriş ve düşme sayıların görünür",
