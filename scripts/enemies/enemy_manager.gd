@@ -46,6 +46,8 @@ var player: CharacterBody3D
 ## needs `dead`, `visible`, a global position and `take_damage(amount)`.
 var targets: Array = []
 ## Shows the host's enemies instead of running them (co-op partner).
+## Night level (0..1) from the weather: enemies hit and run harder in the dark.
+var night := 0.0
 const DUELIST_UID := 9000001
 var mirror := false
 ## Seconds since the run started; drives spawn rate, new kinds and toughness.
@@ -471,8 +473,8 @@ func _update_movement(delta: float) -> void:
 	var alive := alive_targets()
 	if alive.is_empty():
 		return
-	var speed_scale := _speed_growth()
-	var damage_scale := growth("damageGrowthPerMinute")
+	var speed_scale := _speed_growth() * (1.0 + 0.12 * night)
+	var damage_scale := growth("damageGrowthPerMinute") * (1.0 + 0.3 * night)
 
 	# Bucket enemies into a grid so each one only checks its neighbours.
 	var grid := {}

@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.42", "date": "2026-10-10", "title": "Gece, gündüz ve hava", "notes": [
+			"Run sırasında akşam çöker, gece olur ve sabah olur (5 dakikalık döngü); gece düşmanlar daha sert vurur ve daha hızlı koşar",
+			"Yağmur, fırtına ve sis zaman zaman gelir; zindan haritasında hava yoktur" ] },
 		{ "version": "0.41", "date": "2026-10-10", "title": "Gerçek zamanlı düello", "notes": [
 			"Oda kurup birini davet et; oda sahibi Arkadaşlar sayfasından \"Gerçek zamanlı düello başlat\" ile 1'e 1 canlı dövüş başlatır",
 			"Silahların, yeteneklerin ve ultilerin rakibe otomatik nişan alır; vuruşlar rakibin oyununda hasar olur, can bitince kazanan belli olur",
