@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.40", "date": "2026-10-10", "title": "Şehir menüsü", "notes": [
+			"Ana menü artık bir şehir: Yetenek Kulesi, Görev Meydanı, Lonca Binası, Taverna, Kahramanlar Evi, Pazar ve Savaş Kapısı. Binanın üstünde adı yazar, tıklayınca menüsü ve alt başlıkları açılır",
+			"Sağ altta Profil, Kayıtlar, Sürümler ve en sağda Ayarlar kutusu; OYNA düğmesi sol altta",
+			"Her sayfada \"Şehre dön\" düğmesi" ] },
 		{ "version": "0.39", "date": "2026-10-10", "title": "Lonca yükseltmeleri", "notes": [
 			"Lonca sayfası artık sekmeli: Genel (haftalık hedef ve bonuslar), Üyeler, Sohbet ve Yükseltmeler",
 			"Üyeler altınlarını lonca kasasına bağışlar; lider kasayla yükseltme alır: Altın Bereketi, Bilgelik (EXP), Savaş Çığlığı (hasar), Sağlam Kale (can) ve Geniş Salon (üye kapasitesi)",
