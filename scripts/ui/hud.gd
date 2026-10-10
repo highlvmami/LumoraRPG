@@ -180,6 +180,7 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 
 	progression.account_level_up.connect(func(lv: int) -> void: _show_toast("HESAP SEVİYESİ %d!" % lv))
 	enemies.kind_unlocked.connect(func(kind_name: String) -> void: _show_toast("YENİ DÜŞMAN: %s" % kind_name.to_upper()))
+	enemies.swarm_started.connect(func(kind_name: String) -> void: _show_toast("SÜRÜ GELİYOR: %s!" % kind_name.to_upper()))
 	enemies.boss_spawned.connect(func(boss_name: String) -> void: _show_toast("BOSS GELDİ: %s!" % boss_name.to_upper()))
 	enemies.boss_defeated.connect(func(_boss_name: String) -> void: _show_toast("BOSS YENİLDİ!"))
 	enemies.boss_phase_changed.connect(func(boss_name: String, phase: int) -> void:
