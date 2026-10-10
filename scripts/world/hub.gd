@@ -94,6 +94,8 @@ func enter() -> void:
 		overlay.visible = false
 		overlay.chat_submitted.connect(_on_chat_submitted)
 		overlay.chat_closed.connect(_on_chat_closed)
+		overlay.leave_confirmed.connect(_on_leave_confirmed)
+		overlay.leave_cancelled.connect(_on_chat_closed)
 		_main.add_child(overlay)
 	active = true
 	_main.main_menu.visible = false
@@ -294,7 +296,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_open_chat()
 		get_viewport().set_input_as_handled()
 	elif key == KEY_ESCAPE:
-		_main.leave_hub()
+		if overlay.is_asking_leave():
+			overlay.close_leave()
+		else:
+			_ask_leave()
 		get_viewport().set_input_as_handled()
 
 
@@ -327,8 +332,7 @@ func _physics_process(delta: float) -> void:
 	# Losing the mouse (Esc in a browser) while walking leaves the tavern.
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if _was_captured and not captured and not overlay.is_typing() and not _releasing:
-		_main.leave_hub()
-		return
+		_ask_leave()
 	_was_captured = captured
 
 
@@ -410,6 +414,21 @@ func _open_chat() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_main.player.set("controls_enabled", false)
 	overlay.open_chat()
+
+
+## Esc asks first; the mouse is freed so the buttons can be clicked.
+func _ask_leave() -> void:
+	if overlay.is_typing():
+		return
+	_releasing = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_main.player.set("controls_enabled", false)
+	overlay.ask_leave()
+
+
+func _on_leave_confirmed() -> void:
+	_releasing = false
+	_main.leave_hub()
 
 
 func _on_chat_closed() -> void:

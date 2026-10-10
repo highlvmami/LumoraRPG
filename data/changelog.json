@@ -1,5 +1,7 @@
 {
 	"versions": [
+		{ "version": "0.54", "date": "2026-10-10", "title": "Taverna çıkış sorusu", "notes": [
+			"Tavernada Esc'ye basınca hemen menüye atmaz; \"Tavernadan çıkmak istiyor musun?\" diye sorar (Evet, çık / Kal)" ] },
 		{ "version": "0.53", "date": "2026-10-10", "title": "Gerçek kılıçlar", "notes": [
 			"Etrafında dönen kılıçlar artık kabzası, siperi, bıçağı ve sivri ucuyla gerçek bir kılıç gibi görünür" ] },
 		{ "version": "0.52", "date": "2026-10-10", "title": "Yumuşak başlangıç", "notes": [
