@@ -788,6 +788,27 @@ func _run() -> void:
 	_check(str(sound.get("current")) == "calm", "the menu plays the calm music")
 	main.set("forced_map", "forest")
 
+	# Blacksmith: upgrading an item for gold.
+	var inventory: RefCounted = main.get("inventory")
+	var gear: RefCounted = inventory.get("gear")
+	var smith_item: Dictionary = inventory.call("add_random_item", 2)
+	var smith_stat: String = (smith_item.stats as Dictionary).keys()[0]
+	var smith_before := float(smith_item.stats[smith_stat])
+	var smith_cost := int(gear.call("upgrade_cost", smith_item))
+	var smith_name := str(gear.call("item_name", smith_item))
+	profile.gold = smith_cost - 1
+	_check(not bool(inventory.call("upgrade", int(smith_item.uid))), "an upgrade needs enough gold")
+	profile.gold = smith_cost * 10
+	_check(bool(inventory.call("upgrade", int(smith_item.uid))) and int(smith_item.plus) == 1 and int(profile.gold) == smith_cost * 9, "upgrading costs gold and adds a plus")
+	_check(is_equal_approx(float(smith_item.stats[smith_stat]), smith_before * 1.12), "upgrading raises the stats by 12% of the base")
+	_check(str(gear.call("item_name", smith_item)) == smith_name + " +1", "upgraded items show their plus")
+	for n in 6:
+		profile.gold = 1000000
+		inventory.call("upgrade", int(smith_item.uid))
+	_check(int(smith_item.plus) == 5 and int(gear.call("upgrade_cost", smith_item)) == 0, "items stop at +5")
+	_check(int(gear.call("sell_price", smith_item)) > int(gear.call("sell_price", {"rarity": 2, "stats": {}})), "upgraded items sell for more")
+	inventory.call("sell", int(smith_item.uid))
+
 	# Fishing and meals.
 	var food: RefCounted = main.get("food")
 	var fish_gold := int(profile.gold)
@@ -916,11 +937,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.32")) and not bool(menu.call("is_version_open", "0.31")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.33")) and not bool(menu.call("is_version_open", "0.32")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.31")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.32")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

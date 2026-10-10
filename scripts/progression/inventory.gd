@@ -182,6 +182,22 @@ func gear_total(c: Dictionary, stat: String) -> float:
 	return total
 
 
+## Upgrades an item at the blacksmith for gold. Returns false when it is at
+## the top, missing or too expensive.
+func upgrade(uid: int) -> bool:
+	var it := item(uid)
+	if it.is_empty():
+		return false
+	var cost := gear.upgrade_cost(it)
+	if cost <= 0 or int(profile.gold) < cost:
+		return false
+	it.stats = gear.upgraded_stats(it)
+	it.plus = gear.plus(it) + 1
+	profile.gold = int(profile.gold) - cost
+	save()
+	return true
+
+
 ## Sells an item (it is taken off first). Returns the gold received.
 func sell(uid: int) -> int:
 	var it := item(uid)
@@ -223,6 +239,8 @@ func receive_item(it: Variant) -> Dictionary:
 		if is_finite(v):
 			stats[stat] = clampf(v, -1000.0, 1000.0)
 	var stored := {"uid": _new_uid(), "base": str(d.base), "rarity": clampi(int(d.get("rarity", 0)), 0, gear.rarities.size() - 1), "stats": stats}
+	if int(d.get("plus", 0)) > 0:
+		stored.plus = gear.plus(d)
 	items().append(stored)
 	return stored
 

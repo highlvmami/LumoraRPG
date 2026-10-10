@@ -19,6 +19,9 @@ var rng := RandomNumberGenerator.new()
 var bonus := Callable()
 ## Market prices can't drop below this share of the list price.
 const MIN_PRICE_SHARE := 0.5
+## The blacksmith upgrades an item up to +5; each step adds 12% of its base stats.
+const MAX_PLUS := 5
+const UPGRADE_STEP := 0.12
 
 
 func _init() -> void:
@@ -101,7 +104,31 @@ func slot_name(slot_id: String) -> String:
 
 func item_name(item: Dictionary) -> String:
 	var names: Array = base(str(item.base)).names
-	return str(names[clampi(int(item.rarity), 0, names.size() - 1)])
+	var text := str(names[clampi(int(item.rarity), 0, names.size() - 1)])
+	return text + " +%d" % plus(item) if plus(item) > 0 else text
+
+
+## How many times an item was upgraded at the blacksmith (0..MAX_PLUS).
+func plus(item: Dictionary) -> int:
+	return clampi(int(item.get("plus", 0)), 0, MAX_PLUS)
+
+
+## Gold for the next upgrade (0 when the item is at the top).
+func upgrade_cost(item: Dictionary) -> int:
+	if plus(item) >= MAX_PLUS:
+		return 0
+	return int(rarity(int(item.rarity)).sell) * (plus(item) + 2) * 2
+
+
+## The stats of the item once it goes from +n to +n+1 (every stat grows
+## by the same share, UPGRADE_STEP of the base value).
+func upgraded_stats(item: Dictionary) -> Dictionary:
+	var n := plus(item)
+	var factor := (1.0 + UPGRADE_STEP * (n + 1)) / (1.0 + UPGRADE_STEP * n)
+	var out := {}
+	for stat: String in item.stats:
+		out[stat] = float(item.stats[stat]) * factor
+	return out
 
 
 func item_slot(item: Dictionary) -> String:
@@ -118,7 +145,7 @@ func item_icon(item: Dictionary) -> String:
 
 
 func sell_price(item: Dictionary) -> int:
-	return roundi(int(rarity(int(item.rarity)).sell) * (1.0 + extra("sellBonus")))
+	return roundi(int(rarity(int(item.rarity)).sell) * (1.0 + 0.5 * plus(item)) * (1.0 + extra("sellBonus")))
 
 
 ## Picks a rarity index using weights (one per rarity, or per chest tier).
