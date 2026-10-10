@@ -68,21 +68,21 @@ const NAV := [
 ]
 ## The town's buildings; clicking one opens its menu (its `sections` become the tabs).
 const BUILDINGS := [
-	{"id": "tower", "name": "Yetenek Kulesi", "style": "tower", "wall": "#7a6a9a", "roof": "#3a2f6a", "icon": "storm", "row": "back", "slot": 0, "sections": ["skills"], "pattern": "stone"},
-	{"id": "petden", "name": "Pet Barınağı", "style": "gable", "wall": "#e8d8b0", "roof": "#c9a24a", "icon": "paw", "row": "back", "slot": 1, "sections": ["pets"], "pattern": "plaster", "extras": ["thatch", "flowers"]},
-	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "slot": 2, "sections": ["guild"]},
-	{"id": "fame", "name": "Şeref Salonu", "style": "hall", "wall": "#c8c0a8", "roof": "#8a6a1a", "icon": "trophy", "row": "back", "slot": 3, "sections": ["leaderboard"], "extras": ["columns", "trophy"], "tip": "Sıralamalar: en iyiler burada"},
-	{"id": "bossden", "name": "Dünya Bossu", "style": "den", "wall": "#4a3a3a", "roof": "#6a1a1a", "icon": "skull", "row": "back", "slot": 4, "sections": ["worldboss"], "tip": "Haftalık dünya bossu: tüm sunucu birlikte vurur"},
-	{"id": "board", "name": "Görev Meydanı", "style": "gable", "wall": "#d9c8a0", "roof": "#7a3a2a", "icon": "scroll", "row": "mid", "slot": 0, "sections": ["quests", "achievements"], "pattern": "plaster", "extras": ["board", "flowers"]},
-	{"id": "inn", "name": "Taverna", "style": "gable", "wall": "#b5803f", "roof": "#5a3a1c", "icon": "mug", "row": "mid", "slot": 1, "sections": ["hub", "games"], "pattern": "plank", "extras": ["tall", "chimney", "mug", "flowers", "lamp"]},
-	{"id": "friends", "name": "Dostlar Evi", "style": "gable", "wall": "#e0b0b0", "roof": "#8a3a5a", "icon": "heart", "row": "mid", "slot": 2, "sections": ["friends", "trade"], "pattern": "plaster", "extras": ["heart", "flowers"]},
-	{"id": "stable", "name": "Ahır", "style": "barn", "wall": "#9a5a3a", "roof": "#5a3a2a", "icon": "boot", "row": "mid", "slot": 3, "sections": ["stable"], "pattern": "plank"},
-	{"id": "jeweler", "name": "Kuyumcu", "style": "dome", "wall": "#b8b0d0", "roof": "#6a3aaa", "icon": "ring", "row": "mid", "slot": 4, "sections": ["gems"], "pattern": "stone"},
-	{"id": "barracks", "name": "Kahramanlar Evi", "style": "gable", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters"], "pattern": "brick", "extras": ["tall", "flag", "chimney"]},
-	{"id": "armory", "name": "Zırh Atölyesi", "style": "gable", "wall": "#8a7a70", "roof": "#3a3a44", "icon": "armor", "row": "front", "slot": 1, "sections": ["equipment", "backpack"], "pattern": "brick", "extras": ["forge", "lamp"]},
-	{"id": "tailor", "name": "Terzi", "style": "gable", "wall": "#e8d0e0", "roof": "#b65c9a", "icon": "helmet", "row": "front", "slot": 2, "sections": ["wardrobe"], "pattern": "plaster", "extras": ["awning", "flowers"]},
-	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 3, "sections": ["market"]},
-	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 4, "sections": ["difficulty"]},
+	{"id": "tower", "name": "Yetenek Kulesi", "style": "tower", "wall": "#7a6a9a", "roof": "#3a2f6a", "icon": "storm", "row": "back", "at": [0.075, 0.53], "sections": ["skills"], "pattern": "stone"},
+	{"id": "petden", "name": "Pet Barınağı", "style": "gable", "wall": "#e8d8b0", "roof": "#c9a24a", "icon": "paw", "row": "back", "at": [0.26, 0.455], "sections": ["pets"], "pattern": "plaster", "extras": ["thatch", "flowers"]},
+	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "at": [0.425, 0.5], "sections": ["guild"]},
+	{"id": "fame", "name": "Şeref Salonu", "style": "hall", "wall": "#c8c0a8", "roof": "#8a6a1a", "icon": "trophy", "row": "back", "at": [0.6, 0.455], "sections": ["leaderboard"], "extras": ["columns", "trophy"], "tip": "Sıralamalar: en iyiler burada"},
+	{"id": "bossden", "name": "Dünya Bossu", "style": "den", "wall": "#4a3a3a", "roof": "#6a1a1a", "icon": "skull", "row": "back", "at": [0.905, 0.515], "sections": ["worldboss"], "tip": "Haftalık dünya bossu: tüm sunucu birlikte vurur"},
+	{"id": "board", "name": "Görev Meydanı", "style": "gable", "wall": "#d9c8a0", "roof": "#7a3a2a", "icon": "scroll", "row": "mid", "at": [0.185, 0.72], "sections": ["quests", "achievements"], "pattern": "plaster", "extras": ["board", "flowers"]},
+	{"id": "inn", "name": "Taverna", "style": "gable", "wall": "#b5803f", "roof": "#5a3a1c", "icon": "mug", "row": "mid", "at": [0.335, 0.625], "sections": ["hub", "games"], "pattern": "plank", "extras": ["tall", "chimney", "mug", "flowers", "lamp"]},
+	{"id": "friends", "name": "Dostlar Evi", "style": "gable", "wall": "#e0b0b0", "roof": "#8a3a5a", "icon": "heart", "row": "mid", "at": [0.795, 0.645], "sections": ["friends", "trade"], "pattern": "plaster", "extras": ["heart", "flowers"]},
+	{"id": "stable", "name": "Ahır", "style": "barn", "wall": "#9a5a3a", "roof": "#5a3a2a", "icon": "boot", "row": "mid", "at": [0.955, 0.775], "sections": ["stable"], "pattern": "plank"},
+	{"id": "jeweler", "name": "Kuyumcu", "style": "dome", "wall": "#b8b0d0", "roof": "#6a3aaa", "icon": "ring", "row": "mid", "at": [0.665, 0.705], "sections": ["gems"], "pattern": "stone"},
+	{"id": "barracks", "name": "Kahramanlar Evi", "style": "gable", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "at": [0.075, 0.915], "sections": ["characters"], "pattern": "brick", "extras": ["tall", "flag", "chimney"]},
+	{"id": "armory", "name": "Zırh Atölyesi", "style": "gable", "wall": "#8a7a70", "roof": "#3a3a44", "icon": "armor", "row": "front", "at": [0.265, 0.865], "sections": ["equipment", "backpack"], "pattern": "brick", "extras": ["forge", "lamp"]},
+	{"id": "tailor", "name": "Terzi", "style": "gable", "wall": "#e8d0e0", "roof": "#b65c9a", "icon": "helmet", "row": "front", "at": [0.545, 0.925], "sections": ["wardrobe"], "pattern": "plaster", "extras": ["awning", "flowers"]},
+	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "at": [0.69, 0.89], "sections": ["market"]},
+	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "at": [0.865, 0.955], "sections": ["difficulty"]},
 ]
 ## The small menu box in the bottom right corner (Ayarlar is the last one).
 const UTILITY := ["profile", "logs", "versions", "settings"]

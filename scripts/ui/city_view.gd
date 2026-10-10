@@ -14,13 +14,56 @@ const UiTheme := preload("res://scripts/ui/theme.gd")
 const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 const CityArt := preload("res://scripts/ui/city_art.gd")
 
-## Row layout: ground line (share of the view height), building size, how
-## hazy it looks (distance) and how far the mouse moves it (parallax).
-const ROWS := {
-	"back": {"gy": 0.5, "w": 38, "h": 40, "haze": 0.2, "par": 4.0},
-	"mid": {"gy": 0.725, "w": 42, "h": 46, "haze": 0.09, "par": 8.0},
-	"front": {"gy": 0.915, "w": 50, "h": 52, "haze": 0.0, "par": 14.0},
-}
+## Buildings far up the view are smaller, hazier and move less with the mouse than
+## the ones near the front: a size class is interpolated from the ground line.
+const BACK := {"w": 38, "h": 40, "haze": 0.2, "par": 4.0}
+const FRONT := {"w": 50, "h": 52, "haze": 0.0, "par": 14.0}
+const HORIZON := 0.4
+const Y_BACK := 0.455
+const Y_FRONT := 0.945
+const PLAZA := Vector2(0.47, 0.765)
+const POND := Vector2(0.175, 0.845)
+## The walking ways between the buildings (shares of the view); the first of
+## each pair of flags says whether it is a wide road.
+const PATHS := [
+	{"wide": true, "pts": [[0.47, 0.72], [0.40, 0.67], [0.335, 0.64]]},
+	{"wide": false, "pts": [[0.335, 0.64], [0.38, 0.58], [0.425, 0.515]]},
+	{"wide": false, "pts": [[0.425, 0.515], [0.52, 0.50], [0.60, 0.465]]},
+	{"wide": false, "pts": [[0.335, 0.64], [0.28, 0.56], [0.235, 0.47]]},
+	{"wide": false, "pts": [[0.335, 0.65], [0.26, 0.70], [0.185, 0.735]]},
+	{"wide": false, "pts": [[0.185, 0.735], [0.12, 0.63], [0.075, 0.545]]},
+	{"wide": true, "pts": [[0.47, 0.765], [0.56, 0.745], [0.665, 0.715]]},
+	{"wide": false, "pts": [[0.665, 0.715], [0.74, 0.69], [0.795, 0.66]]},
+	{"wide": false, "pts": [[0.795, 0.66], [0.87, 0.73], [0.955, 0.79]]},
+	{"wide": false, "pts": [[0.795, 0.66], [0.85, 0.59], [0.905, 0.53]]},
+	{"wide": true, "pts": [[0.47, 0.785], [0.36, 0.83], [0.265, 0.88]]},
+	{"wide": false, "pts": [[0.265, 0.88], [0.17, 0.915], [0.075, 0.93]]},
+	{"wide": true, "pts": [[0.47, 0.80], [0.52, 0.865], [0.545, 0.93]]},
+	{"wide": true, "pts": [[0.545, 0.93], [0.62, 0.905], [0.69, 0.895]]},
+	{"wide": false, "pts": [[0.69, 0.895], [0.78, 0.935], [0.865, 0.96]]},
+]
+## Things in the streets: [kind, x share, y share, variant].
+const PROPS := [
+	["tree", 0.02, 0.47, 0], ["tree", 0.165, 0.55, 1], ["tree", 0.33, 0.45, 2], ["tree", 0.51, 0.43, 0], ["tree", 0.70, 0.50, 1],
+	["tree", 0.985, 0.50, 2], ["tree", 0.02, 0.73, 1], ["tree", 0.455, 0.60, 0], ["tree", 0.875, 0.60, 2], ["tree", 0.635, 0.82, 1],
+	["tree", 0.40, 0.975, 0], ["tree", 0.69, 0.985, 2], ["tree", 0.17, 0.995, 1], ["tree", 0.995, 0.86, 0],
+	["pine", 0.30, 0.44, 0], ["pine", 0.77, 0.475, 1], ["pine", 0.555, 0.41, 0], ["pine", 0.995, 0.60, 1], ["pine", 0.045, 0.45, 0],
+	["bush", 0.20, 0.66, 0], ["bush", 0.44, 0.575, 1], ["bush", 0.62, 0.76, 0], ["bush", 0.73, 0.86, 1], ["bush", 0.12, 0.82, 0],
+	["bush", 0.52, 0.935, 1], ["bush", 0.98, 0.70, 0], ["bush", 0.36, 0.745, 1],
+	["fountain", 0.47, 0.78, 0], ["well", 0.215, 0.775, 0],
+	["stall", 0.385, 0.815, 0], ["stall", 0.58, 0.82, 1], ["stall", 0.63, 0.865, 2],
+	["bench", 0.405, 0.74, 0], ["bench", 0.535, 0.75, 1],
+	["barrel", 0.275, 0.665, 0], ["barrel", 0.29, 0.675, 1], ["crate", 0.395, 0.675, 0], ["crate", 0.41, 0.685, 1],
+	["haystack", 0.955, 0.865, 0], ["haystack", 0.98, 0.88, 1],
+	["fence", 0.945, 0.91, 0], ["fence", 0.99, 0.915, 0],
+	["flowers", 0.225, 0.625, 0], ["flowers", 0.58, 0.675, 1], ["flowers", 0.335, 0.915, 2], ["flowers", 0.70, 0.955, 0], ["flowers", 0.05, 0.80, 1], ["flowers", 0.975, 0.90, 2],
+	["sign", 0.47, 0.705, 0],
+	["lamp", 0.40, 0.70, 0], ["lamp", 0.56, 0.715, 0], ["lamp", 0.31, 0.845, 0], ["lamp", 0.62, 0.905, 0], ["lamp", 0.745, 0.705, 0],
+	["lamp", 0.20, 0.745, 0], ["lamp", 0.505, 0.545, 0], ["lamp", 0.85, 0.705, 0],
+	["duck", 0.165, 0.84, 0], ["duck", 0.185, 0.855, 1],
+	["chicken", 0.935, 0.835, 0], ["chicken", 0.95, 0.85, 1], ["chicken", 0.92, 0.85, 2],
+	["pigeons", 0.455, 0.815, 0],
+]
 ## Sky colors by hour: [hour, top, bottom, daylight].
 const SKY := [
 	[0.0, "#0a1030", "#1c2a5a", 0.12],
@@ -45,6 +88,9 @@ var _time := 0.0
 var _mouse := 0.5
 var _crowds: Array[Control] = []
 var _atmos: Control
+var _props: Array[Control] = []
+var _ground: ImageTexture
+var _paths_px: Array = []
 
 
 ## `defs`: [{id, name, style, wall, roof, icon, row ("back"/"mid"/"front"), slot, tip, extras, pattern}].
@@ -66,53 +112,173 @@ func _rebuild() -> void:
 		child.queue_free()
 	_buildings.clear()
 	_crowds.clear()
+	_props.clear()
 	_update_scale()
 	_built_px = px
-	var order := {"back": 0, "mid": 1, "front": 2}
-	var sorted := _defs.duplicate()
-	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(order[a.row]) < int(order[b.row]))
-	var added := {}
-	for d: Dictionary in sorted:
-		var row := str(d.row)
-		# The townsfolk of a lane walk after the row behind it is drawn.
-		if row == "front" and not added.has("mid_crowd"):
-			added["mid_crowd"] = true
-			_add_crowd("mid")
+	if lw < 8.0 or lh < 8.0:
+		return
+	_bake_paths()
+	_bake_ground()
+	# Buildings, props and walkers are drawn from the back to the front.
+	var items: Array = []
+	for d: Dictionary in _defs:
 		var b := Building.new()
 		b.view = self
 		b.info = d
 		b.clicked.connect(func(id: String) -> void: building_clicked.emit(id))
-		add_child(b)
 		_buildings.append(b)
-	_add_crowd("front")
+		items.append([float(d.at[1]), b])
+	for entry: Array in PROPS:
+		var pr := Prop.new()
+		pr.view = self
+		pr.kind = str(entry[0])
+		pr.share = Vector2(float(entry[1]), float(entry[2]))
+		pr.variant = int(entry[3])
+		_props.append(pr)
+		items.append([float(entry[2]) - 0.001, pr])
+	for i in PATHS.size():
+		var c := Crowd.new()
+		c.view = self
+		c.path_index = i
+		_crowds.append(c)
+		var pts: Array = PATHS[i].pts
+		items.append([float(pts[pts.size() / 2][1]) + 0.004, c])
+	items.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	for it: Array in items:
+		add_child(it[1])
 	_atmos = Atmos.new()
 	_atmos.view = self
 	add_child(_atmos)
 	_layout()
 
 
-func _add_crowd(lane: String) -> void:
-	var c := Crowd.new()
-	c.view = self
-	c.lane = lane
-	add_child(c)
-	_crowds.append(c)
+## Smooth walking lines in view pixels, with their lengths.
+func _bake_paths() -> void:
+	_paths_px.clear()
+	for def: Dictionary in PATHS:
+		var pts := PackedVector2Array()
+		for p: Array in def.pts:
+			pts.append(Vector2(float(p[0]) * lw, float(p[1]) * lh))
+		for _i in 3:
+			var out := PackedVector2Array([pts[0]])
+			for i in range(pts.size() - 1):
+				out.append(pts[i].lerp(pts[i + 1], 0.25))
+				out.append(pts[i].lerp(pts[i + 1], 0.75))
+			out.append(pts[pts.size() - 1])
+			pts = out
+		var cum := PackedFloat32Array([0.0])
+		for i in range(1, pts.size()):
+			cum.append(cum[i - 1] + pts[i].distance_to(pts[i - 1]))
+		_paths_px.append({"pts": pts, "cum": cum, "len": cum[cum.size() - 1]})
+
+
+## The grass, dirt ways, the cobbled square and the pond, painted once.
+func _bake_ground() -> void:
+	var w := int(ceil(lw)) + 8
+	var h := int(ceil(lh))
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var top := int(lh * HORIZON)
+	var grass := Color("#5fa050")
+	for y in range(top, h):
+		for x in w:
+			var u := _unit(x, y, 11)
+			var c := grass
+			if u > 0.94:
+				c = grass.lightened(0.12)
+			elif u < 0.06:
+				c = grass.darkened(0.12)
+			elif u > 0.5 and u < 0.52:
+				c = grass.lightened(0.2)
+			img.set_pixel(x, y, c)
+	var dirt := Color("#b09f7a")
+	var edge := Color("#8c7c58")
+	var stone := Color("#b8b2a2")
+	var stone_edge := Color("#847e72")
+	for pass_i in 2:
+		for i in PATHS.size():
+			var wide: bool = PATHS[i].wide
+			var hw := 5.0 if wide else 3.6
+			var hh := 3.0 if wide else 2.2
+			var info: Dictionary = _paths_px[i]
+			var pts: PackedVector2Array = info.pts
+			var cum: PackedFloat32Array = info.cum
+			var d := 0.0
+			while d <= float(info.len):
+				var at := _sample(pts, cum, d)
+				_stamp(img, at.x, at.y, hw + (1.0 if pass_i == 0 else 0.0), hh + (1.0 if pass_i == 0 else 0.0), (edge if pass_i == 0 else dirt), pass_i == 1)
+				d += 0.8
+	# The square in the middle.
+	var plaza := Vector2(PLAZA.x * lw, PLAZA.y * lh)
+	_stamp(img, plaza.x, plaza.y, 31.0, 11.0, stone_edge, false)
+	_stamp(img, plaza.x, plaza.y, 29.5, 10.0, stone, true)
+	_stamp(img, plaza.x, plaza.y, 21.0, 7.0, stone.darkened(0.06), true)
+	# The pond.
+	var pond := Vector2(POND.x * lw, POND.y * lh)
+	_stamp(img, pond.x, pond.y, 14.0, 5.5, Color("#7a6a4a"), false)
+	_stamp(img, pond.x, pond.y, 12.5, 4.5, Color("#3f86c0"), false)
+	_stamp(img, pond.x - 3.0, pond.y - 1.0, 5.0, 1.5, Color("#6aaee0"), false)
+	_ground = ImageTexture.create_from_image(img)
+
+
+func _stamp(img: Image, cx: float, cy: float, rx: float, ry: float, color: Color, speckle: bool) -> void:
+	var w := img.get_width()
+	var h := img.get_height()
+	for y in range(maxi(0, int(cy - ry) - 1), mini(h, int(cy + ry) + 2)):
+		for x in range(maxi(0, int(cx - rx) - 1), mini(w, int(cx + rx) + 2)):
+			var dx := (float(x) - cx) / rx
+			var dy := (float(y) - cy) / ry
+			if dx * dx + dy * dy <= 1.0:
+				var c := color
+				if speckle:
+					var u := _unit(x, y, 21)
+					c = color.lightened(0.07) if u > 0.88 else (color.darkened(0.08) if u < 0.1 else color)
+				img.set_pixel(x, y, c)
+
+
+## A point `d` view pixels along a baked line.
+static func _sample(pts: PackedVector2Array, cum: PackedFloat32Array, d: float) -> Vector2:
+	var i := 1
+	while i < pts.size() - 1 and cum[i] < d:
+		i += 1
+	var seg := maxf(0.001, cum[i] - cum[i - 1])
+	return pts[i - 1].lerp(pts[i], clampf((d - cum[i - 1]) / seg, 0.0, 1.0))
+
+
+func tangent_x(index: int, d: float) -> float:
+	var info: Dictionary = _paths_px[index]
+	var a := _sample(info.pts, info.cum, maxf(0.0, d - 1.0))
+	var b := _sample(info.pts, info.cum, minf(float(info.len), d + 1.0))
+	return b.x - a.x
+
+
+func path_point(index: int, d: float) -> Vector2:
+	var info: Dictionary = _paths_px[index]
+	return _sample(info.pts, info.cum, clampf(d, 0.0, float(info.len)))
+
+
+func path_length(index: int) -> float:
+	return float(_paths_px[index].len)
+
+
+## Size class for a building standing at `y` (share of the view height).
+func cfg_for(y: float) -> Dictionary:
+	var t := clampf((y - Y_BACK) / (Y_FRONT - Y_BACK), 0.0, 1.0)
+	return {
+		"w": roundi(lerpf(float(BACK.w), float(FRONT.w), t)), "h": roundi(lerpf(float(BACK.h), float(FRONT.h), t)),
+		"haze": lerpf(float(BACK.haze), float(FRONT.haze), t), "par": lerpf(float(BACK.par), float(FRONT.par), t),
+	}
 
 
 func _update_scale() -> void:
-	px = 3 if size.x >= 900.0 and size.y >= 380.0 else 2
+	px = 2
 	lw = size.x / px
 	lh = size.y / px
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and not _defs.is_empty():
-		var before := px
-		_update_scale()
-		if px != before:
-			_rebuild()
-		else:
-			_layout()
+		# The ground and the ways are painted for one size: repaint on a new size.
+		_rebuild()
 
 
 func hour() -> float:
@@ -151,21 +317,18 @@ func tint() -> Color:
 
 
 func _layout() -> void:
-	var by_row := {"back": [], "mid": [], "front": []}
 	for b: Control in _buildings:
-		(by_row[str(b.info.row)] as Array).append(b)
-	for row: String in by_row:
-		var cfg: Dictionary = ROWS[row]
-		for b: Control in by_row[row]:
-			b.build_art(cfg, px)
-			var slot := int(b.info.slot)
-			var cx_share := (float(slot) + 0.5) / 5.0 if row != "mid" else float(slot + 1) / 6.0
-			var tex_size: Vector2i = b.art.size
-			var ground := maxf(float(cfg.gy) * lh, float(tex_size.y - 4))
-			b.base_position = Vector2(cx_share * lw - b.foot_x, ground - (tex_size.y - 4)) * px
-			b.size = Vector2(tex_size) * px
-			b.parallax = float(cfg.par)
-			b.position = b.base_position
+		var at: Array = b.info.at
+		var cfg := cfg_for(float(at[1]))
+		b.build_art(cfg, px)
+		var tex_size: Vector2i = b.art.size
+		var ground := maxf(float(at[1]) * lh, float(tex_size.y - 4))
+		b.base_position = Vector2(float(at[0]) * lw - b.foot_x, ground - (tex_size.y - 4)) * px
+		b.size = Vector2(tex_size) * px
+		b.parallax = float(cfg.par)
+		b.position = b.base_position
+	for pr: Control in _props:
+		pr.place()
 	for c: Control in _crowds:
 		c.queue_redraw()
 	queue_redraw()
@@ -184,6 +347,8 @@ func _process(delta: float) -> void:
 		b.queue_redraw()
 	for c: Control in _crowds:
 		c.queue_redraw()
+	for pr: Control in _props:
+		pr.queue_redraw()
 	_atmos.queue_redraw()
 	queue_redraw()
 
@@ -207,7 +372,7 @@ func _draw() -> void:
 	var top: Color = colors[0]
 	var bottom: Color = colors[1]
 	var day: float = colors[2]
-	var horizon := lh * 0.5
+	var horizon := lh * HORIZON
 	# Sky in bands, with a dithered edge between them.
 	var bands := int(horizon / 3.0) + 1
 	for i in bands:
@@ -260,38 +425,20 @@ func _draw() -> void:
 		draw_rect(Rect2(floorf(x), floorf(y) - 6, 1, 7), pine)
 		draw_rect(Rect2(floorf(x) - 1, floorf(y) - 4, 3, 2), pine)
 		draw_rect(Rect2(floorf(x) - 1, floorf(y) - 1, 3, 2), pine)
-	# Grass behind and dirt roads under the rows, a cobbled street in front.
-	var grass := Color("#5fa050").lerp(Color("#2a4a3a"), (1.0 - day) * 0.6)
-	draw_rect(Rect2(-4, horizon, lw + 8, lh - horizon), grass)
-	for i in 220:
-		var gx := _unit(i, 1, 2) * lw
-		var gy := horizon + _unit(i, 2, 2) * (lh - horizon)
-		var gc := grass.lightened(0.1) if _unit(i, 3, 2) > 0.5 else grass.darkened(0.1)
-		draw_rect(Rect2(floorf(gx), floorf(gy), 2, 1), gc)
-	var dirt := Color("#b09f7a").lerp(Color("#3a3a50"), (1.0 - day) * 0.6)
-	for row: String in ["back", "mid"]:
-		var gy := maxf(float(ROWS[row].gy) * lh, float(ROWS[row].h) + 21.0)
-		draw_rect(Rect2(-4, gy, lw + 8, 7 if row == "mid" else 5), dirt)
-		draw_rect(Rect2(-4, gy, lw + 8, 1), dirt.darkened(0.2))
-	var street_y := float(ROWS.front.gy) * lh
-	var street := Color("#a89878").lerp(Color("#33334a"), (1.0 - day) * 0.65)
-	draw_rect(Rect2(-4, street_y, lw + 8, lh - street_y + 2), street)
-	draw_rect(Rect2(-4, street_y, lw + 8, 1), street.darkened(0.3))
-	for i in 160:
-		var cx := _unit(i, 1, 6) * lw
-		var cy := street_y + 2.0 + _unit(i, 2, 6) * (lh - street_y)
-		draw_rect(Rect2(floorf(cx), floorf(cy), 3, 2), street.darkened(0.12) if _unit(i, 3, 6) > 0.5 else street.lightened(0.08))
-	# Flower beds, lamp posts and trees along the edges.
-	for i in 14:
-		var fx := 4.0 + i * (lw - 8.0) / 13.0
-		var fy := horizon + 3.0 + _unit(i, 5, 7) * 4.0
-		draw_rect(Rect2(floorf(fx), floorf(fy), 3, 2), Color("#3f8a46"))
+	# The ground: grass, ways, the square and the pond, tinted by the hour.
+	if _ground:
+		var ground_tint := tint().lerp(Color.WHITE, 0.0)
+		draw_texture_rect(_ground, Rect2(Vector2(0, 0), Vector2(_ground.get_width(), _ground.get_height())), false, ground_tint)
+	# Ripples on the pond.
+	var pond := Vector2(POND.x * lw, POND.y * lh)
+	for i in 3:
+		var ph := fposmod(_time * 0.5 + i * 0.33, 1.0)
+		draw_rect(Rect2(floorf(pond.x - 8.0 + i * 5.0 + sin(_time + i) * 2.0), floorf(pond.y - 2.0 + ph * 3.0), 3, 1), Color(1, 1, 1, 0.35 * (1.0 - ph)) * tint())
+	# Little flowers along the grass edge behind the first row.
+	for i in 18:
+		var fx := 4.0 + i * (lw - 8.0) / 17.0
+		var fy := horizon + 1.0 + _unit(i, 5, 7) * 4.0
 		_dot(fx + 1, fy - 1, [Color("#ff7aa8"), Color("#ffd23f"), Color("#ffffff"), Color("#b98cff")][i % 4])
-	var lamp_xs := [0.03, 0.27, 0.5, 0.73, 0.97]
-	for lx: float in lamp_xs:
-		_street_lamp(lx * lw, street_y + 7.0, day)
-	_tree(8.0, horizon + 5.0, day)
-	_tree(lw - 9.0, horizon + 5.0, day)
 
 
 func _cloud(x: float, y: float, s: float, c: Color) -> void:
@@ -368,7 +515,7 @@ class Building extends Control:
 			"market":
 				w += 4
 		# Buildings on the right of the street are mirrored so their side faces the middle.
-		var flip := int(info.slot) >= (3 if str(info.row) != "mid" else 2)
+		var flip := float(info.at[0]) >= 0.5
 		var seed_value := int(hash(str(info.id)) & 0xffff)
 		art = CityArt.paint(kind, Color(str(info.wall)), Color(str(info.roof)), w, h, seed_value, info.get("extras", []), str(info.get("pattern", "brick")), flip)
 		var center := 7.0 + w * 0.5
@@ -399,7 +546,7 @@ class Building extends Control:
 		if art.is_empty():
 			return
 		var s := float(_scale)
-		var cfg: Dictionary = ROWS[str(info.row)]
+		var cfg: Dictionary = view.cfg_for(float(info.at[1]))
 		var tint: Color = view.tint()
 		var night: float = view.night()
 		var rect := Rect2(Vector2.ZERO, Vector2(art.size) * s)
@@ -470,10 +617,10 @@ class Building extends Control:
 			draw_texture_rect(art.sil, rect, false, Color(1, 0.95, 0.6, 0.12))
 
 
-## Townsfolk walking along one street of the town.
+## Townsfolk walking up and down one of the ways between the buildings.
 class Crowd extends Control:
 	var view: Control
-	var lane := "front"
+	var path_index := 0
 	var _people: Array = []
 	var _ready_done := false
 
@@ -485,10 +632,10 @@ class Crowd extends Control:
 	func _make() -> void:
 		_ready_done = true
 		var rng := RandomNumberGenerator.new()
-		rng.seed = 5 if lane == "front" else 9
+		rng.seed = 5 + path_index * 7
 		var skin := [Color("#f2c9a0"), Color("#d9a273"), Color("#a8744a"), Color("#f7d9b8")]
 		var cloth := [Color("#d9534f"), Color("#4a90d9"), Color("#5fcf6a"), Color("#ffd23f"), Color("#b65cff"), Color("#e8e2d0"), Color("#ff9a4a")]
-		var count := 9 if lane == "front" else 6
+		var count := 3 + path_index % 2
 		for i in count:
 			var kind := "person"
 			var r := rng.randf()
@@ -499,28 +646,29 @@ class Crowd extends Control:
 			elif r < 0.4:
 				kind = "kid"
 			_people.append({
-				"x": rng.randf() * 400.0, "speed": rng.randf_range(6.0, 13.0) * (1.0 if rng.randf() < 0.5 else -1.0), "kind": kind,
+				"u": rng.randf(), "speed": rng.randf_range(4.0, 9.0), "kind": kind,
 				"skin": skin[rng.randi() % skin.size()], "cloth": cloth[rng.randi() % cloth.size()], "hair": [Color("#3a2416"), Color("#d8a24a"), Color("#c0392b"), Color("#222"), Color("#e8e2d0")][rng.randi() % 5],
-				"phase": rng.randf() * 10.0, "wait": 0.0, "dy": rng.randf_range(-1.0, 3.0),
+				"phase": rng.randf() * 10.0,
 			})
 
 	func _draw() -> void:
 		if not _ready_done:
 			_make()
 		var s: float = view.px
-		var lw: float = view.lw
-		var lh: float = view.lh
-		var cfg: Dictionary = ROWS["front" if lane == "front" else "mid"]
-		var gy: float = (lh - 7.0) if lane == "front" else float(cfg.gy) * lh + 5.0
 		var night: float = view.night()
 		var tint: Color = view.tint()
 		var t: float = view._time
+		var path_len: float = view.path_length(path_index)
 		for p: Dictionary in _people:
-			var x := fposmod(float(p.x) + float(p.speed) * t, lw + 20.0) - 10.0
-			var y := gy + float(p.dy) * (1.0 if lane == "front" else 0.4)
+			var d := fposmod(float(p.u) * path_len * 2.0 + float(p.speed) * t, path_len * 2.0)
+			var forward := d <= path_len
+			var dist := d if forward else path_len * 2.0 - d
+			var at: Vector2 = view.path_point(path_index, dist)
+			var x := at.x
+			var y := at.y + 1.0
 			var step := int(t * 6.0 + float(p.phase)) % 2
 			var bob := 0.0 if step == 0 else -1.0
-			var face := 1.0 if float(p.speed) > 0.0 else -1.0
+			var face := (1.0 if view.tangent_x(path_index, dist) >= 0.0 else -1.0) * (1.0 if forward else -1.0)
 			draw_rect(Rect2((floorf(x) - 2) * s, (floorf(y) - 1) * s, 5 * s, s), Color(0, 0, 0, 0.18))
 			var skin: Color = (p.skin as Color) * tint
 			var cloth: Color = (p.cloth as Color) * tint
@@ -555,6 +703,173 @@ class Crowd extends Control:
 						draw_rect(Rect2((floorf(x) + 2 * face - (1 if face < 0 else 0)) * s, (body_y) * s, s, 4 * s), Color("#cfc9bb") * tint)
 			if night > 0.4 and str(p.kind) == "kid":
 				draw_circle(Vector2(floorf(x) + 2.0 * face, y - 5.0) * s, 5.0 * s, Color(1.0, 0.85, 0.4, 0.1 * night))
+
+
+## A thing standing in the streets: trees, a fountain, stalls, lamps, ducks...
+class Prop extends Control:
+	var view: Control
+	var kind := "tree"
+	var share := Vector2.ZERO
+	var variant := 0
+	var foot := Vector2.ZERO
+	var _tint := Color.WHITE
+	var _s := 3.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	func place() -> void:
+		foot = Vector2(floorf(share.x * view.lw), floorf(share.y * view.lh))
+
+	## A rectangle in view pixels, relative to the foot.
+	func r(x: float, y: float, w: float, h: float, c: Color) -> void:
+		draw_rect(Rect2((foot.x + x) * _s, (foot.y + y) * _s, w * _s, h * _s), c * _tint)
+
+	func _draw() -> void:
+		if view == null:
+			return
+		_s = view.px
+		_tint = view.tint()
+		var t: float = view._time
+		var night: float = view.night()
+		var sway := roundf(sin(t * 0.9 + share.x * 9.0) * 0.8)
+		match kind:
+			"tree":
+				var leaf: Color = [Color("#3f8a46"), Color("#4f9a3a"), Color("#2f7a52")][variant % 3]
+				r(-1, -10, 3, 11, Color("#5b4630"))
+				r(-7 + sway, -22, 15, 12, leaf)
+				r(-5 + sway, -26, 11, 5, leaf.lightened(0.06))
+				r(-4, -12, 9, 3, leaf.darkened(0.12))
+				r(-5 + sway, -21, 5, 2, leaf.lightened(0.18))
+				r(2 + sway, -15, 5, 3, leaf.darkened(0.2))
+			"pine":
+				var leaf := Color("#2f6a40") if variant == 0 else Color("#3a7a4a")
+				r(-1, -4, 3, 5, Color("#4b3826"))
+				for i in 5:
+					var wid := 3 + i * 2
+					r(-(wid / 2) + (sway if i < 2 else 0.0), -24 + i * 4, wid, 4, leaf if i % 2 == 0 else leaf.lightened(0.1))
+			"bush":
+				var leaf := Color("#3f8a46") if variant == 0 else Color("#4f9a3a")
+				r(-4, -4, 9, 4, leaf)
+				r(-3, -6, 6, 2, leaf.lightened(0.12))
+				r(-2, -3, 1, 1, Color("#ff5a6a"))
+				r(2, -4, 1, 1, Color("#ff5a6a"))
+			"fountain":
+				var stone := Color("#b8b2a2")
+				r(-12, -4, 25, 5, stone.darkened(0.12))
+				r(-11, -5, 23, 2, stone)
+				r(-9, -5, 19, 2, Color("#6ab0e8"))
+				r(-1, -13, 3, 9, stone)
+				r(-4, -14, 9, 2, stone)
+				r(-6, -6, 13, 1, Color("#8fc8f4"))
+				for i in 8:
+					var ph := fposmod(t * 0.9 + float(i) / 8.0, 1.0)
+					var dx := (float(i) - 3.5) * 2.0 * ph
+					var dy := -14.0 + (-12.0 * ph + 20.0 * ph * ph) * 0.9
+					r(dx, dy, 1, 1, Color(0.8, 0.92, 1.0, 0.9 * (1.0 - ph * 0.3)))
+				if night > 0.2:
+					draw_circle(Vector2(foot.x, foot.y - 8.0) * _s, 14.0 * _s, Color(0.6, 0.8, 1.0, 0.06 * night))
+			"well":
+				var stone := Color("#9a968a")
+				r(-5, -5, 11, 6, stone)
+				r(-4, -6, 9, 2, Color("#2a3a4a"))
+				r(-5, -14, 1, 9, Color("#6a4a2a"))
+				r(5, -14, 1, 9, Color("#6a4a2a"))
+				r(-6, -16, 13, 2, Color("#a8483a"))
+				r(-4, -17, 9, 1, Color("#c85a48"))
+				r(0, -12, 1, 4, Color("#cfc9bb"))
+				r(-1, -9, 3, 2, Color("#8a5a2b"))
+			"stall":
+				var colors: Array = [[Color("#d9534f"), Color("#f4efe4")], [Color("#4a90d9"), Color("#f4efe4")], [Color("#5fcf6a"), Color("#ffd23f")]][variant % 3]
+				r(-9, -4, 19, 4, Color("#8a5a2b"))
+				r(-9, -4, 19, 1, Color("#b07a3a"))
+				r(-8, -15, 1, 11, Color("#6a4a2a"))
+				r(9, -15, 1, 11, Color("#6a4a2a"))
+				for i in 10:
+					r(-9 + i * 2, -15, 2, 4, colors[i % 2])
+					r(-9 + i * 2, -11, 2, 1, (colors[i % 2] as Color).darkened(0.2))
+				for i in 6:
+					r(-7 + i * 3, -6, 2, 2, [Color("#ff5a4a"), Color("#ffd23f"), Color("#7ad060"), Color("#ff9a4a"), Color("#b65cff"), Color("#f4efe4")][(i + variant) % 6])
+			"bench":
+				var wood := Color("#8a5a2b")
+				r(-7, -7, 14, 1, wood.lightened(0.1))
+				r(-7, -4, 14, 2, wood)
+				r(-6, -2, 1, 3, wood.darkened(0.3))
+				r(5, -2, 1, 3, wood.darkened(0.3))
+			"barrel":
+				r(-3, -7, 7, 8, Color("#8a5a2b"))
+				r(-3, -5, 7, 1, Color("#3a3a40"))
+				r(-3, -2, 7, 1, Color("#3a3a40"))
+				r(-2, -8, 5, 1, Color("#a87a42"))
+			"crate":
+				r(-3, -6, 7, 7, Color("#a87a42"))
+				r(-3, -6, 7, 1, Color("#c89a5a"))
+				r(-3, -3, 7, 1, Color("#7a5a2a"))
+				r(0, -6, 1, 7, Color("#7a5a2a"))
+			"haystack":
+				var hay := Color("#d8b84a")
+				r(-7, -4, 15, 5, hay.darkened(0.08))
+				r(-6, -7, 13, 3, hay)
+				r(-4, -9, 9, 2, hay.lightened(0.08))
+				r(-1, -10, 3, 1, hay.lightened(0.15))
+				r(-5, -3, 2, 1, hay.darkened(0.25))
+				r(3, -5, 2, 1, hay.darkened(0.25))
+			"fence":
+				var wood := Color("#7a5a32")
+				for px_off in [-7, 0, 7]:
+					r(px_off, -7, 1, 8, wood)
+				r(-7, -6, 15, 1, wood.lightened(0.08))
+				r(-7, -3, 15, 1, wood.lightened(0.08))
+			"flowers":
+				r(-6, -2, 13, 3, Color("#3f8a46"))
+				for i in 7:
+					var fy := -3.0 - float(int(t * 2.0 + i) % 2) * 0.0
+					var lift := 1.0 if sin(t * 2.0 + i * 1.7) > 0.5 else 0.0
+					r(-6 + i * 2, fy - lift, 1, 1, [Color("#ff7aa8"), Color("#ffd23f"), Color("#ffffff"), Color("#b98cff"), Color("#ff5a4a")][(i + variant) % 5])
+			"sign":
+				var wood := Color("#8a5a2b")
+				r(0, -14, 1, 14, Color("#5a3a1c"))
+				r(-5, -13, 9, 3, wood)
+				r(4, -12, 1, 1, wood)
+				r(-1, -9, 9, 3, wood.lightened(0.08))
+				r(-2, -8, 1, 1, wood.lightened(0.08))
+			"lamp":
+				r(0, -16, 1, 17, Color("#2c2c34"))
+				r(-1, -19, 3, 3, Color("#ffd86a") if night > 0.3 else Color("#e8d8a0"))
+				r(-1, -20, 3, 1, Color("#2c2c34"))
+				if night > 0.1:
+					draw_circle(Vector2(foot.x + 0.5, foot.y - 17.5) * _s, 11.0 * _s, Color(1.0, 0.82, 0.4, 0.07 * night))
+					draw_circle(Vector2(foot.x + 0.5, foot.y - 17.5) * _s, 6.0 * _s, Color(1.0, 0.82, 0.4, 0.13 * night))
+			"duck":
+				var dx := sin(t * 0.4 + variant * 2.4) * 6.0
+				var dy := sin(t * 0.6 + variant) * 1.5
+				var dir := 1.0 if cos(t * 0.4 + variant * 2.4) >= 0.0 else -1.0
+				var bx := roundf(dx)
+				var by := roundf(dy)
+				r(bx - 2, by - 2, 5, 2, Color("#f4f0e8"))
+				r(bx + (2 if dir > 0 else -3), by - 4, 2, 2, Color("#2e7a3a"))
+				r(bx + (4 if dir > 0 else -4), by - 3, 1, 1, Color("#ffb02a"))
+				r(bx - 3, by, 7, 1, Color(1, 1, 1, 0.25))
+			"chicken":
+				var peck := 1.0 if fposmod(t * 0.9 + variant * 0.7, 2.0) > 1.6 else 0.0
+				var wander := roundf(sin(t * 0.3 + variant * 2.0) * 3.0)
+				var cx := wander
+				var col := Color("#f4efe4") if variant != 1 else Color("#c8843a")
+				r(cx - 2, -3, 4, 3, col)
+				r(cx + 1, -5 + peck * 2.0, 2, 2, col)
+				r(cx + 2, -6 + peck * 2.0, 1, 1, Color("#e0303a"))
+				r(cx + 3, -4 + peck * 2.0, 1, 1, Color("#ffb02a"))
+				r(cx - 1, 0, 1, 1, Color("#ffb02a"))
+				r(cx + 1, 0, 1, 1, Color("#ffb02a"))
+			"pigeons":
+				for i in 4:
+					var hop := 1.0 if sin(t * 3.0 + i * 1.9) > 0.8 else 0.0
+					var bx := float(i) * 6.0 - 9.0 + roundf(sin(t * 0.5 + i) * 2.0)
+					r(bx, -2 - hop, 3, 2, Color("#9aa0b0"))
+					r(bx + 2, -3 - hop, 2, 2, Color("#7a8090"))
+					r(bx + 4, -2 - hop, 1, 1, Color("#ffb02a"))
 
 
 ## Birds, drifting petals and fireflies above everything.
