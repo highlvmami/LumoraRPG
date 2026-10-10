@@ -68,12 +68,13 @@ const NAV := [
 ## The town's buildings; clicking one opens its menu (its `sections` become the tabs).
 const BUILDINGS := [
 	{"id": "tower", "name": "Yetenek Kulesi", "style": "tower", "wall": "#6b5a8a", "roof": "#3a2f5a", "icon": "storm", "row": "back", "slot": 0, "sections": ["skills", "pets"]},
-	{"id": "board", "name": "Görev Meydanı", "style": "house", "wall": "#b08a5a", "roof": "#7a3a2a", "icon": "scroll", "row": "back", "slot": 1, "sections": ["quests", "worldboss", "achievements", "leaderboard"]},
+	{"id": "board", "name": "Görev Meydanı", "style": "house", "wall": "#b08a5a", "roof": "#7a3a2a", "icon": "scroll", "row": "back", "slot": 1, "sections": ["quests", "achievements", "leaderboard"]},
 	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "slot": 2, "sections": ["guild"]},
 	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade", "games"]},
 	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack", "wardrobe"]},
 	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market", "gems", "stable"]},
 	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 2, "sections": ["difficulty"]},
+	{"id": "bossden", "name": "Dünya Bossu", "style": "hall", "wall": "#5a3a3a", "roof": "#8a1f1f", "icon": "skull", "row": "front", "slot": 3, "sections": ["worldboss"], "tip": "Haftalık dünya bossu: tüm sunucu birlikte vurur"},
 ]
 ## The small menu box in the bottom right corner (Ayarlar is the last one).
 const UTILITY := ["profile", "logs", "versions", "settings"]
