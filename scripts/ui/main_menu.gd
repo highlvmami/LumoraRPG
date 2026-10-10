@@ -24,6 +24,7 @@ const Screen := preload("res://scripts/core/screen.gd")
 const Daily := preload("res://scripts/progression/daily.gd")
 
 signal play_pressed
+signal duel_requested
 ## The player wants to open this chest (the game shows the wheel).
 signal chest_open_requested(uid: int)
 signal quality_selected(quality: String)
@@ -1881,6 +1882,12 @@ func _build_room() -> void:
 		_text("Masada %d / %d kişi. ★ ev sahibi." % [net.members().size(), net.MAX_MEMBERS], 14, UiTheme.MUTED)
 		_text("Hazır olunca OYNA'ya bas: odadaki herkes seninle aynı haritada başlar." if net.is_host()
 			else "Ev sahibi OYNA'ya basınca oyun başlar ve otomatik katılırsın.", 15, UiTheme.MUTED)
+		if net.is_host() and net.members().size() == 2:
+			var pvp := Button.new()
+			pvp.text = "Gerçek zamanlı düello başlat"
+			pvp.tooltip_text = "Odadaki diğer oyuncuyla 1'e 1 canlı dövüş. Kazanan galibiyet sayar."
+			pvp.pressed.connect(func() -> void: duel_requested.emit())
+			_content.add_child(pvp)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		var who := LineEdit.new()

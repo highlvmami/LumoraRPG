@@ -46,6 +46,7 @@ var player: CharacterBody3D
 ## needs `dead`, `visible`, a global position and `take_damage(amount)`.
 var targets: Array = []
 ## Shows the host's enemies instead of running them (co-op partner).
+const DUELIST_UID := 9000001
 var mirror := false
 ## Seconds since the run started; drives spawn rate, new kinds and toughness.
 var run_time := 0.0
@@ -880,6 +881,8 @@ func _update_render() -> void:
 		if _flash[i] > 0.0:
 			# Squashed flat for a moment when hit.
 			scale_v *= Vector3(1.2, 0.75, 1.2)
+		if _kinds[k].get("hidden", false):
+			scale_v = Vector3.ONE * 0.001
 		var xf_basis := Basis(Vector3.UP, _yaw[i]).scaled(scale_v)
 		var slot := counts[k]
 		counts[k] = slot + 1
@@ -1131,6 +1134,19 @@ func apply_snapshot(d: Dictionary) -> void:
 	run_time = float(d.get("t", run_time))
 	kills = int(d.get("k", kills))
 	_boss_phase = int(d.get("bp", 1))
+
+
+## Duel: the opponent is one invisible target that follows their character,
+## so weapons aim at them like at an enemy (hits go out through `remote_hit`).
+func set_duelist(at: Vector3, yaw: float, ratio: float) -> void:
+	var kind := -1
+	for i in _kinds.size():
+		if str(_kinds[i].id) == "duelist":
+			kind = i
+	if kind < 0:
+		return
+	apply_snapshot({"e": [DUELIST_UID, kind, roundi(at.x * SNAP_SCALE), roundi(at.y * SNAP_SCALE), roundi(at.z * SNAP_SCALE),
+		roundi(wrapf(yaw, -PI, PI) * 100.0), roundi(clampf(ratio, 0.0, 1.0) * 1000.0), 0]})
 
 
 func _update_mirror(delta: float) -> void:
