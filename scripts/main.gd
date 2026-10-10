@@ -425,6 +425,10 @@ func login(username: String, remember := false) -> void:
 		_on_net_notice("Lonca kasasına %d altın bağışladın." % gold))
 	net.duel_changed.connect(main_menu.refresh_duel)
 	net.duel_played.connect(main_menu.show_duel)
+	net.game_played.connect(_on_game_played)
+	net.game_changed.connect(func() -> void:
+		if main_menu.visible and main_menu.section == "games":
+			main_menu.open_section("games"))
 	net.world_boss_changed.connect(func() -> void:
 		if main_menu.visible and main_menu.section == "worldboss":
 			main_menu.open_section("worldboss"))
@@ -702,6 +706,23 @@ func coop_host_ended() -> void:
 	coop.stop()
 	show_menu()
 	main_menu.notify("Ev sahibi oyunu bitirdi.")
+
+
+## A dice / card game finished: the loser pays the bet to the winner.
+func _on_game_played(result: Dictionary) -> void:
+	var me := str(net.account).to_lower()
+	var winner := int(result.winner)
+	var mine: bool = str((result.a if winner == 0 else result.b).name).to_lower() == me
+	var bet := int(result.bet)
+	if mine:
+		progression.add_gold(bet)
+	else:
+		progression.profile.gold = maxi(0, int(progression.profile.gold) - bet)
+	achievements.add("gamesWon" if mine else "gamesLost")
+	achievements.check()
+	progression.store.save_to_disk()
+	main_menu.show_game(result)
+	main_menu.refresh()
 
 
 ## The weekly world boss: a two minute fight alone with it; the damage done

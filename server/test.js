@@ -357,6 +357,18 @@ function client() {
   assert.ok(first.ok && first.gold > 300);
   assert.ok(!(await boss.claim("x", t0 + 600000)).ok, "the reward is claimed once");
 
+  // Tavern games: bets are checked, the server rolls once both agree.
+  b.send({ t: "game_challenge", to: "nobody", kind: "dice", bet: 100 });
+  assert.match((await b.next("error")).msg, /çevrimiçi değil/);
+  const { Games } = require("./games.js");
+  const tg = new Games();
+  assert.ok(tg.challenge("ayse", "mehmet", "cards", 250).ok);
+  assert.ok(tg.inbox("Mehmet").length === 1 && tg.inbox("Mehmet")[0].bet === 250);
+  const played = tg.answer("Mehmet", "ayse", true);
+  assert.ok(played.ok && (played.winner === 0 || played.winner === 1) && played.a.total !== undefined && played.bet === 250, "a game has a winner");
+  assert.ok(!tg.answer("Mehmet", "ayse", true).ok, "an invite is used once");
+  assert.ok(!tg.challenge("ayse", "ayse", "dice", 50).ok, "no game against yourself");
+
   b.close();
   wss.close();
   server.close();

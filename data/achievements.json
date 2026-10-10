@@ -28,6 +28,8 @@
 		{ "id": "cataclysm", "name": "Kıyamet", "desc": "Toplam 1.000.000 hasar ver", "icon": "meteor", "stat": "damageDealt", "target": 1000000, "reward": 400 },
 		{ "id": "explorer", "name": "Kâşif", "desc": "Üç farklı haritada oyna", "icon": "eye", "stat": "mapsPlayed", "target": 3, "reward": 60 },
 		{ "id": "world_traveler", "name": "Dünya Gezgini", "desc": "Beş haritanın hepsinde oyna", "icon": "eye", "stat": "mapsPlayed", "target": 5, "reward": 120 },
+		{ "id": "gambler", "name": "Kumarbaz", "desc": "Taverna'da 5 zar ya da kart oyunu kazan", "icon": "clover", "stat": "gamesWon", "target": 5, "reward": 80 },
+		{ "id": "high_roller", "name": "Büyük Oyuncu", "desc": "Taverna'da 25 oyun kazan", "icon": "clover", "stat": "gamesWon", "target": 25, "reward": 300 },
 		{ "id": "duelist", "name": "Düellocu", "desc": "Arenada bir düello kazan", "icon": "sword", "stat": "duelsWon", "target": 1, "reward": 100 },
 		{ "id": "arena_master", "name": "Arena Ustası", "desc": "Arenada 10 düello kazan", "icon": "skull", "stat": "duelsWon", "target": 10, "reward": 400 },
 		{ "id": "trader", "name": "Tüccar", "desc": "Bir oyuncuyla takas yap", "icon": "clover", "stat": "trades", "target": 1, "reward": 50 },
