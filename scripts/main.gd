@@ -386,6 +386,10 @@ func login(username: String, remember := false) -> void:
 	net.trades_changed.connect(main_menu.refresh_trade)
 	net.trade_done.connect(_on_trade_done)
 	net.guild_reward.connect(_on_guild_reward)
+	net.guild_donated.connect(func(gold: int) -> void:
+		progression.add_gold(-gold)
+		store.save_to_disk()
+		_on_net_notice("Lonca kasasına %d altın bağışladın." % gold))
 	net.duel_changed.connect(main_menu.refresh_duel)
 	net.duel_played.connect(main_menu.show_duel)
 	net.who_updated.connect(main_menu.update_friend_status)
@@ -915,9 +919,9 @@ func duel_fighter() -> Dictionary:
 ## Run boosts, skill tree, pets, class bonus, worn gear and the developer cheat bonus for a stat.
 func _extra(stat: String) -> float:
 	var sum := boosts.total(stat) + (cheat_menu.total(stat) if cheat_menu else 0.0) + (skill_tree.total(stat) if skill_tree else 0.0)
-	# Guild members earn a little more gold.
-	if stat == "goldGain" and net and net.in_guild():
-		sum += GUILD_GOLD_BONUS
+	# Guild members earn a little more gold, and the guild's upgrades add more.
+	if net and net.in_guild():
+		sum += net.guild_bonus(stat) + (GUILD_GOLD_BONUS if stat == "goldGain" else 0.0)
 	sum += pets.total(stat) if pets else 0.0
 	if food and in_run:
 		sum += food.total(stat)
