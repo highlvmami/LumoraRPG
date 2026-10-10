@@ -452,6 +452,11 @@ func login(username: String, remember := false) -> void:
 	net.world_boss_changed.connect(func() -> void:
 		if main_menu.visible and main_menu.section == "worldboss":
 			main_menu.open_section("worldboss"))
+	net.parkour_result.connect(func(res: Dictionary) -> void:
+		progression.add_gold(int(res.gold))
+		achievements.add("parkourRuns", 1.0)
+		progression.store.save_to_disk()
+		hub.overlay.add_note("%s%s +%d altın" % ["İlk bitirişin! " if bool(res.first) else "", "Yeni rekor!" if bool(res.record) else "Süre kaydedildi.", int(res.gold)]))
 	net.world_boss_reward.connect(func(gold: int) -> void:
 		progression.add_gold(gold)
 		progression.store.save_to_disk()

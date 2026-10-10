@@ -40,6 +40,8 @@ var _tiles: Array = []
 var _time := 0.0
 var _lanterns: Array = []
 var outside: HubOutside
+## The parkour course (built by the outside meadow).
+var parkour: Node3D
 var _guild_sign: Label3D
 var _cat: Node3D
 var _keeper: Node3D

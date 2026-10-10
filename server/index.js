@@ -32,6 +32,7 @@
 //   {t:"guild_create", name, tag} {t:"guild_join", name}  {t:"guild_leave"}  {t:"guild_kick", name}
 //   {t:"guild_chat", text}       say something to your guild
 //   {t:"wb_info"} / {t:"wb_hit", dmg} / {t:"wb_claim"}   weekly world boss (wb_state, wb_reward)
+//   {t:"pk_board"} / {t:"pk_finish", ms, falls}   tavern parkour (pk_board, pk_result)
 //   {t:"guild_kills", n}         monsters defeated in a run (weekly guild goal)
 //   {t:"game_challenge", to, kind:"dice"|"cards", bet} / {t:"game_inbox"} / {t:"game_answer", from, accept}
 //   {t:"duel_challenge", to, fighter}  {t:"duel_inbox"}  {t:"duel_answer", from, accept, fighter}
@@ -67,6 +68,7 @@ const { Accounts, key } = require("./accounts.js");
 const { Guilds, UPGRADES } = require("./guilds.js");
 const { WorldBoss } = require("./worldboss.js");
 const { Games } = require("./games.js");
+const { Parkour } = require("./parkour.js");
 const { Duels } = require("./duels.js");
 const { Trades } = require("./trades.js");
 
@@ -100,6 +102,7 @@ const accounts = new Accounts(process.env.DATABASE_URL);
 const guilds = new Guilds(accounts.store.pool);
 const worldBoss = new WorldBoss(accounts.store.pool);
 const games = new Games();
+const parkour = new Parkour(accounts.store.pool);
 const duels = new Duels();
 const trades = new Trades();
 
@@ -518,6 +521,14 @@ async function handle(c, msg) {
   if (msg.t === "exists") return send(c, { t: "exists", name: String(msg.name), found: await accounts.exists(msg.name) });
   if (!c.name) return send(c, { t: "error", msg: "Önce giriş yap." });
   switch (msg.t) {
+    case "pk_board":
+      return send(c, { t: "pk_board", ...parkour.board(c.name) });
+    case "pk_finish": {
+      const res = await parkour.finish(c.name, msg.ms, msg.falls);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      send(c, { t: "pk_result", ms: res.ms, first: res.first, record: res.record, gold: res.gold });
+      return send(c, { t: "pk_board", ...parkour.board(c.name) });
+    }
     case "wb_info":
       return send(c, { t: "wb_state", ...worldBoss.view(c.name) });
     case "wb_hit": {
@@ -682,6 +693,7 @@ const ready = accounts
   .init()
   .then(() => guilds.init())
   .then(() => worldBoss.init())
+  .then(() => parkour.init())
   .catch((e) => console.error("account database failed to start", e))
   .then(
     () =>

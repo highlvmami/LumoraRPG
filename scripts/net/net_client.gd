@@ -49,6 +49,9 @@ signal trades_changed
 signal trade_done(info: Dictionary)
 ## The weekly guild reward was granted by the server.
 signal guild_reward(gold: int)
+## The parkour rankings arrived (see server/parkour.js); a run result arrived.
+signal parkour_board_received(data: Dictionary)
+signal parkour_result(data: Dictionary)
 signal world_boss_changed
 signal world_boss_reward(gold: int)
 ## Gold the server accepted into the guild treasury.
@@ -360,6 +363,16 @@ func guild_bonus(stat: String) -> float:
 
 ## The weekly world boss as the server last sent it (see server/worldboss.js).
 var world_boss: Dictionary = {}
+
+
+func ask_parkour_board() -> void:
+	if status == "online":
+		_send({"t": "pk_board"})
+
+
+func finish_parkour(ms: int, falls: int) -> void:
+	if status == "online":
+		_send({"t": "pk_finish", "ms": ms, "falls": falls})
 
 
 func ask_world_boss() -> void:
@@ -683,6 +696,10 @@ func _handle(msg: Dictionary) -> void:
 			guild_donated.emit(int(msg.get("gold", 0)))
 		"guild_reward":
 			guild_reward.emit(int(msg.get("gold", 0)))
+		"pk_board":
+			parkour_board_received.emit(msg)
+		"pk_result":
+			parkour_result.emit(msg)
 		"wb_state":
 			world_boss = msg
 			world_boss_changed.emit()

@@ -69,6 +69,7 @@ var _sent := ""
 var _was_captured := false
 var _releasing := false
 var _bubble: Label3D
+var _want_board := false
 
 
 func setup(p_main: Node, p_net: Node) -> void:
@@ -96,6 +97,12 @@ func enter() -> void:
 		overlay.chat_closed.connect(_on_chat_closed)
 		overlay.leave_confirmed.connect(_on_leave_confirmed)
 		overlay.leave_cancelled.connect(_on_chat_closed)
+		overlay.panel_closed.connect(_on_chat_closed)
+		tavern.parkour.finished.connect(_on_parkour_finished)
+		tavern.parkour.fell.connect(func(n: int) -> void: overlay.add_note("Düştün! Son kontrol noktasına döndün (%d düşme)." % n))
+		tavern.parkour.checkpoint_reached.connect(func(_i: int) -> void: overlay.add_note("Kontrol noktası!"))
+		tavern.parkour.started.connect(func() -> void: overlay.add_note("Parkur başladı! Süre işliyor."))
+		_net.parkour_board_received.connect(_on_parkour_board)
 		_main.add_child(overlay)
 	active = true
 	_main.main_menu.visible = false
@@ -151,6 +158,8 @@ func leave() -> void:
 		return
 	active = false
 	_stand_up(false)
+	tavern.parkour.cancel()
+	overlay.set_run("")
 	overlay.close_chat()
 	overlay.visible = false
 	var player: CharacterBody3D = _main.player
@@ -219,6 +228,9 @@ func interact() -> void:
 			_fish()
 		"talk":
 			overlay.add_note("Bora: " + RUMORS.pick_random())
+		"pk_board":
+			_want_board = true
+			_net.ask_parkour_board()
 
 
 ## Casts the rod at the dock: a fish for the kitchen, or some junk.
@@ -296,7 +308,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_open_chat()
 		get_viewport().set_input_as_handled()
 	elif key == KEY_ESCAPE:
-		if overlay.is_asking_leave():
+		if overlay.is_panel_open():
+			overlay.close_panel()
+		elif overlay.is_asking_leave():
 			overlay.close_leave()
 		else:
 			_ask_leave()
@@ -323,6 +337,9 @@ func _physics_process(delta: float) -> void:
 			used[int(tavern.interactables[int(g.object)].swing)] = true
 	for k in 2:
 		tavern.set_swing_occupied(k, used.has(k))
+	if _action == "":
+		tavern.parkour.update(delta, player)
+	overlay.set_run(tavern.parkour.status_text())
 	_update_prompt(player)
 	_state_timer -= delta
 	_heartbeat += delta
@@ -429,6 +446,41 @@ func _ask_leave() -> void:
 func _on_leave_confirmed() -> void:
 	_releasing = false
 	_main.leave_hub()
+
+
+## The run reached the finish: the server records it (and pays) when online.
+func _on_parkour_finished(ms: int, falls: int) -> void:
+	overlay.add_note("Parkuru %s sürede bitirdin! (%d düşme)" % [time_text(ms), falls])
+	_net.finish_parkour(ms, falls)
+
+
+static func time_text(ms: int) -> String:
+	return "%d:%04.1f" % [ms / 60000, fmod(ms / 1000.0, 60.0)]
+
+
+## Shows the rankings on a panel (when asked for at the notice post).
+func _on_parkour_board(data: Dictionary) -> void:
+	if not active or not _want_board:
+		return
+	_want_board = false
+	var lines := PackedStringArray(["PARKUR SIRALAMASI", ""])
+	var rank := 1
+	for row: Dictionary in data.get("top", []):
+		lines.append("%d. %s   %s   (%d bitiriş)" % [rank, row.name, time_text(int(row.best)), int(row.runs)])
+		rank += 1
+	if rank == 1:
+		lines.append("Henüz kimse bitirmedi. İlk sen ol!")
+	var mine: Variant = data.get("mine")
+	lines.append("")
+	if mine is Dictionary:
+		lines.append("Senin en iyi: %s  ·  Sıran: %d  ·  %d bitiriş  ·  %d düşme" % [time_text(int(mine.best)), int(mine.rank), int(mine.runs), int(mine.falls)])
+	else:
+		lines.append("Henüz parkuru bitirmedin.")
+	lines.append("Toplam %d bitiriş, %d oyuncu sıralamada." % [int(data.get("total", 0)), int(data.get("players", 0))])
+	_releasing = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_main.player.set("controls_enabled", false)
+	overlay.show_panel("\n".join(lines))
 
 
 func _on_chat_closed() -> void:

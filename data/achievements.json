@@ -45,6 +45,8 @@
 		{ "id": "epic_friend", "name": "Epik Dost", "desc": "Epik bir pet bul", "icon": "egg", "stat": "petRarity", "target": 3, "reward": 150 },
 		{ "id": "legend_friend", "name": "Efsanevi Dost", "desc": "Efsanevi bir pet bul", "icon": "fire", "stat": "petRarity", "target": 4, "reward": 400 },
 		{ "id": "companions", "name": "Yoldaşlar", "desc": "Üç pet slotunu da doldur", "icon": "paw", "stat": "petsEquipped", "target": 3, "reward": 200 },
-		{ "id": "farewell", "name": "Elveda Dostum", "desc": "Bir peti serbest bırak", "icon": "heart", "stat": "petsReleased", "target": 1, "reward": 20 }
+		{ "id": "farewell", "name": "Elveda Dostum", "desc": "Bir peti serbest bırak", "icon": "heart", "stat": "petsReleased", "target": 1, "reward": 20 },
+		{ "id": "parkourist", "name": "Parkurcu", "desc": "Taverna parkurunu bitir", "icon": "boot", "stat": "parkourRuns", "target": 1, "reward": 100 },
+		{ "id": "parkour_master", "name": "Parkur Ustası", "desc": "Taverna parkurunu 10 kez bitir", "icon": "boot", "stat": "parkourRuns", "target": 10, "reward": 400 }
 	]
 }

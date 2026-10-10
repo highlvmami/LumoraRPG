@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.56", "date": "2026-10-10", "title": "Taverna parkuru", "notes": [
+			"Taverna bahçesinin doğusunda yeni bir parkur: yeşil başlangıç tahtasından atlayınca süre başlar, mavi kontrol noktalarından geçip altın bitişe ulaş",
+			"Düşersen son kontrol noktasına dönersin; sıralama tabelasında en hızlı on süre, kendi rekorun, bitiriş ve düşme sayıların görünür",
+			"Bitirince altın kazanırsın (ilk bitiriş ve yeni rekorlarda daha çok); iki yeni başarım" ] },
 		{ "version": "0.55", "date": "2026-10-10", "title": "Dev yetenek ağacı", "notes": [
 			"Yetenek ağacı çok büyüdü: her dalda 7 sıra, toplam 61 yetenek ve her dalın sonunda güçlü bir son yetenek",
 			"Ağaç fareyle gezilir: boş yerden sürükleyerek kaydır, tekerlekle yakınlaştır, Sığdır düğmesiyle hepsini gör" ] },
