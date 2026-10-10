@@ -1,0 +1,16 @@
+{
+	"cooldown": 3.0,
+	"fish": [
+		{ "id": "carp", "name": "Sazan", "weight": 45,
+			"meal": { "name": "Közlenmiş Sazan", "desc": "Sonraki tur: +25 maks. can", "stats": { "maxHp": 25 } } },
+		{ "id": "trout", "name": "Alabalık", "weight": 28,
+			"meal": { "name": "Izgara Alabalık", "desc": "Sonraki tur: +%8 hasar", "stats": { "damage": 0.08 } } },
+		{ "id": "bass", "name": "Levrek", "weight": 12,
+			"meal": { "name": "Levrek Buğulama", "desc": "Sonraki tur: +%12 hareket hızı, +%4 saldırı hızı", "stats": { "moveSpeed": 0.12, "attackSpeed": 0.04 } } },
+		{ "id": "eel", "name": "Yılanbalığı", "weight": 6,
+			"meal": { "name": "Yılanbalığı Yahnisi", "desc": "Sonraki tur: +%6 kritik şansı, +%10 kritik hasarı", "stats": { "critChance": 0.06, "critDamage": 0.1 } } },
+		{ "id": "golden", "name": "Altın Balık", "weight": 3,
+			"meal": { "name": "Altın Balık Çorbası", "desc": "Sonraki tur: +%25 altın, +%15 deneyim", "stats": { "goldGain": 0.25, "expGain": 0.15 } } },
+		{ "id": "boot", "name": "Eski Çizme", "weight": 6, "junkGold": 15 }
+	]
+}

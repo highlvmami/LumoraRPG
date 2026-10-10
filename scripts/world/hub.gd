@@ -193,9 +193,24 @@ func interact() -> void:
 		"well":
 			overlay.add_note(WISHES.pick_random())
 		"fish":
-			overlay.add_note(CATCHES.pick_random())
+			_fish()
 		"talk":
 			overlay.add_note("Bora: " + RUMORS.pick_random())
+
+
+## Casts the rod at the dock: a fish for the kitchen, or some junk.
+func _fish() -> void:
+	var food: RefCounted = _main.food
+	if food.wait_left() > 0.0:
+		overlay.add_note("Oltan hâlâ suyun içinde, biraz bekle.")
+		return
+	var k: Dictionary = food.cast()
+	if k.is_empty():
+		overlay.add_note(CATCHES.pick_random())
+	elif k.has("junkGold"):
+		overlay.add_note("Oltana %s takıldı! Satıp %d altın kazandın." % [k.name, int(k.junkGold)])
+	else:
+		overlay.add_note("%s yakaladın! Menüde Taverna sayfasından pişirip yiyebilirsin." % k.name)
 
 
 ## Sits on chair, stool, bench or swing number `index`.

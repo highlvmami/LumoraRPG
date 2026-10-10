@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.32", "date": "2026-10-10", "title": "Balık tutma ve yemek", "notes": [
+			"Tavernanın iskelesinde (E) olta at: sazan, alabalık, levrek, yılanbalığı ve nadir Altın Balık tutabilirsin (eski çizme çıkarsa satılır)",
+			"Taverna sayfasındaki yeni Mutfak bölümünde balığı pişirip ye: yemek bir sonraki turda güç verir ve tur bitince biter",
+			"Yeni başarımlar (Balıkçı, Usta Balıkçı) ve yeni günlük görev" ] },
 		{ "version": "0.31", "date": "2026-10-09", "title": "Ses ve müzik", "notes": [
 			"Oyuna sesler geldi: ok atışı, vuruş, canavar ölümü, altın, seviye atlama, kasa, boss kükremesi, ulti, zindan kapısı, görev ve buton sesleri",
 			"Menü ve taverna için sakin, turlar için hareketli müzik (geçişler yumuşak)",

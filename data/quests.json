@@ -10,6 +10,7 @@
 		{ "id": "runs", "stat": "runs", "goal": 3, "name": "Maceracı", "desc": "3 tur oyna", "icon": "bow", "gold": 150 },
 		{ "id": "steps", "stat": "steps", "goal": 2000, "name": "Yolcu", "desc": "2000 adım yürü", "icon": "boot", "gold": 120 },
 		{ "id": "dungeon", "stat": "dungeons", "goal": 1, "name": "Kapıdan Geç", "desc": "Bir zindan kapısının muhafızını yen", "icon": "skull", "gold": 250, "chest": 0 },
+		{ "id": "fish", "stat": "fishCaught", "goal": 5, "name": "Balıkçı", "desc": "Tavernada 5 balık tut", "icon": "mug", "gold": 150 },
 		{ "id": "damage", "stat": "damageDealt", "goal": 25000, "name": "Yıkıcı", "desc": "25.000 hasar ver", "icon": "fire", "gold": 220 }
 	],
 	"login": [

@@ -31,6 +31,7 @@ const SkillTree := preload("res://scripts/progression/skill_tree.gd")
 const RunBoosts := preload("res://scripts/progression/run_boosts.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const Achievements := preload("res://scripts/progression/achievements.gd")
+const Food := preload("res://scripts/progression/food.gd")
 const Daily := preload("res://scripts/progression/daily.gd")
 const Screen := preload("res://scripts/core/screen.gd")
 const Hub := preload("res://scripts/world/hub.gd")
@@ -70,6 +71,7 @@ var boosts := RunBoosts.new()
 var inventory: Inventory
 var achievements: Achievements
 var daily: Daily
+var food: Food
 var chest_wheel: ChestWheel
 var sound: SoundPlayer
 var hud: Hud
@@ -230,6 +232,8 @@ func login(username: String, remember := false) -> void:
 	daily = Daily.new(profile, achievements)
 	daily.grant = grant_reward
 	daily.completed.connect(_on_quest_done)
+	food = Food.new(profile, achievements)
+	food.pay = progression.add_gold
 	_rng.randomize()
 
 	player = Player.new()
@@ -341,6 +345,7 @@ func login(username: String, remember := false) -> void:
 	main_menu.setup(progression, skill_tree, inventory)
 	main_menu.achievements = achievements
 	main_menu.daily = daily
+	main_menu.food = food
 	main_menu.pets = pets
 	main_menu.play_pressed.connect(start_run)
 	main_menu.chest_open_requested.connect(open_chest)
@@ -880,6 +885,8 @@ func _extra(stat: String) -> float:
 	if stat == "goldGain" and net and net.in_guild():
 		sum += GUILD_GOLD_BONUS
 	sum += pets.total(stat) if pets else 0.0
+	if food and in_run:
+		sum += food.total(stat)
 	if inventory and not _character.is_empty():
 		var bonus: Dictionary = inventory.class_info(class_id()).bonus
 		sum += float(bonus.get(stat, 0.0)) + inventory.gear_total(_character, stat)
@@ -1032,6 +1039,7 @@ func _drop_chest(tier: int) -> void:
 
 ## Records the run on the account and saves (items found are already in the backpack).
 func _end_run() -> void:
+	food.clear_meal()
 	if not _character.is_empty():
 		_character.bestLevel = maxi(int(_character.get("bestLevel", 0)), progression.level)
 	_record_history()
