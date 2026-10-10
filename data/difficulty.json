@@ -1,0 +1,9 @@
+{
+	"levels": [
+		{ "id": "normal", "name": "Normal", "hp": 1.0, "damage": 1.0, "reward": 1.0, "level": 0, "desc": "Sıradan savaş." },
+		{ "id": "nightmare1", "name": "Kabus I", "hp": 1.6, "damage": 1.4, "reward": 2.0, "level": 8, "desc": "Düşmanlar %60 daha dayanıklı, %40 daha sert vurur. EXP, altın ve boss ganimeti iki katı." },
+		{ "id": "nightmare2", "name": "Kabus II", "hp": 2.6, "damage": 2.0, "reward": 3.2, "level": 16, "desc": "Düşmanlar 2.6 kat dayanıklı, 2 kat sert. Ödüller 3.2 kat." },
+		{ "id": "nightmare3", "name": "Kabus III", "hp": 4.2, "damage": 3.0, "reward": 5.0, "level": 25, "desc": "Gerçek cehennem: 4.2 kat can, 3 kat hasar. Ödüller 5 kat." }
+	],
+	"bossChestBonus": { "nightmare1": 1, "nightmare2": 1, "nightmare3": 2 }
+}

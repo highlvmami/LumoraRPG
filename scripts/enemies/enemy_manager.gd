@@ -54,6 +54,8 @@ var world_fight := ""
 var world_damage := 0.0
 var _world_spawned := false
 const WORLD_BOSS_HP := 40000.0
+## Nightmare difficulty multipliers (see data/difficulty.json).
+var difficulty := {"hp": 1.0, "damage": 1.0, "reward": 1.0}
 var mirror := false
 ## Seconds since the run started; drives spawn rate, new kinds and toughness.
 var run_time := 0.0
@@ -428,7 +430,7 @@ func spawn(id: String, at: Vector3, force := false) -> bool:
 		return false
 	var x := clampf(at.x, -_bounds, _bounds)
 	var z := clampf(at.z, -_bounds, _bounds)
-	var hp := float(_kinds[k].hp) * growth("hpGrowthPerMinute")
+	var hp := float(_kinds[k].hp) * growth("hpGrowthPerMinute") * float(difficulty.hp)
 	if _kinds[k].get("boss", false):
 		hp *= party_scale()
 	_kind.append(k)
@@ -490,7 +492,7 @@ func _update_movement(delta: float) -> void:
 	if alive.is_empty():
 		return
 	var speed_scale := _speed_growth() * (1.0 + 0.12 * night)
-	var damage_scale := growth("damageGrowthPerMinute") * (1.0 + 0.3 * night)
+	var damage_scale := growth("damageGrowthPerMinute") * (1.0 + 0.3 * night) * float(difficulty.damage)
 
 	# Bucket enemies into a grid so each one only checks its neighbours.
 	var grid := {}
@@ -673,7 +675,7 @@ func _dash_warn(a: Dictionary) -> float:
 
 
 func _dash_damage(a: Dictionary) -> float:
-	return float(a.damage) * growth("damageGrowthPerMinute")
+	return float(a.damage) * growth("damageGrowthPerMinute") * float(difficulty.damage)
 
 
 ## Winds up the boss's next attack (or the one of type `only`, for tests).
@@ -1016,6 +1018,7 @@ func damage(index: int, amount: float, push_dir := Vector3.ZERO) -> void:
 		# Ordinary enemies are plentiful, so each gives only a share (the
 		# remainder is rolled, so small amounts still add up).
 		var share := 1.0 if kd.get("boss", false) or kd.get("mini", false) else float(_spawn.get("rewardScale", 1.0))
+		share *= float(difficulty.reward)
 		enemy_killed.emit(where, _roll_amount(float(kd.xp) * share), _roll_amount(float(kd.get("gold", 0)) * share))
 		if kd.get("boss", false):
 			boss_defeated.emit(str(kd.name))
