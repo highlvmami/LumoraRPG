@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.38", "date": "2026-10-10", "title": "Sürü modu", "notes": [
+			"Çok daha fazla düşman: turlar daha kalabalık başlıyor ve süre geçtikçe 400'den fazla düşmana çıkabiliyor",
+			"Sürüler: belli aralıklarla tek bir cins düşman büyük bir sürü halinde bir yönden üstüne koşuyor (uyarı yazısı çıkar)",
+			"Sıradan düşmanlar artık daha az exp ve altın veriyor; bosslar ve mini bosslar aynı kalıyor" ] },
 		{ "version": "0.37", "date": "2026-10-10", "title": "Düello Arenası", "notes": [
 			"Taverna sayfasında yeni Düello Arenası: çevrimiçi bir oyuncuyu düelloya çağır, gelen davetleri kabul et ya da reddet",
 			"Dövüşü sunucu iki karakterin gücüyle (can, hasar, saldırı hızı, kritik, savunma) oynatır; ikiniz de aynı tekrarı canlı can çubuklarıyla izlersiniz",

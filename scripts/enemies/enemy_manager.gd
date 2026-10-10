@@ -22,6 +22,8 @@ const BossAttacks := preload("res://scripts/enemies/boss_attacks.gd")
 signal enemy_killed(at_position: Vector3, exp_amount: int, gold_amount: int)
 ## Emitted the first time a kind can spawn in a run (not for the starting kind).
 signal kind_unlocked(kind_name: String)
+## A big pack of one kind is rushing in.
+signal swarm_started(kind_name: String)
 signal boss_spawned(boss_name: String)
 signal boss_defeated(boss_name: String)
 ## A mini boss (a dungeon gate's guardian) was killed.
@@ -61,6 +63,7 @@ var _kinds: Array = []
 var _spawn: Dictionary
 var _rng := RandomNumberGenerator.new()
 var _spawn_timer := 0.0
+var _swarm_timer := 0.0
 var _bounds := 70.0
 var _announced := {}
 var _next_boss := 0
@@ -197,6 +200,7 @@ func clear() -> void:
 	kills = 0
 	shots_fired = 0
 	_spawn_timer = 0.0
+	_swarm_timer = float(_spawn.get("swarmStart", 18.0))
 	_announced.clear()
 	_reset_boss_fight()
 	boss_attacks_started = 0
@@ -312,6 +316,10 @@ func _update_spawning(delta: float) -> void:
 	# Nothing else spawns during a boss fight.
 	if boss_index() >= 0:
 		return
+	_swarm_timer -= delta
+	if _swarm_timer <= 0.0:
+		_swarm_timer = float(_spawn.get("swarmEvery", 22.0)) * _rng.randf_range(0.8, 1.25)
+		_spawn_swarm()
 	_spawn_timer -= delta
 	if _spawn_timer > 0.0:
 		return
@@ -331,6 +339,35 @@ func _update_spawning(delta: float) -> void:
 		var dist := _rng.randf_range(_spawn.ringMin, _spawn.ringMax)
 		var at := Vector3(anchor.x + cos(a) * dist, 0.0, anchor.z + sin(a) * dist)
 		spawn(str(_kinds[_pick_kind()].id), at)
+
+
+## A big pack of one ordinary kind rushes in from one side, packed close.
+func _spawn_swarm() -> void:
+	var picks: Array = []
+	for i in _kinds.size():
+		var k: Dictionary = _kinds[i]
+		if _unlocked(k) and float(k.weight) > 0.0 and not k.has("ranged"):
+			picks.append(i)
+	if picks.is_empty():
+		return
+	var kind: Dictionary = _kinds[picks[_rng.randi() % picks.size()]]
+	var ramp := clampf(run_time / float(_spawn.rampSeconds), 0.0, 1.0)
+	var count := roundi(lerpf(float(_spawn.get("swarmMin", 14)), float(_spawn.get("swarmMax", 40)), ramp) * party_scale())
+	var anchor := _spawn_anchor()
+	var angle := _rng.randf() * TAU
+	var centre := anchor + Vector3(cos(angle), 0.0, sin(angle)) * float(_spawn.ringMax)
+	for n in count:
+		if _pos.size() >= int(_spawn.maxAlive):
+			break
+		var offset := Vector3(_rng.randf_range(-4.0, 4.0), 0.0, _rng.randf_range(-4.0, 4.0))
+		spawn(str(kind.id), centre + offset)
+	swarm_started.emit(str(kind.name))
+
+
+## A fractional amount rounded down, plus 1 with the chance of the remainder.
+func _roll_amount(value: float) -> int:
+	var whole := int(value)
+	return whole + (1 if _rng.randf() < value - whole else 0)
 
 
 ## A random living player's position to spawn around.
@@ -953,7 +990,10 @@ func damage(index: int, amount: float, push_dir := Vector3.ZERO) -> void:
 		_dead_uid = _uid[index]
 		_remove(index)
 		kills += 1
-		enemy_killed.emit(where, int(kd.xp), int(kd.get("gold", 0)))
+		# Ordinary enemies are plentiful, so each gives only a share (the
+		# remainder is rolled, so small amounts still add up).
+		var share := 1.0 if kd.get("boss", false) or kd.get("mini", false) else float(_spawn.get("rewardScale", 1.0))
+		enemy_killed.emit(where, _roll_amount(float(kd.xp) * share), _roll_amount(float(kd.get("gold", 0)) * share))
 		if kd.get("boss", false):
 			boss_defeated.emit(str(kd.name))
 		elif kd.get("mini", false):
