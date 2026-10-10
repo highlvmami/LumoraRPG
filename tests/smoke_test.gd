@@ -226,8 +226,9 @@ func _run() -> void:
 	_check(bool(menu.call("create_character", "Kilicci", "warrior")), "a warrior can be created")
 	_check(bool(menu.call("create_character", "Buyucu", "mage")), "a mage can be created")
 	_check(bool(menu.call("create_character", "Golge", "rogue")), "a rogue can be created")
+	_check(bool(menu.call("create_character", "Sifaci", "healer")), "a healer can be created")
 	_check(bool(menu.call("create_character", "Okcu", "archer")), "an archer can be created")
-	_check(not bool(menu.call("create_character", "Fazla", "archer")), "at most 4 characters")
+	_check(not bool(menu.call("create_character", "Fazla", "archer")), "at most 5 characters")
 	var archer: Dictionary = inv.call("active_character")
 	_check(str(archer["class"]) == "archer", "the new character becomes active")
 	var warrior: Dictionary = (inv.call("characters") as Array)[0]
@@ -509,6 +510,13 @@ func _run() -> void:
 	for r in 400:
 		rolled += int(enemies.call("_roll_amount", 0.4))
 	_check(rolled > 100 and rolled < 220, "small rewards still add up (%d of 160)" % rolled)
+	var healer_player: CharacterBody3D = main.get("player")
+	healer_player.set("hp", 10.0)
+	healer_player.call("heal", 20.0)
+	_check(is_equal_approx(float(healer_player.get("hp")), 30.0), "healing restores health")
+	healer_player.call("shield", 1.0)
+	healer_player.call("take_damage", 5.0)
+	_check(is_equal_approx(float(healer_player.get("hp")), 30.0), "a shield blocks damage")
 	var weather_script: GDScript = load("res://scripts/world/weather.gd")
 	_check(float(weather_script.call("night_at", 10.0)) == 0.0 and float(weather_script.call("night_at", 200.0)) == 1.0 and float(weather_script.call("night_at", 310.0)) == 0.0, "the day turns into night and back")
 	_check(str(weather_script.call("kind_at", 10.0)) == "clear" and str(weather_script.call("kind_at", 100.0)) == "rain", "rain comes after the first spell")
@@ -1021,11 +1029,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.43")) and not bool(menu.call("is_version_open", "0.42")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.44")) and not bool(menu.call("is_version_open", "0.43")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.42")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.43")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

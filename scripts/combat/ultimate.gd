@@ -32,11 +32,12 @@ const VARIANTS := {
 	"warrior": ["quake", "blades"],
 	"archer": ["arrows", "stars"],
 	"rogue": ["blades", "stars"],
+	"healer": ["light", "stars"],
 }
 const NAMES := {
 	"meteor": "Göktaşı", "storm": "Şimşek Fırtınası",
 	"quake": "Yer Sarsıntısı", "blades": "Kılıç Yağmuru",
-	"arrows": "Ok Fırtınası", "stars": "Yıldız Yağmuru",
+	"arrows": "Ok Fırtınası", "stars": "Yıldız Yağmuru", "light": "Şifa Işığı",
 }
 
 var player: CharacterBody3D
@@ -136,6 +137,12 @@ func play(variant: String, at: Vector3, deal_damage: bool) -> void:
 			_rain(at, deal_damage, "blade")
 		"stars":
 			_rain(at, deal_damage, "star")
+		"light":
+			_rain(at, deal_damage, "star")
+			# Heals and shields the caster; partners get it when they see the cast.
+			if player.has_method("heal"):
+				player.call("heal", float(player.get("max_hp")) * 0.4)
+				player.call("shield", 3.0)
 		_:
 			_rain(at, deal_damage, "arrow")
 

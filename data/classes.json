@@ -26,5 +26,12 @@
 		"weapon": "magic", "maxHp": 85.0,
 		"bonus": { "critChance": 0.05, "critDamage": 0.3 },
 		"tunic": "#6b3fa0", "hair": "#d9d4c7"
+	},
+	"healer": {
+		"name": "Şifacı", "icon": "cls_healer", "color": "#ffe9a8",
+		"desc": "Kutsal alanıyla düşmanları yakar, her 6 saniyede kendini ve takım arkadaşlarını iyileştirip kalkanla korur.",
+		"weapon": "aura", "maxHp": 110.0,
+		"bonus": { "regen": 1.0, "maxHp": 10.0 },
+		"tunic": "#e8e2cf", "hair": "#c9a24a"
 	}
 }

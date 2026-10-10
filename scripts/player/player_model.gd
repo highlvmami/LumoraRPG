@@ -74,6 +74,10 @@ func build(look: Dictionary) -> void:
 		_box(_visual, Vector3(0.62, 0.34, 0.62), Vector3(0, 2.05, 0.0), tunic.darkened(0.15))
 		_box(_visual, Vector3(0.66, 0.1, 0.66), Vector3(0, 1.9, 0.02), tunic.darkened(0.3))
 		_box(_visual, Vector3(0.4, 0.2, 0.06), Vector3(0, 1.76, -0.3), Color("#101820"))
+	elif _class == "healer":
+		# A hood with a golden halo.
+		_box(_visual, Vector3(0.6, 0.3, 0.6), Vector3(0, 2.04, 0), tunic.darkened(0.08))
+		_glow(_box(_visual, Vector3(0.5, 0.05, 0.5), Vector3(0, 2.34, 0), Color("#ffe066")), Color("#ffe066"), 0.8)
 	elif _class == "mage":
 		# Pointed wizard hat.
 		_box(_visual, Vector3(0.7, 0.06, 0.7), Vector3(0, 2.02, 0), tunic.darkened(0.2))
@@ -82,7 +86,11 @@ func build(look: Dictionary) -> void:
 		tip.rotation.x = -0.35
 	else:
 		_box(_visual, Vector3(0.54, 0.16, 0.54), Vector3(0, 2.02, -0.02), hair)
-	if _class == "mage":
+	if _class == "healer":
+		# Long robe with a golden sash.
+		_box(_visual, Vector3(0.74, 0.46, 0.44), Vector3(0, 0.58, 0), tunic.darkened(0.05))
+		_box(_visual, Vector3(0.78, 0.08, 0.48), Vector3(0, 1.0, 0), Color("#ffe066"))
+	elif _class == "mage":
 		# Robe skirt and a beard.
 		_box(_visual, Vector3(0.74, 0.4, 0.44), Vector3(0, 0.6, 0), tunic.darkened(0.1))
 		_box(_visual, Vector3(0.3, 0.2, 0.06), Vector3(0, 1.55, 0.26), hair)
@@ -103,7 +111,7 @@ func build(look: Dictionary) -> void:
 	match _class:
 		"warrior":
 			_build_sword(tier, glow)
-		"mage":
+		"mage", "healer":
 			_build_staff(tier, glow)
 		"rogue":
 			_build_daggers(tier, glow)
@@ -267,7 +275,7 @@ func animate(delta: float, speed: float, on_floor: bool) -> void:
 				_arm_r.rotation.x = lerpf(-2.2, -0.6, t)
 				_arm_l.rotation.x = lerpf(-0.6, -2.2, t)
 				_visual.rotation.x = 0.08 * pull
-			"mage":
+			"mage", "healer":
 				# Thrust the staff forward.
 				_arm_r.rotation.x = -1.3 - 0.3 * pull
 				_visual.rotation.x = -0.05 * pull

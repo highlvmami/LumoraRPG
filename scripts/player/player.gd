@@ -111,6 +111,19 @@ func take_damage(amount: float) -> void:
 		died.emit()
 
 
+## Restores health (not above the maximum).
+func heal(amount: float) -> void:
+	if dead or amount <= 0.0:
+		return
+	hp = minf(max_hp, hp + amount)
+	health_changed.emit(hp, max_hp)
+
+
+## No damage for `seconds` (a healer's shield).
+func shield(seconds: float) -> void:
+	_invulnerable = maxf(_invulnerable, seconds)
+
+
 func move_speed() -> float:
 	return float(t.moveSpeed) * speed_multiplier
 
