@@ -1,4 +1,5 @@
-## Developer cheat panel on the right edge (F1 or the "HİLE" tab).
+## Developer cheat panel on the right edge (F1 or the "HİLE" tab). Hidden for
+## everyone until the account enters the secret code in Settings (`unlocked`).
 ## Stat rows add on top of everything else (base, level, items, boosts);
 ## action buttons ask the game to do things through `action_requested`.
 extends CanvasLayer
@@ -51,6 +52,9 @@ var god_mode := false
 var _panel: PanelContainer
 var _values := {}
 var _god_button: Button
+var _tab: Button
+## True once this account entered the developer code (profile.settings.devUnlocked).
+var unlocked := false
 
 
 func setup() -> void:
@@ -63,13 +67,14 @@ func setup() -> void:
 	root.theme = UiTheme.theme()
 	add_child(root)
 
-	var tab := Button.new()
-	tab.text = "HİLE"
-	tab.add_theme_font_size_override("font_size", 14)
-	tab.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, 6)
-	tab.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	tab.pressed.connect(toggle)
-	root.add_child(tab)
+	_tab = Button.new()
+	_tab.text = "HİLE"
+	_tab.add_theme_font_size_override("font_size", 14)
+	_tab.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, 6)
+	_tab.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_tab.pressed.connect(toggle)
+	_tab.visible = false
+	root.add_child(_tab)
 
 	_panel = PanelContainer.new()
 	_panel.add_theme_stylebox_override("panel", UiTheme.box(Color(0.07, 0.09, 0.12, 0.94), 10, 10))
@@ -132,7 +137,20 @@ func is_open() -> bool:
 	return _panel.visible
 
 
+## Locks or unlocks the panel; locking closes it and clears every cheat.
+func set_unlocked(on: bool) -> void:
+	unlocked = on
+	_tab.visible = on
+	if not on:
+		_panel.visible = false
+		if god_mode or bonus.values().any(func(v: float) -> bool: return v != 0.0):
+			reset_all()
+
+
 func toggle() -> void:
+	if not unlocked:
+		_panel.visible = false
+		return
 	_panel.visible = not _panel.visible
 	if _panel.visible:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -174,7 +192,7 @@ func _refresh() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
-	if key and key.pressed and not key.echo and key.physical_keycode == KEY_F1:
+	if unlocked and visible and key and key.pressed and not key.echo and key.physical_keycode == KEY_F1:
 		toggle()
 		get_viewport().set_input_as_handled()
 

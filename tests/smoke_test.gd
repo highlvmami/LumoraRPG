@@ -772,6 +772,18 @@ func _run() -> void:
 	main.call("_drop_item", 3)
 	_check((inv.call("items") as Array).size() == stash_now + 1, "enemy item drops go to the backpack")
 
+	# Developer cheat menu: hidden until the account enters the secret code.
+	_check(not bool(cheats.get("unlocked")), "cheat menu is locked by default")
+	cheats.call("toggle")
+	_check(not bool(cheats.call("is_open")), "a locked cheat menu does not open")
+	var dev_menu: Node = main.get("main_menu")
+	_check(not bool(dev_menu.call("enter_code", "yanlis")), "a wrong code is rejected")
+	_check(not bool(cheats.get("unlocked")), "a wrong code keeps the cheat menu locked")
+	dev_menu.call("set_setting", "devUnlocked", true)
+	_check(bool(cheats.get("unlocked")), "the saved unlock opens the cheat menu for this account")
+	cheats.call("toggle")
+	_check(bool(cheats.call("is_open")), "an unlocked cheat menu opens")
+	cheats.call("toggle")
 	# Developer cheat menu: stat bonuses, god mode, actions.
 	var dmg_before := float(bow.get("damage_multiplier"))
 	cheats.call("_step", "damage", 1)

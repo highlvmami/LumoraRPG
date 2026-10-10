@@ -514,6 +514,7 @@ func apply_settings() -> void:
 	sound.set_volumes(float(st.get("musicVolume", 0.5)), float(st.get("sfxVolume", 0.7)))
 	if touch:
 		touch.set_mode("on" if bool(st.get("touchControls", false)) else "auto")
+	cheat_menu.set_unlocked(bool(st.get("devUnlocked", false)))
 
 
 ## Signed in online after the menu opened (remembered account, offline
