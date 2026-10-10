@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.64", "date": "2026-10-10", "title": "Tavernada web düzeltmesi", "notes": [
+			"Sitede (web) tarayıcı fareyi bırakınca taverna artık kendiliğinden çıkış sormuyor: ekrana tıklayınca fare geri alınıyor, çıkış için Esc yeterli",
+			"Bu yüzden zar ve kart davetleri gönderilip kabul edilirken oyundan atılma sorunu giderildi" ] },
 		{ "version": "0.63", "date": "2026-10-10", "title": "Boss vuruş animasyonları", "notes": [
 			"Bosslar her yeteneğe göre vücutlarıyla hamle yapıyor: ezme ve deprem yumruklarını kaldırıp yere çarpıyor, atılma ve sıçramada çömelip fırlıyor, meteorda havaya yükselip dönüyor, ağ ve ışınlarda geri yaslanıp savuruyor, haçta hızla dönüyor",
 			"Öfkelenince (2. ve 3. evre) boss kükrüyor: geriye yaslanıp titriyor",
