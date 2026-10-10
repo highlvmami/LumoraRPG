@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.44", "date": "2026-10-10", "title": "Şifacı sınıfı", "notes": [
+			"Yeni sınıf Şifacı: Kutsal Alan ile düşmanları yakar, her 6 saniyede kendini ve takım arkadaşlarını iyileştirip kısa süre kalkanla korur",
+			"Ulti Şifa Işığı: yıldız yağmuru yağdırır, tüm takımı canının %40'ı kadar iyileştirir ve 3 saniye kalkan verir",
+			"Şifacıya özel asalar düşer; en fazla karakter sayısı 5 oldu" ] },
 		{ "version": "0.43", "date": "2026-10-10", "title": "Haftalık dünya bossu", "notes": [
 			"Görev Meydanı'nda yeni Dünya Bossu sayfası: her hafta sunucudaki herkesin ortak canı olan dev bir boss gelir",
 			"Boss'la 2 dakika baş başa dövüşürsün; verdiğin hasar ortak cana yazılır. Can bitince hasar payına göre altın ödülü alırsın",

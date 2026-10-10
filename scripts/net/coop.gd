@@ -228,6 +228,13 @@ func _on_game(from: int, d: Dictionary) -> void:
 			if running:
 				var p: Array = d.get("p", [0, 0, 0])
 				main.ultimate.play(str(d.get("v", "")), Vector3(float(p[0]), float(p[1]), float(p[2])), false)
+				if str(d.get("v", "")) == "light":
+					main.player.heal(main.player.max_hp * 0.4)
+					main.player.shield(3.0)
+		"heal":
+			if running:
+				main.player.heal(float(d.get("a", 0.0)))
+				main.player.shield(0.8)
 		"pvp":
 			if running and pvp:
 				main.player.take_damage(float(d.get("a", 0.0)))

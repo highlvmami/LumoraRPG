@@ -85,6 +85,9 @@ var store := ProfileStore.new()
 ## Online server connection (rooms, invites) and the live co-op run.
 var net: NetClient
 var coop: Coop
+const HEAL_PULSE_TIME := 6.0
+var _pulse_left := HEAL_PULSE_TIME
+var healed_pulses := 0
 var _world_fight_over := false
 var weather: Node
 var _pvp_over := false
@@ -210,6 +213,7 @@ func _process(delta: float) -> void:
 			weather.clear()
 		return
 	_world_fight_tick()
+	_healer_pulse(delta)
 	if weather:
 		weather.update(delta, enemies.run_time)
 		enemies.night = weather.night
@@ -702,6 +706,24 @@ func start_world_boss() -> void:
 	_world_fight_over = false
 	dungeon.active = false
 	hud.show_title(UiTheme.upper(str(info.name)), "Dünya Bossu")
+
+
+## The healer's pulse: every few seconds heals and shields the healer and the
+## partners (their games get a `heal` message).
+func _healer_pulse(delta: float) -> void:
+	if class_id() != "healer" or player.dead or get_tree().paused:
+		return
+	_pulse_left -= delta
+	if _pulse_left > 0.0:
+		return
+	_pulse_left = HEAL_PULSE_TIME
+	var amount: float = player.max_hp * 0.1
+	player.heal(amount)
+	player.shield(0.8)
+	if coop.running and not coop.pvp:
+		for r: Node3D in coop.puppets():
+			net.send_game({"k": "heal", "a": snappedf(amount, 0.1)}, int(r.peer_id))
+	healed_pulses += 1
 
 
 func _world_fight_tick() -> void:

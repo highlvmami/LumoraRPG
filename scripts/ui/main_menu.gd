@@ -72,7 +72,7 @@ const BUILDINGS := [
 ]
 ## The small menu box in the bottom right corner (Ayarlar is the last one).
 const UTILITY := ["profile", "logs", "versions", "settings"]
-const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü", "rogue": "Gölge"}
+const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü", "rogue": "Gölge", "healer": "Şifacı"}
 ## Leaderboards: [id, title, where the number is in a saved game, format].
 ## The server (server/index.js BOARDS) uses the same ids and paths.
 const LEADERBOARDS := [
