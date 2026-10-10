@@ -47,6 +47,8 @@ signal guild_chat_received(from_name: String, text: String)
 signal trades_changed
 ## A trade went through: {id, from, to, item, price}. The game moves the item and the gold.
 signal trade_done(info: Dictionary)
+## The weekly guild reward was granted by the server.
+signal guild_reward(gold: int)
 
 var url := DEFAULT_URL
 var status := "offline"
@@ -295,6 +297,18 @@ func kick_from_guild(member: String) -> void:
 		_send({"t": "guild_kick", "name": member})
 
 
+## Tells the server how many monsters a run defeated (weekly guild goal).
+func report_guild_kills(kills: int) -> void:
+	if status == "online" and in_guild() and kills > 0:
+		_send({"t": "guild_kills", "n": kills})
+
+
+## Takes the weekly guild reward (the server checks the goal and the helper).
+func claim_guild_reward() -> void:
+	if status == "online" and in_guild():
+		_send({"t": "guild_claim"})
+
+
 ## Says something to the guild. Returns false if it can't be sent.
 func send_guild_chat(text: String) -> bool:
 	text = text.strip_edges()
@@ -530,9 +544,13 @@ func _handle(msg: Dictionary) -> void:
 			guild = {}
 			if msg.get("guild") is Dictionary:
 				var g: Dictionary = msg.guild
-				guild = {"name": str(g.name), "tag": str(g.tag), "leader": str(g.leader), "members": [], "chat": []}
+				guild = {"name": str(g.name), "tag": str(g.tag), "leader": str(g.leader), "members": [], "chat": [], "quest": {}}
 				for m: Dictionary in g.get("members", []):
 					(guild.members as Array).append({"name": str(m.name), "level": int(m.get("level", 1)), "online": bool(m.get("online", false))})
+				var q: Dictionary = g.get("quest", {}) if g.get("quest") is Dictionary else {}
+				if not q.is_empty():
+					guild.quest = {"goal": int(q.get("goal", 1)), "progress": int(q.get("progress", 0)), "reward": int(q.get("reward", 0)),
+						"claimed": (q.get("claimed", []) as Array).map(func(n: Variant) -> String: return str(n).to_lower()), "top": q.get("top", []), "endsIn": float(q.get("endsIn", 0.0))}
 				for line: Dictionary in g.get("chat", []):
 					(guild.chat as Array).append({"name": str(line.name), "text": str(line.text)})
 			guild_changed.emit()
@@ -555,6 +573,8 @@ func _handle(msg: Dictionary) -> void:
 		"trade_done":
 			if msg.get("item") is Dictionary:
 				trade_done.emit({"id": int(msg.id), "from": str(msg.from), "to": str(msg.to), "item": msg.item, "price": int(msg.price)})
+		"guild_reward":
+			guild_reward.emit(int(msg.get("gold", 0)))
 		"trade_closed":
 			notice.emit(str(msg.reason))
 		"error":

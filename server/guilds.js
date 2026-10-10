@@ -10,6 +10,31 @@ const GUILD_CHAT_KEEP = 40;
 const GUILD_NAME_RE = /^[\p{L}\p{N} _]{3,20}$/u;
 const TAG_RE = /^[\p{L}\p{N}]{2,4}$/u;
 
+// The weekly guild goal: the members together defeat enough monsters; then
+// everyone who helped can take the reward once.
+const GOAL_BASE = 1000;
+const GOAL_PER_MEMBER = 400;
+const REWARD_GOLD = 400;
+const MAX_KILLS_PER_REPORT = 2500;
+const WEEK_MS = 7 * 24 * 3600 * 1000;
+
+// "2026-W41": the week a moment falls in (weeks start on Monday, UTC).
+function weekKey(now = Date.now()) {
+  const d = new Date(now);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7));
+  const week1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const n = 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getUTCDay() + 6) % 7)) / 7);
+  return `${d.getUTCFullYear()}-W${n}`;
+}
+
+// Start of the next week (Monday 00:00 UTC) after `now`.
+function weekEnd(now = Date.now()) {
+  const d = new Date(now);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.getTime() + (7 - ((d.getUTCDay() + 6) % 7)) * 86400000;
+}
+
 class Guilds {
   constructor(pool) {
     this.pool = pool || null; // a pg Pool, or null for memory only
@@ -91,6 +116,45 @@ class Guilds {
     await this._save(g);
     return { ok: true, guild: g };
   }
+  // This week's goal of a guild; a new week starts a new one.
+  quest(g, now = Date.now()) {
+    const week = weekKey(now);
+    if (!g.quest || g.quest.week !== week) g.quest = { week, progress: 0, contrib: {}, claimed: [] };
+    return g.quest;
+  }
+  goal(g) {
+    return GOAL_BASE + GOAL_PER_MEMBER * g.members.length;
+  }
+  questView(g, now = Date.now()) {
+    const q = this.quest(g, now);
+    const top = Object.entries(q.contrib).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, kills]) => ({ name, kills }));
+    return { goal: this.goal(g), progress: q.progress, reward: REWARD_GOLD, claimed: q.claimed, top, endsIn: weekEnd(now) - now };
+  }
+  // A member's defeated monsters count toward the goal.
+  async addKills(who, kills, now = Date.now()) {
+    const g = this.of(who);
+    if (!g) return { ok: false, msg: "Bir loncada değilsin." };
+    const n = Math.max(0, Math.min(MAX_KILLS_PER_REPORT, Math.floor(Number(kills) || 0)));
+    if (n === 0) return { ok: true, guild: g };
+    const q = this.quest(g, now);
+    q.progress += n;
+    q.contrib[who] = (q.contrib[who] || 0) + n;
+    await this._save(g);
+    return { ok: true, guild: g };
+  }
+  // Takes the weekly reward once, when the goal is reached and the member helped.
+  async claim(who, now = Date.now()) {
+    const g = this.of(who);
+    if (!g) return { ok: false, msg: "Bir loncada değilsin." };
+    const q = this.quest(g, now);
+    const k = key(who);
+    if (q.progress < this.goal(g)) return { ok: false, msg: "Haftalık hedef henüz tamamlanmadı." };
+    if (!q.contrib[who]) return { ok: false, msg: "Ödül için hedefe en az bir canavarla katkı yapmalısın." };
+    if (q.claimed.includes(k)) return { ok: false, msg: "Bu haftanın ödülünü zaten aldın." };
+    q.claimed.push(k);
+    await this._save(g);
+    return { ok: true, guild: g, gold: REWARD_GOLD };
+  }
   async say(who, line) {
     const g = this.of(who);
     if (!g) return null;
@@ -101,4 +165,4 @@ class Guilds {
   }
 }
 
-module.exports = { Guilds, MAX_GUILD };
+module.exports = { Guilds, MAX_GUILD, weekKey, GOAL_BASE, GOAL_PER_MEMBER, REWARD_GOLD };

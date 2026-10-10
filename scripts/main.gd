@@ -384,6 +384,7 @@ func login(username: String, remember := false) -> void:
 			hub.tavern.set_guild(net.guild))
 	net.trades_changed.connect(main_menu.refresh_trade)
 	net.trade_done.connect(_on_trade_done)
+	net.guild_reward.connect(_on_guild_reward)
 	net.who_updated.connect(main_menu.update_friend_status)
 	net.online_list_updated.connect(main_menu.update_online_list)
 	net.leaderboard_received.connect(main_menu.on_leaderboard)
@@ -684,6 +685,14 @@ func _connect_sounds() -> void:
 	dungeon.opened.connect(func() -> void: sound.play("gate"))
 	dungeon.cleared.connect(func(_g: String, _c: int) -> void: sound.play("chest"))
 	daily.completed.connect(func(_d: Dictionary) -> void: sound.play("quest"))
+
+
+## The server paid out the weekly guild reward.
+func _on_guild_reward(gold: int) -> void:
+	progression.add_gold(gold)
+	store.save_to_disk()
+	sound.play("coin")
+	_on_net_notice("Lonca ödülü: +%d altın!" % gold)
 
 
 ## A trade went through: the seller hands over the item and gets the gold,
@@ -1044,6 +1053,7 @@ func _end_run() -> void:
 		_character.bestLevel = maxi(int(_character.get("bestLevel", 0)), progression.level)
 	_record_history()
 	progression.end_run(enemies.kills)
+	net.report_guild_kills(enemies.kills)
 	achievements.record_best("bestTime", enemies.run_time)
 	achievements.live = {}
 	achievements.check()

@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.36", "date": "2026-10-10", "title": "Lonca görevleri", "notes": [
+			"Loncalarda haftalık ortak hedef: üyeler turlarda yendikleri canavarlarla hedefe katkı yapar (hedef üye sayısıyla büyür)",
+			"Lonca sayfasında ilerleme çubuğu ve en çok katkı yapanlar; hedef dolunca katkı yapan herkes 400 altın ödülünü bir kez alır",
+			"Her pazartesi yeni bir hedef başlar" ] },
 		{ "version": "0.35", "date": "2026-10-10", "title": "Gölge sınıfı", "notes": [
 			"Yeni sınıf: Gölge. Peş peşe hançer fırlatır, hızlıdır ve kritik şansı yüksektir ama canı azdır",
 			"Gölge'ye özel hançer silahı, Çifte Hançer güçlendirmesi, Gölge Dişi evrimi ve hançer eşyaları",
