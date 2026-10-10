@@ -285,7 +285,12 @@ func target_near(at: Vector3) -> Node3D:
 
 ## Multiplier that grows with run time; `per_minute` comes from the spawn config.
 func growth(key: String) -> float:
-	return 1.0 + run_time / 60.0 * float(_spawn[key])
+	var scale := 1.0 + run_time / 60.0 * float(_spawn[key])
+	if key.begins_with("speed"):
+		return scale
+	# The first minutes are gentle: enemies start weak and reach full strength.
+	var early := clampf(run_time / float(_spawn.get("earlySeconds", 1.0)), 0.0, 1.0)
+	return scale * lerpf(float(_spawn.get("earlyScale", 1.0)), 1.0, early)
 
 
 func _speed_growth() -> float:

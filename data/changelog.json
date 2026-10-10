@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.52", "date": "2026-10-10", "title": "Yumuşak başlangıç", "notes": [
+			"Canavarlar başta zayıf ve az gelir; ilk iki buçuk dakika sakin geçer",
+			"Zamanla sayıları çok artar, canları ve hasarları hızla büyür; en kalabalık an 10. dakikaya taşındı" ] },
 		{ "version": "0.51", "date": "2026-10-10", "title": "Seyrek eşya, resimli ganimet", "notes": [
 			"Düşmanlardan eşya düşme ihtimali üçte bire indi; bosslar ve kasalar aynı",
 			"Savaş bitince bulduğun eşyalar ve kasalar resimleriyle, nadirlik renginde listelenir" ] },
