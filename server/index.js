@@ -31,6 +31,8 @@
 //   {t:"guild_list"}             the biggest guilds
 //   {t:"guild_create", name, tag} {t:"guild_join", name}  {t:"guild_leave"}  {t:"guild_kick", name}
 //   {t:"guild_chat", text}       say something to your guild
+//   {t:"guild_kills", n}         monsters defeated in a run (weekly guild goal)
+//   {t:"guild_claim"}            take the weekly reward once the goal is reached
 //   {t:"trade_offer", to, item, price}  offer an item from your backpack for gold
 //   {t:"trade_answer", id, accept}      accept or decline an offer made to you
 //   {t:"trade_cancel", id}              take back your offer
@@ -44,7 +46,8 @@
 //   {t:"game", from, d}  {t:"error", msg}  {t:"pong"}
 //   {t:"hub", members:[{id, name, look, seat, level}], you, chat:[{name, text, at}]}  {t:"hub_chat", id, name, text, at}
 //   {t:"hub_state", id, d}       another visitor of the hub tavern moved or sat down
-//   {t:"guild", guild:{name, tag, leader, members:[{name, level, online}], chat}|null}
+//   {t:"guild", guild:{name, tag, leader, members:[{name, level, online}], chat, quest:{goal, progress, reward, claimed, top, endsIn}}|null}
+//   {t:"guild_reward", gold}
 //   {t:"guild_list", guilds:[{name, tag, members, leader}]}  {t:"guild_chat", name, text, at}
 //   {t:"trades", offers:[{id, from, to, item, price}]}  (sent whenever your offers change)
 //   {t:"trade_done", id, from, to, item, price}  a trade went through: the seller gives the
@@ -266,6 +269,7 @@ async function guildInfo(g) {
       leader: g.leader,
       members: g.members.map((m) => ({ name: m, level: levels[m] || 1, online: Boolean(online(m)) })),
       chat: g.chat,
+      quest: guilds.questView(g),
     },
   };
 }
@@ -312,6 +316,17 @@ async function guildMessage(c, msg) {
       const out = online(who);
       if (out) send(out, { t: "error", msg: "Loncadan çıkarıldın." });
       return broadcastGuild(res.guild, [who]);
+    }
+    case "guild_kills": {
+      const res = await guilds.addKills(c.name, msg.n);
+      if (!res.ok) return;
+      return broadcastGuild(res.guild);
+    }
+    case "guild_claim": {
+      const res = await guilds.claim(c.name);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      send(c, { t: "guild_reward", gold: res.gold });
+      return broadcastGuild(res.guild);
     }
     case "guild_chat": {
       const now = Date.now();
@@ -454,6 +469,8 @@ async function handle(c, msg) {
     case "guild_join":
     case "guild_leave":
     case "guild_kick":
+    case "guild_kills":
+    case "guild_claim":
     case "guild_chat":
       return guildMessage(c, msg);
     case "trades":

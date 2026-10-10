@@ -800,6 +800,25 @@ func _run() -> void:
 	_check(str(sound.get("current")) == "calm", "the menu plays the calm music")
 	main.set("forced_map", "forest")
 
+	# Guild weekly goal: progress shows, the reward is paid out once the server grants it.
+	var gnet: Node = main.get("net")
+	gnet.call("_handle", {"t": "guild", "guild": {"name": "Test", "tag": "TS", "leader": "ci_test", "members": [{"name": "ci_test", "level": 1, "online": true}], "chat": [],
+		"quest": {"goal": 1400, "progress": 1400, "reward": 400, "claimed": [], "top": [{"name": "ci_test", "kills": 1400}], "endsIn": 3.0 * 86400000.0}}})
+	_check(int((gnet.get("guild") as Dictionary).quest.goal) == 1400, "the guild's weekly goal is kept")
+	menu.call("_build_guild_goal", gnet.get("guild"))
+	await _frames(2)
+	var claim_btn: Button = null
+	for btn: Node in menu.find_children("*", "Button", true, false):
+		if (btn as Button).text.begins_with("Ödülü al"):
+			claim_btn = btn
+	_check(claim_btn != null and not claim_btn.disabled, "a finished weekly goal offers the reward")
+	var guild_gold_before := int(profile.gold)
+	gnet.call("_handle", {"t": "guild_reward", "gold": 400})
+	_check(int(profile.gold) == guild_gold_before + 400, "the guild reward gives gold")
+	gnet.call("_handle", {"t": "guild", "guild": null})
+	menu.call("open_section", "characters")
+	await _frames(1)
+
 	# Blacksmith: upgrading an item for gold.
 	var inventory: RefCounted = main.get("inventory")
 	var gear: RefCounted = inventory.get("gear")
@@ -949,11 +968,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.35")) and not bool(menu.call("is_version_open", "0.34")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.36")) and not bool(menu.call("is_version_open", "0.35")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.34")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.35")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

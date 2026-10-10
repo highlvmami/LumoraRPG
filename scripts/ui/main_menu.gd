@@ -2111,6 +2111,7 @@ func _build_guild() -> void:
 	top.add_child(leave)
 	_content.add_child(top)
 	_text("%d / 20 üye  ·  Lonca bonusu: turlarda +%%5 altın" % (g.members as Array).size(), 14, UiTheme.MUTED)
+	_build_guild_goal(g)
 	var cols := HBoxContainer.new()
 	cols.add_theme_constant_override("separation", 14)
 	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -2169,6 +2170,45 @@ func _build_guild() -> void:
 	if _guild_typing:
 		_guild_typing = false
 		say.grab_focus.call_deferred()
+
+
+## The weekly guild goal: a progress bar, the best helpers and the reward button.
+func _build_guild_goal(g: Dictionary) -> void:
+	var q: Dictionary = g.get("quest", {})
+	if q.is_empty():
+		return
+	var goal := maxi(1, int(q.goal))
+	var progress := int(q.progress)
+	var done := progress >= goal
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _card_style(Color("#e0b341") if done else Color("#3a5a9a"), 2))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	panel.add_child(row)
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_constant_override("separation", 3)
+	row.add_child(left)
+	var days := int(float(q.endsIn) / 86400000.0)
+	left.add_child(UiTheme.label("Haftalık hedef: %d canavar yen  ·  %d gün kaldı" % [goal, days], UiTheme.label_settings(16, Color("#ffd23f"), 3)))
+	var bar := ProgressBar.new()
+	bar.min_value = 0
+	bar.max_value = goal
+	bar.value = mini(progress, goal)
+	bar.custom_minimum_size.y = 18
+	bar.show_percentage = false
+	left.add_child(bar)
+	var helpers := PackedStringArray()
+	for t: Dictionary in q.get("top", []):
+		helpers.append("%s %d" % [t.name, int(t.kills)])
+	left.add_child(UiTheme.label("%d / %d" % [mini(progress, goal), goal] + ("   ·   En çok katkı: " + ", ".join(helpers) if not helpers.is_empty() else ""), UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+	var claimed: bool = (q.claimed as Array).has(net.account.to_lower())
+	var claim := UiTheme.primary_button("Ödülü al: %d altın" % int(q.reward) if not claimed else "Ödül alındı")
+	claim.disabled = not done or claimed
+	claim.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	claim.pressed.connect(func() -> void: net.claim_guild_reward())
+	row.add_child(claim)
+	_content.add_child(panel)
 
 
 func refresh_online() -> void:
