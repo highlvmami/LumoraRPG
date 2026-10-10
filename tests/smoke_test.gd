@@ -1139,6 +1139,15 @@ func _run() -> void:
 	root.size = Vector2i(1280, 720)
 	menu.call("open_section", "city")
 	await _frames(3)
+	var city_nodes := menu.find_children("*", "Control", true, false).filter(func(c: Node) -> bool: return c.has_signal("building_clicked"))
+	var city_buildings: Array = (city_nodes[0] as Node).get("_buildings") if not city_nodes.is_empty() else []
+	_check(city_buildings.size() == 15, "the town has 15 buildings (%d)" % city_buildings.size())
+	var in_buildings := {}
+	for b: Dictionary in menu.get("BUILDINGS"):
+		for sec: String in b.sections:
+			in_buildings[sec] = true
+	for sec: String in ["skills", "pets", "guild", "leaderboard", "worldboss", "quests", "achievements", "hub", "games", "friends", "trade", "stable", "gems", "characters", "equipment", "backpack", "wardrobe", "market", "difficulty"]:
+		_check(in_buildings.has(sec), "a building holds the %s menu" % sec)
 	var nav_buttons: Array = (menu.get("_tab_buttons") as Dictionary).values()
 	_check(nav_buttons.all(func(b: Button) -> bool: return b.get_global_rect().end.y <= 720.0), "every menu button fits on a 720 tall screen")
 	menu.call("open_section", "skills")
@@ -1158,11 +1167,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.56")) and not bool(menu.call("is_version_open", "0.55")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.57")) and not bool(menu.call("is_version_open", "0.56")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.55")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.56")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
