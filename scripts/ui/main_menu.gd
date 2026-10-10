@@ -49,6 +49,7 @@ const NAV := [
 	["market", "Market", "clover"],
 	["quests", "Görevler", "scroll"],
 	["worldboss", "Dünya Bossu", "skull"],
+	["gems", "Taşlar", "trophy"],
 	["achievements", "Başarımlar", "skull"],
 	["leaderboard", "Sıralama", "trophy"],
 	["profile", "Profil", "eye"],
@@ -67,7 +68,7 @@ const BUILDINGS := [
 	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "slot": 2, "sections": ["guild"]},
 	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade"]},
 	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack"]},
-	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market"]},
+	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market", "gems"]},
 	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 2, "sections": []},
 ]
 ## The small menu box in the bottom right corner (Ayarlar is the last one).
@@ -97,6 +98,8 @@ var _duel_clock := 0.0
 var _duel_bars: Array = []
 var _duel_title: Label
 var _duel_asked := false
+## The gem picked in the gems page, waiting to be set into a socket.
+var _gem_pick := ""
 var _wb_asked := -10000
 ## Achievements (set by the game after setup).
 var achievements: RefCounted
@@ -311,6 +314,9 @@ func open_section(id: String) -> void:
 		"hub":
 			_section_title.text = "Lumora Tavernası"
 			_build_hub()
+		"gems":
+			_section_title.text = "Taşlar ve Soketler"
+			_build_gems()
 		"worldboss":
 			_section_title.text = "Dünya Bossu"
 			_build_world_boss()
@@ -2673,6 +2679,70 @@ func friend_suggestions() -> Array:
 
 
 ## Past runs, newest first: when, map, character, level, kills, time, gold.
+## Gems: buy them, then set them into the sockets of your items.
+func _build_gems() -> void:
+	var gear := inventory.gear
+	if _gem_pick == "" or gear.gem(_gem_pick).is_empty():
+		_gem_pick = str(gear.gems[0].id)
+	_text("Soketli eşyalara taş tak: Ateş (hasar), Buz (savunma), Zehir (kritik hasarı), Fırtına (saldırı hızı), Can (can). Eski taş bir soketten çıkarılamaz, yenisiyle değişir. Taşlar boss ve kasalardan düşer, burada %d altına alınır." % gear.gem_price, 14, UiTheme.MUTED)
+	_header("Taşların")
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_content.add_child(row)
+	for g: Dictionary in gear.gems:
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 4)
+		var pick := Button.new()
+		pick.text = "%s x%d" % [g.name, inventory.gem_count(str(g.id))]
+		pick.toggle_mode = true
+		pick.button_pressed = str(g.id) == _gem_pick
+		pick.add_theme_color_override("font_color", Color(str(g.color)))
+		pick.tooltip_text = gear.stat_text(str(g.stat), float(g.value))
+		pick.pressed.connect(func() -> void:
+			_gem_pick = str(g.id)
+			open_section("gems"))
+		box.add_child(pick)
+		var buy := Button.new()
+		buy.text = "Al %d" % gear.gem_price
+		buy.disabled = int(progression.profile.gold) < gear.gem_price
+		buy.add_theme_font_size_override("font_size", 12)
+		buy.pressed.connect(func() -> void:
+			if inventory.buy_gem(str(g.id)):
+				refresh()
+				open_section("gems"))
+		box.add_child(buy)
+		row.add_child(box)
+	_header("Soketli eşyaların")
+	var shown := 0
+	for it: Dictionary in inventory.items():
+		var count := gear.sockets(it)
+		if count <= 0:
+			continue
+		shown += 1
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 8)
+		var nm := UiTheme.label(gear.item_name(it), UiTheme.label_settings(16, gear.rarity_color(int(it.rarity)), 2))
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(nm)
+		var set_in: Array = gear.item_gems(it)
+		for i in count:
+			var slot := Button.new()
+			var cur := gear.gem(str(set_in[i]))
+			slot.text = str(cur.name) if not cur.is_empty() else "boş soket"
+			slot.custom_minimum_size.x = 110
+			if not cur.is_empty():
+				slot.add_theme_color_override("font_color", Color(str(cur.color)))
+			slot.disabled = inventory.gem_count(_gem_pick) <= 0
+			slot.pressed.connect(func() -> void:
+				if inventory.socket_gem(int(it.uid), i, _gem_pick):
+					refresh()
+					open_section("gems"))
+			line.add_child(slot)
+		_content.add_child(line)
+	if shown == 0:
+		_text("Soketli eşyan yok. Çok Nadir ve üstü eşyalarda 1-3 soket olur.", 15, UiTheme.MUTED)
+
+
 ## The weekly world boss: shared health bar, your damage, top fighters.
 func _build_world_boss() -> void:
 	if net == null or not net.is_online():
