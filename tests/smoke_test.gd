@@ -1122,15 +1122,24 @@ func _run() -> void:
 	await _frames(8)
 	var fitted_tree: Control = menu.find_children("*", "Control", true, false).filter(func(c: Node) -> bool: return c.has_method("node_center"))[0]
 	var page: Control = menu.get("_content").get_parent()
-	_check(fitted_tree.get_global_rect().end.y <= page.get_global_rect().end.y + 1.0, "the skill tree shrinks to fit the page")
+	var tree_window: Control = fitted_tree.get_parent()
+	_check(tree_window.get_global_rect().end.y <= page.get_global_rect().end.y + 1.0, "the skill tree window fits the page")
+	var tree_zoom0: float = tree_window.get("zoom")
+	tree_window.call("zoom_at", tree_window.size * 0.5, 1.5)
+	_check(float(tree_window.get("zoom")) > tree_zoom0 * 1.3, "the skill tree zooms in")
+	var tree_pos0: Vector2 = fitted_tree.position
+	tree_window.call("pan", Vector2(-80, -40))
+	_check(fitted_tree.position != tree_pos0, "the skill tree can be moved around")
+	tree_window.call("fit")
+	_check(float(tree_window.get("zoom")) <= tree_zoom0 + 0.001 and float(tree_window.get("zoom")) < 0.5, "fitting shows the whole tree again")
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.54")) and not bool(menu.call("is_version_open", "0.53")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.55")) and not bool(menu.call("is_version_open", "0.54")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.53")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.54")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
