@@ -56,6 +56,9 @@ signal guild_donated(gold: int)
 ## Duel invites changed, or a duel was played ({a, b, winner, frames}).
 signal duel_changed
 signal duel_played(result: Dictionary)
+## Tavern game invites changed, or a dice / card game was played.
+signal game_changed
+signal game_played(result: Dictionary)
 
 var url := DEFAULT_URL
 var status := "offline"
@@ -83,6 +86,7 @@ var guild: Dictionary = {}
 var guild_list: Array = []
 ## Duel challenges waiting for you: [{from, cls}].
 var duel_invites: Array = []
+var game_invites: Array = []
 ## Open trade offers: [{id, from, to, item, price}].
 var trades: Array = []
 ## False stops reconnecting (tests, offline play).
@@ -304,6 +308,20 @@ func leave_guild() -> void:
 func kick_from_guild(member: String) -> void:
 	if is_online():
 		_send({"t": "guild_kick", "name": member})
+
+
+## Invites an online player to dice ("dice") or cards ("cards") for `bet` gold.
+func challenge_game(to: String, kind: String, bet: int) -> void:
+	_send({"t": "game_challenge", "to": to, "kind": kind, "bet": bet})
+
+
+func answer_game(from_name: String, accept: bool) -> void:
+	_send({"t": "game_answer", "from": from_name, "accept": accept})
+
+
+func ask_game_inbox() -> void:
+	if status == "online":
+		_send({"t": "game_inbox"})
 
 
 ## Challenges an online player to a duel with `fighter` (see Main.duel_fighter).
@@ -644,6 +662,17 @@ func _handle(msg: Dictionary) -> void:
 			for i: Dictionary in msg.get("invites", []):
 				duel_invites.append({"from": str(i.from), "cls": str(i.get("cls", ""))})
 			duel_changed.emit()
+		"game_inbox":
+			game_invites = []
+			for i: Dictionary in msg.get("invites", []):
+				game_invites.append({"from": str(i.from), "kind": str(i.kind), "bet": int(i.bet)})
+			game_changed.emit()
+		"game_sent":
+			notice.emit("Davet %s'a gönderildi." % str(msg.to))
+		"game_declined":
+			notice.emit("%s oyunu reddetti." % str(msg.by))
+		"game_result":
+			game_played.emit({"kind": str(msg.kind), "bet": int(msg.bet), "a": msg.a, "b": msg.b, "winner": int(msg.winner)})
 		"duel_sent":
 			notice.emit("Düello daveti %s'a gönderildi." % str(msg.to))
 		"duel_declined":

@@ -1065,6 +1065,19 @@ func _run() -> void:
 	menu.call("open_section", "difficulty")
 	await _frames(2)
 	_check(str(menu.get("section")) == "difficulty", "the gate's difficulty page opens")
+	var game_net: Node = main.get("net")
+	var game_profile: Dictionary = (main.get("progression") as RefCounted).get("profile")
+	game_net.set("account", "ci_test")
+	game_profile.gold = 500
+	var dice_win := {"kind": "dice", "bet": 100, "a": {"name": "ci_test", "v": [6, 5], "total": 11}, "b": {"name": "Ece", "v": [1, 2], "total": 3}, "winner": 0}
+	game_net.emit_signal("game_played", dice_win)
+	_check(int(game_profile.gold) == 600, "winning a dice game pays the bet")
+	game_net.emit_signal("game_played", {"kind": "cards", "bet": 250, "a": {"name": "ci_test", "v": [3, 1], "total": 3}, "b": {"name": "Ece", "v": [14, 0], "total": 14}, "winner": 1})
+	_check(int(game_profile.gold) == 350, "losing a card game pays the bet away")
+	menu.call("show_game", dice_win)
+	_check(str(menu.call("_game_hand", "cards", {"v": [14, 0], "total": 14})) == "A♠", "a card shows its rank and suit")
+	game_profile.gold = 0
+
 	# Full screen is kept per device; the menu fits a 1280x720 window.
 	var screen_script: GDScript = load("res://scripts/core/screen.gd")
 	screen_script.call("set_fullscreen", true)
@@ -1084,11 +1097,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.48")) and not bool(menu.call("is_version_open", "0.47")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.49")) and not bool(menu.call("is_version_open", "0.48")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.47")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.48")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
