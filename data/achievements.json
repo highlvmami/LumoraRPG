@@ -27,7 +27,7 @@
 		{ "id": "destroyer", "name": "Yok Edici", "desc": "Toplam 100.000 hasar ver", "icon": "fire", "stat": "damageDealt", "target": 100000, "reward": 120 },
 		{ "id": "cataclysm", "name": "Kıyamet", "desc": "Toplam 1.000.000 hasar ver", "icon": "meteor", "stat": "damageDealt", "target": 1000000, "reward": 400 },
 		{ "id": "explorer", "name": "Kâşif", "desc": "Üç farklı haritada oyna", "icon": "eye", "stat": "mapsPlayed", "target": 3, "reward": 60 },
-		{ "id": "world_traveler", "name": "Dünya Gezgini", "desc": "Dört haritanın hepsinde oyna", "icon": "eye", "stat": "mapsPlayed", "target": 4, "reward": 120 },
+		{ "id": "world_traveler", "name": "Dünya Gezgini", "desc": "Beş haritanın hepsinde oyna", "icon": "eye", "stat": "mapsPlayed", "target": 5, "reward": 120 },
 		{ "id": "trader", "name": "Tüccar", "desc": "Bir oyuncuyla takas yap", "icon": "clover", "stat": "trades", "target": 1, "reward": 50 },
 		{ "id": "angler", "name": "Balıkçı", "desc": "10 balık yakala", "icon": "mug", "stat": "fishCaught", "target": 10, "reward": 60 },
 		{ "id": "master_angler", "name": "Usta Balıkçı", "desc": "100 balık yakala", "icon": "mug", "stat": "fishCaught", "target": 100, "reward": 300 },

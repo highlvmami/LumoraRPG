@@ -20,6 +20,13 @@
 		"sky": ["#7fa8d6", "#e6eef6", "#a8bccf"], "ambient": "#d8e6f5", "ambientEnergy": 0.6,
 		"fog": "#dfe9f3", "fogDensity": 0.016, "sun": "#f4f8ff", "sunEnergy": 0.9
 	},
+	"desert": {
+		"name": "Yakıcı Çöl", "subtitle": "Kum tepeleri, vaha ve eski kalıntılar",
+		"seed": 3191, "props": "desert", "amplitude": 4.5, "trees": 0, "rocks": 50,
+		"ground": ["#c99a50", "#bb8a42"], "slope": "#96703a", "stone": "#8a6a44",
+		"sky": ["#4f98d6", "#f0d4a0", "#c9a460"], "ambient": "#f2d8b0", "ambientEnergy": 0.45,
+		"fog": "#e8cc98", "fogDensity": 0.012, "sun": "#ffe8c0", "sunEnergy": 0.8
+	},
 	"dungeon": {
 		"name": "Ölümcül Zindan", "subtitle": "Meşaleler, kemikler ve karanlık",
 		"seed": 666, "props": "dungeon", "amplitude": 1.2, "tiles": true,
