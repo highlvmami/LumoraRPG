@@ -336,6 +336,23 @@ function client() {
   a.close();
   assert.match((await b.next("trade_closed")).reason, /çevrimdışı/, "offers end when the seller goes offline");
 
+  // Parkour: times are sane-checked, the best counts, gold only for real finishes.
+  b.send({ t: "pk_finish", ms: 3000, falls: 0 });
+  assert.match((await b.next("error")).msg, /geçerli değil/, "an impossible time is refused");
+  b.send({ t: "pk_finish", ms: 90000, falls: 2 });
+  const pk1 = await b.next("pk_result");
+  assert.ok(pk1.first && pk1.record && pk1.gold === 340, "the first finish pays a bonus");
+  const pkb1 = await b.next("pk_board");
+  assert.ok(pkb1.mine.best === 90000 && pkb1.mine.rank === 1 && pkb1.top.length === 1 && pkb1.total === 1);
+  b.send({ t: "pk_finish", ms: 120000, falls: 1 });
+  const pk2 = await b.next("pk_result");
+  assert.ok(!pk2.first && !pk2.record && pk2.gold === 40, "a slower run pays little and keeps the best");
+  const pkb2 = await b.next("pk_board");
+  assert.ok(pkb2.mine.best === 90000 && pkb2.mine.runs === 2 && pkb2.mine.falls === 3 && pkb2.mine.last === 120000);
+  b.send({ t: "pk_finish", ms: 80000, falls: 0 });
+  assert.ok((await b.next("pk_result")).record, "a faster run is a new record");
+  await b.next("pk_board");
+
   // World boss: shared health, capped fights, a share of gold once it is down.
   
   b.send({ t: "wb_info" });

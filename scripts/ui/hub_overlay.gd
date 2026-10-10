@@ -14,6 +14,8 @@ signal chat_closed
 signal leave_confirmed
 ## The leave question closed without leaving.
 signal leave_cancelled
+## The notice panel (rankings) was closed.
+signal panel_closed
 
 const MAX_LINES := 8
 
@@ -25,6 +27,9 @@ var _edit: LineEdit
 var _hint: Label
 var _lines := 0
 var _leave_box: Control
+var _run_label: Label
+var _panel: Control
+var _panel_text: Label
 
 
 func _ready() -> void:
@@ -116,6 +121,30 @@ func _ready() -> void:
 	row.add_child(no)
 	_root.add_child(_leave_box)
 
+	_run_label = UiTheme.label("", UiTheme.label_settings(24, Color("#ffe27a"), 6))
+	_run_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_run_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_run_label.offset_top = 14
+	_run_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_run_label)
+
+	_panel = PanelContainer.new()
+	_panel.add_theme_stylebox_override("panel", UiTheme.box(Color(0.05, 0.06, 0.09, 0.95), 12, 24))
+	_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_panel.visible = false
+	var panel_col := VBoxContainer.new()
+	panel_col.add_theme_constant_override("separation", 12)
+	_panel.add_child(panel_col)
+	_panel_text = UiTheme.label("", UiTheme.label_settings(18, UiTheme.TEXT, 4))
+	panel_col.add_child(_panel_text)
+	var close := Button.new()
+	close.text = "Kapat"
+	close.pressed.connect(close_panel)
+	panel_col.add_child(close)
+	_root.add_child(_panel)
+
 
 func set_count(n: int) -> void:
 	_count.text = "Tavernada %d kişi" % n
@@ -146,6 +175,26 @@ func add_note(text: String) -> void:
 	_log.append_text("[color=#b8c2cc][i]%s[/i][/color]\n" % text.replace("[", "[lb]"))
 	_lines += 1
 	(_log.get_meta("back") as Control).visible = true
+
+
+## The parkour clock line on top ("" hides it).
+func set_run(text: String) -> void:
+	_run_label.text = text
+
+
+func is_panel_open() -> bool:
+	return _panel.visible
+
+
+func show_panel(text: String) -> void:
+	_panel_text.text = text
+	_panel.visible = true
+
+
+func close_panel() -> void:
+	if _panel.visible:
+		_panel.visible = false
+		panel_closed.emit()
 
 
 func is_asking_leave() -> bool:
