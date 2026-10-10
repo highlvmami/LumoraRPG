@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.61", "date": "2026-10-10", "title": "Parkur yaya koşulur", "notes": [
+			"Parkur süresi başlayınca karakter bineğinden iner, bitince tekrar biner",
+			"Binekle çok kısa sürede bitirilen parkur sıralamaya geçmiyordu: asgari süre 12 saniyeye indi, parkur zaten yaya koşuluyor" ] },
 		{ "version": "0.60", "date": "2026-10-10", "title": "Canlı zar ve kart", "notes": [
 			"Tavernada yakındaki biriyle zar ya da kart oynayabilirsin: G'ye bas, bahsi seç, oyuncuya teklif et",
 			"Davet edilen oyuncunun ekranında davet çıkar (Y kabul, N reddet)",
