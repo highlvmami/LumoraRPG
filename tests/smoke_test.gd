@@ -509,6 +509,15 @@ func _run() -> void:
 	for r in 400:
 		rolled += int(enemies.call("_roll_amount", 0.4))
 	_check(rolled > 100 and rolled < 220, "small rewards still add up (%d of 160)" % rolled)
+	var weather_script: GDScript = load("res://scripts/world/weather.gd")
+	_check(float(weather_script.call("night_at", 10.0)) == 0.0 and float(weather_script.call("night_at", 200.0)) == 1.0 and float(weather_script.call("night_at", 310.0)) == 0.0, "the day turns into night and back")
+	_check(str(weather_script.call("kind_at", 10.0)) == "clear" and str(weather_script.call("kind_at", 100.0)) == "rain", "rain comes after the first spell")
+	var weather: Node = main.get("weather")
+	var day_sun: float = (main.get("_sun") as DirectionalLight3D).light_energy
+	weather.call("update", 0.1, 200.0)
+	_check((main.get("_sun") as DirectionalLight3D).light_energy < day_sun * 0.5 and float(weather.get("night")) == 1.0, "the sun dims at night")
+	weather.call("clear")
+	_check(absf((main.get("_sun") as DirectionalLight3D).light_energy - day_sun) < 0.05, "the menu shows the day look again")
 	_check((enemies.get("_announced") as Dictionary).size() == (enemies.get("_kinds") as Array).filter(func(k: Dictionary) -> bool: return not k.has("map") and not k.has("hidden")).size(), "all enemy kinds unlock as time goes on")
 	_check(float(enemies.call("growth", "hpGrowthPerMinute")) > 1.4, "enemies get tougher over time")
 
@@ -1002,11 +1011,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.41")) and not bool(menu.call("is_version_open", "0.40")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.42")) and not bool(menu.call("is_version_open", "0.41")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.40")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.41")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
