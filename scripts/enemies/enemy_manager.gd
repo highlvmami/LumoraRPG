@@ -369,7 +369,8 @@ func _update_spawning(delta: float) -> void:
 		spawn(str(_kinds[_pick_kind()].id), at)
 
 
-## A big pack of one ordinary kind rushes in from one side, packed close.
+## A big pack of one ordinary kind closes in as a ring around a player, packed
+## tight enough that there is no gap to walk through without being touched.
 func _spawn_swarm() -> void:
 	var picks: Array = []
 	for i in _kinds.size():
@@ -381,14 +382,26 @@ func _spawn_swarm() -> void:
 	var kind: Dictionary = _kinds[picks[_rng.randi() % picks.size()]]
 	var ramp := clampf(run_time / float(_spawn.rampSeconds), 0.0, 1.0)
 	var count := roundi(lerpf(float(_spawn.get("swarmMin", 14)), float(_spawn.get("swarmMax", 40)), ramp) * party_scale())
+	# Neighbours stand closer than the width a player needs to slip between
+	# them (each enemy touches within radius + 0.45, see _update_movement).
+	var gap := (float(kind.radius) + 0.45) * 1.7
+	var radius := clampf(count * gap / TAU, float(_spawn.get("swarmRadiusMin", 10.0)), float(_spawn.ringMin))
 	var anchor := _spawn_anchor()
-	var angle := _rng.randf() * TAU
-	var centre := anchor + Vector3(cos(angle), 0.0, sin(angle)) * float(_spawn.ringMax)
-	for n in count:
-		if _pos.size() >= int(_spawn.maxAlive):
-			break
-		var offset := Vector3(_rng.randf_range(-4.0, 4.0), 0.0, _rng.randf_range(-4.0, 4.0))
-		spawn(str(kind.id), centre + offset)
+	var start := _rng.randf() * TAU
+	var placed := 0
+	var ring := 0
+	# The first ring is always closed; a big pack adds staggered rings behind it.
+	while (placed < count or ring == 0) and _pos.size() < int(_spawn.maxAlive):
+		var r := radius + ring * gap
+		var slots := ceili(TAU * r / gap)
+		var shift := start + (0.5 if ring % 2 == 1 else 0.0) * TAU / slots
+		for n in slots:
+			if (ring > 0 and placed >= count) or _pos.size() >= int(_spawn.maxAlive):
+				break
+			var a := shift + TAU * n / slots
+			spawn(str(kind.id), anchor + Vector3(cos(a), 0.0, sin(a)) * r)
+			placed += 1
+		ring += 1
 	swarm_started.emit(str(kind.name))
 
 

@@ -505,7 +505,20 @@ func _run() -> void:
 	await _frames(2)
 	var swarm_before := int(enemies.call("count"))
 	enemies.call("_spawn_swarm")
-	_check(int(enemies.call("count")) - swarm_before >= 14, "a swarm brings a big pack at once (%d)" % (int(enemies.call("count")) - swarm_before))
+	var swarm_added := int(enemies.call("count")) - swarm_before
+	_check(swarm_added >= 14, "a swarm brings a big pack at once (%d)" % swarm_added)
+	# The pack rings the player: every direction has a newcomer close by.
+	var ring_centre: Vector3 = (main.get("player") as Node3D).global_position
+	var widest := 0.0
+	var ring_angles: Array = []
+	for i in range(int(enemies.call("count")) - swarm_added, int(enemies.call("count"))):
+		var off: Vector3 = (enemies.call("position_of", i) as Vector3) - ring_centre
+		ring_angles.append(atan2(off.z, off.x))
+	ring_angles.sort()
+	for i in ring_angles.size():
+		var next: float = ring_angles[(i + 1) % ring_angles.size()] + (TAU if i == ring_angles.size() - 1 else 0.0)
+		widest = maxf(widest, next - float(ring_angles[i]))
+	_check(widest < 0.4, "a swarm closes a ring around the player (widest gap %.2f rad)" % widest)
 	var rolled := 0
 	for r in 400:
 		rolled += int(enemies.call("_roll_amount", 0.4))
@@ -1114,6 +1127,17 @@ func _run() -> void:
 	_check(not bool(ply.get("riding")) and float(ply.get("ride_height")) == 0.0, "the parkour is run on foot: the rider gets off")
 	hub.call("_move_mount", 0.1, ply)
 	_check(bool(ply.get("riding")), "and gets back on when the run is over")
+	var c_key := InputEventKey.new()
+	c_key.keycode = KEY_C
+	c_key.pressed = true
+	hub.call("_unhandled_input", c_key)
+	var steed: Node3D = hub.get("_mount_node")
+	_check(not bool(ply.get("riding")) and float(ply.get("ride_height")) == 0.0, "C gets off the mount")
+	hub.call("_move_mount", 0.1, ply)
+	_check(not bool(ply.get("riding")) and steed.visible and steed.top_level, "and stays off: the mount stands beside the player")
+	hub.call("_unhandled_input", c_key)
+	hub.call("_move_mount", 0.1, ply)
+	_check(bool(ply.get("riding")) and not steed.top_level and steed.position == Vector3.ZERO, "C again gets back on")
 	mount_store.call("ride", "")
 	hub.call("_ride", ply)
 	var game_overlay: Node = hub.get("overlay")
@@ -1243,11 +1267,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.65")) and not bool(menu.call("is_version_open", "0.64")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.66")) and not bool(menu.call("is_version_open", "0.65")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.64")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.65")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
