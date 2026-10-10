@@ -346,6 +346,7 @@ func login(username: String, remember := false) -> void:
 	main_menu.achievements = achievements
 	main_menu.daily = daily
 	main_menu.food = food
+	main_menu.duel_fighter = duel_fighter
 	main_menu.pets = pets
 	main_menu.play_pressed.connect(start_run)
 	main_menu.chest_open_requested.connect(open_chest)
@@ -385,6 +386,8 @@ func login(username: String, remember := false) -> void:
 	net.trades_changed.connect(main_menu.refresh_trade)
 	net.trade_done.connect(_on_trade_done)
 	net.guild_reward.connect(_on_guild_reward)
+	net.duel_changed.connect(main_menu.refresh_duel)
+	net.duel_played.connect(main_menu.show_duel)
 	net.who_updated.connect(main_menu.update_friend_status)
 	net.online_list_updated.connect(main_menu.update_online_list)
 	net.leaderboard_received.connect(main_menu.on_leaderboard)
@@ -885,6 +888,28 @@ func stat_list() -> Array:
 func _max_hp() -> float:
 	var base := float(inventory.class_info(class_id()).maxHp) if inventory else float(player.t.maxHp)
 	return base + progression.max_hp_bonus() + _extra("maxHp")
+
+
+## The active character's strength for a duel in the arena (no run boosts):
+## class, health, damage per hit, hits per second, crits and defense.
+func duel_fighter() -> Dictionary:
+	var cls := class_id()
+	var info: Dictionary = inventory.class_info(cls)
+	var w: Dictionary = bow.data() if cls == "archer" else weapons.def(str(info.weapon))
+	var extra := func(stat: String) -> float:
+		var sum := (skill_tree.total(stat) if skill_tree else 0.0) + (pets.total(stat) if pets else 0.0)
+		if not _character.is_empty():
+			sum += float((info.bonus as Dictionary).get(stat, 0.0)) + inventory.gear_total(_character, stat)
+		return sum
+	return {
+		"cls": cls,
+		"hp": float(info.maxHp) + progression.max_hp_bonus() + float(extra.call("maxHp")),
+		"dmg": float(w.damage) * (progression.damage_multiplier() + float(extra.call("damage"))),
+		"aps": (1.0 / float(w.cooldown)) * (1.0 + float(extra.call("attackSpeed"))),
+		"crit": 0.05 + float(extra.call("critChance")),
+		"critDmg": 1.5 + float(extra.call("critDamage")),
+		"defense": minf(float(extra.call("defense")), Player.MAX_DEFENSE),
+	}
 
 
 ## Run boosts, skill tree, pets, class bonus, worn gear and the developer cheat bonus for a stat.

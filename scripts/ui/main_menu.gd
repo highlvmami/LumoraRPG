@@ -73,6 +73,14 @@ var progression: Progression
 var skill_tree: SkillTree
 var inventory: Inventory
 var food: RefCounted
+## Returns the active character's duel stats (set by main).
+var duel_fighter: Callable
+## The duel being replayed: {a, b, winner, frames}, and its clock and bars.
+var _duel: Dictionary = {}
+var _duel_clock := 0.0
+var _duel_bars: Array = []
+var _duel_title: Label
+var _duel_asked := false
 ## Achievements (set by the game after setup).
 var achievements: RefCounted
 ## Daily quests and the login reward (scripts/progression/daily.gd).
@@ -205,6 +213,8 @@ func refresh() -> void:
 
 func open_section(id: String) -> void:
 	section = id
+	if id != "hub":
+		_duel_asked = false
 	for key: String in _tab_buttons:
 		(_tab_buttons[key] as Button).button_pressed = key == id or (key == "characters" and id == "create")
 	for child in _content.get_children():
@@ -1836,6 +1846,7 @@ func _build_hub() -> void:
 	if not online:
 		_text("Taverna için sunucuya bağlı olmalısın. Bağlanınca bu düğme açılır.", 15, Color("#ff8a8a"))
 	_build_kitchen()
+	_build_duel()
 
 
 ## The kitchen: fish caught at the tavern's dock can be cooked into a meal
@@ -2248,6 +2259,7 @@ func update_friend_status() -> void:
 
 
 func _process(delta: float) -> void:
+	_play_duel(delta)
 	if net == null or not visible or section != "friends":
 		return
 	_who_timer -= delta
@@ -2257,8 +2269,131 @@ func _process(delta: float) -> void:
 		net.ask_online_list()
 
 
+## The duel arena (in the Taverna page): challenge someone who is online,
+## answer challenges and watch the replay of the fight.
+func _build_duel() -> void:
+	_header("Düello Arenası")
+	_text("Çevrimiçi bir oyuncuyu düelloya çağır. Sunucu, iki karakterin gücüyle (can, hasar, hız, kritik, savunma) dövüşü oynatır; ikiniz de aynı tekrarı izlersiniz. Kazanan galibiyet sayar.", 14, UiTheme.MUTED)
+	var profile: Dictionary = progression.profile
+	var st: Dictionary = profile.get("stats", {})
+	_text("Galibiyet: %d  ·  Yenilgi: %d" % [int(st.get("duelsWon", 0)), int(st.get("duelsLost", 0))], 16, UiTheme.ACCENT)
+	if net == null or not net.is_online():
+		_text("Düello için sunucuya bağlı olmalısın.", 15, Color("#ff8a8a"))
+		return
+	_duel_bars.clear()
+	if not _duel.is_empty():
+		_build_duel_replay()
+	for inv: Dictionary in net.duel_invites:
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 10)
+		var who := UiTheme.label("%s seni düelloya çağırıyor (%s)" % [inv.from, CLASS_NAMES.get(inv.cls, "?")], UiTheme.label_settings(16, Color("#ffd23f"), 2))
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(who)
+		var yes := UiTheme.primary_button("Kabul")
+		yes.pressed.connect(func() -> void: net.answer_duel(str(inv.from), true, duel_fighter.call()))
+		line.add_child(yes)
+		var no := Button.new()
+		no.text = "Reddet"
+		no.pressed.connect(func() -> void: net.answer_duel(str(inv.from), false, {}))
+		line.add_child(no)
+		_content.add_child(line)
+	if not _duel_asked:
+		_duel_asked = true
+		net.ask_online_list()
+		net.ask_duel_inbox()
+	var names: PackedStringArray = net.online_list
+	if names.is_empty():
+		_text("Şu an çevrimiçi başka oyuncu yok.", 15, UiTheme.MUTED)
+	for n in names.slice(0, 8):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var nm := UiTheme.label(n + (_level_suffix(n)), UiTheme.label_settings(16, UiTheme.TEXT, 2))
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(nm)
+		var ch := Button.new()
+		ch.text = "Düelloya çağır"
+		ch.pressed.connect(func() -> void: net.challenge_duel(n, duel_fighter.call()))
+		row.add_child(ch)
+		_content.add_child(row)
+
+
+func _level_suffix(player_name: String) -> String:
+	var lv := int(net.levels.get(player_name, 0)) if net.get("levels") is Dictionary else 0
+	return "  Sv. %d" % lv if lv > 0 else ""
+
+
+## Two health bars that follow the server's replay of the fight.
+func _build_duel_replay() -> void:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _card_style(Color("#d9534f"), 2))
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	panel.add_child(box)
+	_duel_title = UiTheme.label("", UiTheme.label_settings(20, Color("#ffd23f"), 3))
+	box.add_child(_duel_title)
+	for side in 2:
+		var f: Dictionary = _duel.a if side == 0 else _duel.b
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var nm := UiTheme.label("%s (%s)" % [f.name, CLASS_NAMES.get(str(f.cls), "?")], UiTheme.label_settings(15, UiTheme.TEXT, 2))
+		nm.custom_minimum_size.x = 230
+		row.add_child(nm)
+		var bar := ProgressBar.new()
+		bar.min_value = 0
+		bar.max_value = float(f.hp)
+		bar.value = float(f.hp)
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 20)
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(bar)
+		_duel_bars.append(bar)
+		box.add_child(row)
+	_content.add_child(panel)
+
+
+## A duel was played: replay it (and count it for this account).
+func show_duel(result: Dictionary) -> void:
+	_duel = result
+	_duel_clock = 0.0
+	var me: String = str(net.account).to_lower()
+	var winner := int(result.winner)
+	if winner >= 0:
+		var mine: bool = str((result.a if winner == 0 else result.b).name).to_lower() == me
+		achievements.add("duelsWon" if mine else "duelsLost")
+		achievements.check()
+		progression.store.save_to_disk()
+	if visible and section == "hub":
+		open_section("hub")
+
+
+func _play_duel(delta: float) -> void:
+	if _duel.is_empty() or _duel_bars.is_empty() or not visible or section != "hub":
+		return
+	_duel_clock += delta * 3.0
+	var frames: Array = _duel.frames
+	var last: Array = frames[0]
+	for f: Array in frames:
+		if float(f[0]) <= _duel_clock:
+			last = f
+	for i in 2:
+		if is_instance_valid(_duel_bars[i]):
+			(_duel_bars[i] as ProgressBar).value = float(last[i + 1])
+	var done: bool = _duel_clock >= float((frames[-1] as Array)[0])
+	if _duel_title and is_instance_valid(_duel_title):
+		var w := int(_duel.winner)
+		_duel_title.text = ("%s kazandı!" % (_duel.a if w == 0 else _duel.b).name if w >= 0 else "Berabere!") if done else "Düello sürüyor... %.0f sn" % _duel_clock
+
+
+## Duel invites changed on the server.
+func refresh_duel() -> void:
+	if visible and section == "hub" and not is_confirm_open():
+		open_section("hub")
+
+
 ## The "Şu an çevrimiçi" list: everyone online, with add / invite buttons.
 func update_online_list() -> void:
+	if visible and section == "hub":
+		refresh_duel()
 	if _online_box == null or not is_instance_valid(_online_box):
 		return
 	for child in _online_box.get_children():

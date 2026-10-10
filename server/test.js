@@ -240,6 +240,34 @@ function client() {
   b.send({ t: "guild_list" });
   assert.strictEqual((await b.next("guild_list")).guilds.length, 0, "the last one leaving closes the guild");
 
+  // Duels: a challenge, an answer, and one replay for both sides.
+  const strong = { cls: "warrior", hp: 500, dmg: 40, aps: 2, crit: 0.1, critDmg: 1.5, defense: 0.1 };
+  const weak = { cls: "mage", hp: 60, dmg: 4, aps: 1, crit: 0, critDmg: 1.5, defense: 0 };
+  assert.match((await b.next("error")).msg, /çıkarıldın/);
+  a.send({ t: "duel_challenge", to: "mami", fighter: strong });
+  assert.match((await a.next("error")).msg, /Kendinle/);
+  a.send({ t: "duel_challenge", to: "nobody", fighter: strong });
+  assert.match((await a.next("error")).msg, /çevrimiçi değil/);
+  a.send({ t: "duel_challenge", to: "Ece", fighter: strong });
+  assert.strictEqual((await a.next("duel_sent")).to, "Ece");
+  const inbox = await b.next("duel_inbox");
+  assert.strictEqual(inbox.invites[0].from, "mami");
+  b.send({ t: "duel_answer", from: "mami", accept: true, fighter: weak });
+  await b.next("duel_inbox");
+  const duel = await b.next("duel_result");
+  const duelA = await a.next("duel_result");
+  assert.strictEqual(duel.winner, 0, "the stronger fighter wins");
+  assert.deepStrictEqual(duel.frames, duelA.frames, "both sides see the same replay");
+  assert.ok(duel.frames.length > 2 && duel.frames.at(-1)[2] === 0);
+  b.send({ t: "duel_answer", from: "mami", accept: true, fighter: weak });
+  assert.match((await b.next("error")).msg, /geçerli değil/);
+  a.send({ t: "duel_challenge", to: "Ece", fighter: { hp: 1e12, dmg: -5, aps: "x" } });
+  await a.next("duel_sent");
+  await b.next("duel_inbox");
+  b.send({ t: "duel_answer", from: "mami", accept: false });
+  await b.next("duel_inbox");
+  assert.strictEqual((await a.next("duel_declined")).by, "Ece");
+
   // Trades: offer, decline, cancel, accept; offers go away when the seller leaves.
   a.send({ t: "trade_offer", to: "nobody", item: { uid: 1 }, price: 5 });
   assert.match((await a.next("error")).msg, /çevrimiçi değil/);
