@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.55", "date": "2026-10-10", "title": "Dev yetenek ağacı", "notes": [
+			"Yetenek ağacı çok büyüdü: her dalda 7 sıra, toplam 61 yetenek ve her dalın sonunda güçlü bir son yetenek",
+			"Ağaç fareyle gezilir: boş yerden sürükleyerek kaydır, tekerlekle yakınlaştır, Sığdır düğmesiyle hepsini gör" ] },
 		{ "version": "0.54", "date": "2026-10-10", "title": "Taverna çıkış sorusu", "notes": [
 			"Tavernada Esc'ye basınca hemen menüye atmaz; \"Tavernadan çıkmak istiyor musun?\" diye sorar (Evet, çık / Kal)" ] },
 		{ "version": "0.53", "date": "2026-10-10", "title": "Gerçek kılıçlar", "notes": [
