@@ -3,6 +3,7 @@ process.env.PORT = process.env.PORT || "18080";
 const assert = require("assert");
 const WebSocket = require("ws");
 const { server, wss, ready } = require("./index.js");
+const { weekKey } = require("./guilds.js");
 
 function client() {
   return new Promise((resolve) => {
@@ -207,6 +208,28 @@ function client() {
   b.send({ t: "guild_chat", text: "selam lonca" });
   assert.strictEqual((await a.next("guild_chat")).text, "selam lonca");
   await b.next("guild_chat");
+  // Weekly goal: the goal needs enough kills; helpers take the reward once.
+  a.send({ t: "guild_kills", n: 100 });
+  const q1 = (await a.next("guild")).guild.quest;
+  await b.next("guild");
+  assert.strictEqual(q1.goal, 1800, "the goal grows with the members");
+  assert.strictEqual(q1.progress, 100);
+  b.send({ t: "guild_claim" });
+  assert.match((await b.next("error")).msg, /hedef/);
+  a.send({ t: "guild_kills", n: 99999 });
+  const q2 = (await a.next("guild")).guild.quest;
+  await b.next("guild");
+  assert.ok(q2.progress >= q2.goal && q2.progress <= 2600, "one report can only add so much");
+  b.send({ t: "guild_claim" });
+  assert.match((await b.next("error")).msg, /katkı/);
+  a.send({ t: "guild_claim" });
+  assert.strictEqual((await a.next("guild_reward")).gold, 400);
+  assert.deepStrictEqual((await a.next("guild")).guild.quest.claimed, ["mami"]);
+  await b.next("guild");
+  a.send({ t: "guild_claim" });
+  assert.match((await a.next("error")).msg, /zaten/);
+  assert.strictEqual(weekKey(Date.UTC(2026, 9, 10)), "2026-W41");
+  assert.notStrictEqual(weekKey(Date.UTC(2026, 9, 10)), weekKey(Date.UTC(2026, 9, 12)));
   b.send({ t: "guild_kick", name: "mami" });
   assert.match((await b.next("error")).msg, /lider/);
   a.send({ t: "guild_kick", name: "Ece" });
