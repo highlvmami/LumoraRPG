@@ -1154,6 +1154,9 @@ func _on_boss_defeated(_boss_name: String) -> void:
 	var odds: Array = inventory.gear.drops.bossChestOdds
 	_drop_chest(inventory.gear.roll_weighted(odds[mini(_bosses_killed, odds.size() - 1)]))
 	_bosses_killed += 1
+	var gem_id := inventory.random_gem_id()
+	inventory.add_gem(gem_id)
+	hud.toast("%s düştü!" % str(inventory.gear.gem(gem_id).name))
 	achievements.add("bossKills")
 	_check_achievements()
 

@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.45", "date": "2026-10-10", "title": "Taşlar ve soketler", "notes": [
+			"Çok Nadir ve üstü eşyalarda 1-3 soket açılır; Pazar'daki yeni Taşlar sayfasından taş takarsın",
+			"Ateş (hasar), Buz (savunma), Zehir (kritik hasarı), Fırtına (saldırı hızı) ve Can taşları; bosslar yenilince ve kasalardan düşer, ayrıca 400 altına alınır",
+			"Eşya ipuçlarında takılı taşlar görünür" ] },
 		{ "version": "0.44", "date": "2026-10-10", "title": "Şifacı sınıfı", "notes": [
 			"Yeni sınıf Şifacı: Kutsal Alan ile düşmanları yakar, her 6 saniyede kendini ve takım arkadaşlarını iyileştirip kısa süre kalkanla korur",
 			"Ulti Şifa Işığı: yıldız yağmuru yağdırır, tüm takımı canının %40'ı kadar iyileştirir ve 3 saniye kalkan verir",

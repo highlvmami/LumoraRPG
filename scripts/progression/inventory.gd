@@ -178,7 +178,7 @@ func gear_total(c: Dictionary, stat: String) -> float:
 	for slot: String in c.equipment:
 		var it := item(int(c.equipment[slot]))
 		if not it.is_empty():
-			total += float(it.stats.get(stat, 0.0))
+			total += float(it.stats.get(stat, 0.0)) + gear.gem_total(it, stat)
 	return total
 
 
@@ -271,10 +271,55 @@ func open_chest(uid: int) -> Dictionary:
 	if ch.is_empty() or stash_full():
 		return {}
 	var it := gear.roll_chest_item(int(ch.tier), _new_uid())
+	if gear.rng.randf() < 0.25:
+		add_gem(random_gem_id())
 	chests().erase(ch)
 	items().append(it)
 	save()
 	return it
+
+
+## Gems in the backpack: id -> count.
+func gem_stock() -> Dictionary:
+	if not profile.has("gems"):
+		profile.gems = {}
+	return profile.gems
+
+
+func gem_count(id: String) -> int:
+	return int(gem_stock().get(id, 0))
+
+
+func add_gem(id: String, amount := 1) -> void:
+	gem_stock()[id] = gem_count(id) + amount
+	save()
+
+
+## A random gem (drops from bosses and chests).
+func random_gem_id() -> String:
+	return str(gear.gems[gear.rng.randi() % gear.gems.size()].id)
+
+
+func buy_gem(id: String) -> bool:
+	if gear.gem(id).is_empty() or int(profile.gold) < gear.gem_price:
+		return false
+	profile.gold = int(profile.gold) - gear.gem_price
+	add_gem(id)
+	return true
+
+
+## Sets a gem from the backpack into socket `index` of an item (an old gem
+## there is lost).
+func socket_gem(uid: int, index: int, id: String) -> bool:
+	var it := item(uid)
+	if it.is_empty() or index < 0 or index >= gear.sockets(it) or gem_count(id) <= 0 or gear.gem(id).is_empty():
+		return false
+	var set_in: Array = gear.item_gems(it)
+	set_in[index] = id
+	it.gems = set_in
+	gem_stock()[id] = gem_count(id) - 1
+	save()
+	return true
 
 
 func buy_chest(tier: int) -> bool:

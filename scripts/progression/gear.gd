@@ -13,6 +13,9 @@ var slots: Array
 var bases: Array
 var affixes: Array
 var chests: Array
+var gems: Array
+var socket_counts: Array
+var gem_price := 400
 var drops: Dictionary
 var rng := RandomNumberGenerator.new()
 ## stat -> account bonus (the game sets the skill tree's `total`); unset = none.
@@ -31,6 +34,9 @@ func _init() -> void:
 	bases = cfg.bases
 	affixes = cfg.affixes
 	chests = cfg.chests
+	gems = cfg.gems
+	socket_counts = cfg.sockets
+	gem_price = int(cfg.gemPrice)
 	drops = cfg.drops
 	rng.randomize()
 
@@ -40,6 +46,37 @@ func base(id: String) -> Dictionary:
 		if b.id == id:
 			return b
 	return {}
+
+
+func gem(id: String) -> Dictionary:
+	for g: Dictionary in gems:
+		if g.id == id:
+			return g
+	return {}
+
+
+## How many gem sockets an item has (by rarity).
+func sockets(item: Dictionary) -> int:
+	return int(socket_counts[clampi(int(item.rarity), 0, socket_counts.size() - 1)])
+
+
+## The gems set in an item ("" for an empty socket), always `sockets` long.
+func item_gems(item: Dictionary) -> Array:
+	var out: Array = []
+	var set_in: Array = item.get("gems", [])
+	for i in sockets(item):
+		out.append(str(set_in[i]) if i < set_in.size() else "")
+	return out
+
+
+## What the gems in an item add to one stat.
+func gem_total(item: Dictionary, stat: String) -> float:
+	var total := 0.0
+	for id: String in item_gems(item):
+		var g := gem(id)
+		if not g.is_empty() and str(g.stat) == stat:
+			total += float(g.value)
+	return total
 
 
 func rarity(index: int) -> Dictionary:
@@ -186,6 +223,10 @@ func stat_lines(item: Dictionary) -> PackedStringArray:
 	var lines := PackedStringArray()
 	for stat: String in item.stats:
 		lines.append(stat_text(stat, float(item.stats[stat])))
+	for id: String in item_gems(item):
+		var g := gem(id)
+		if not g.is_empty():
+			lines.append("◆ %s: %s" % [g.name, stat_text(str(g.stat), float(g.value))])
 	return lines
 
 
@@ -209,6 +250,8 @@ func signed_text(stat: String, value: float) -> String:
 					if v >= 3.0:
 						return "%s%d %s" % [prefix, roundi(v), a.label]
 					return "%s%.1f %s" % [prefix, v, a.label]
+	if stat == "defense":
+		return "%s%d%% Savunma" % [prefix, roundi(v * 100.0)]
 	return "%s%.2f %s" % [prefix, v, stat]
 
 
