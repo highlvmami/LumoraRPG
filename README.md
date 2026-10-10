@@ -27,60 +27,85 @@ Bir karakter seçip açık bir haritaya iniyorsun; canavarlar her yönden gelir,
 ## Ekran görüntüleri
 
 <p align="center">
-  <img src="docs/screenshots/oyun.jpg" alt="Oyun içi: büyücü, petler ve seviye kartları" width="100%">
+  <img src="docs/screenshots/sehir.jpg" alt="Ana menü: binalarıyla pikselli şehir" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/yetenek-agaci.jpg" alt="Ortadan dallanan yetenek ağacı" width="49%">
-  <img src="docs/screenshots/taverna.jpg" alt="Oda: tavernada oturan oyuncular" width="49%">
+  <img src="docs/screenshots/suru.jpg" alt="Karlı Dağlar'da oyuncuyu halka halinde kuşatan kurt sürüsü" width="49%">
+  <img src="docs/screenshots/oyun.jpg" alt="Oyun içi: büyücü, dönen kılıçlar ve seviye kartları" width="49%">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/petler.jpg" alt="Pet slotları" width="49%">
-  <img src="docs/screenshots/pet-listesi.jpg" alt="Pet listesi" width="49%">
+  <img src="docs/screenshots/taverna-bahce.jpg" alt="Gök Tulpar'la taverna bahçesi" width="49%">
+  <img src="docs/screenshots/taverna-ic.jpg" alt="Gezilebilir taverna içi" width="49%">
 </p>
 
 <p align="center">
+  <img src="docs/screenshots/yetenek-agaci.jpg" alt="Dört dallı yetenek ağacı" width="49%">
+  <img src="docs/screenshots/ekipman.jpg" alt="Ekipman ve karakter önizlemesi" width="49%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/canta.jpg" alt="Çanta ve kasalar" width="32%">
+  <img src="docs/screenshots/petler.jpg" alt="Pet slotları" width="32%">
   <img src="docs/screenshots/siralama.jpg" alt="Sıralama" width="32%">
-  <img src="docs/screenshots/karakterler.jpg" alt="Karakterler" width="32%">
-  <img src="docs/screenshots/canta.jpg" alt="Çanta" width="32%">
 </p>
 
-<p align="center"><sub>Oyun içi · Yetenek ağacı · Taverna (oda) · Pet slotları ve pet listesi · Sıralama · Karakterler · Çanta. Görüntüler örnek verilerle çekildi.</sub></p>
+<p align="center"><sub>Şehir menüsü · Sürü halkası ve seviye kartları · Taverna bahçesi ve içi · Yetenek ağacı · Ekipman · Çanta · Petler · Sıralama. Görüntüler örnek verilerle çekildi.</sub></p>
 
 ## Özellikler
 
 ### Oynanış
-- **Rastgele haritalar:** Sakin Orman, Sahil Kasabası ve Ölümcül Zindan; her oyun birinde başlar.
-- **Kendiliğinden saldırı:** menzil çemberine giren en yakın canavar vurulur. Sınıf silahının yanında 5 silaha kadar taşınır (Dönen Kılıçlar, Ateş Topu, Yıldırım, Kutsal Alan ve sınıfa özel skill), her biri 5 seviye.
+- **5 harita:** Sakin Orman, Sahil Kasabası, Karlı Dağlar, Yakıcı Çöl ve Ölümcül Zindan; her oyun rastgele birinde başlar. Karlı Dağlar ve Yakıcı Çöl'ün kendi canavarları ve boss'u var.
+- **Kendiliğinden saldırı:** menzil çemberine giren en yakın canavar vurulur. Sınıf silahının yanında 5 silaha kadar taşınır, her biri 5 seviye.
+- **Silah evrimi:** en üst seviyedeki silah, eşleşen güçlendirmeyle yeni adı ve rengiyle çok daha güçlü bir silaha dönüşür.
 - **Seviye kartları:** her seviyede oyun durmadan 3 kart açılır (1 · 2 · 3 ya da tıklayarak); güçlendirmeler o oyun boyunca geçerlidir.
-- **Canavarlar zamanla değişir:** balçık, hızlı kurt, taş atan goblin ve dev örümcek; sayıları ve güçleri artar.
-- **Boss'lar:** her 5 dakikada Orman Devi ya da Örümcek Kraliçe. Saldırılarını yerde kırmızı alanla gösterirler, canları azaldıkça öfkelenip yeni saldırılar açarlar.
+- **Sürüler:** canavarlar başta az ve zayıftır, zamanla 400'ü aşar. Arada tek cins dev bir sürü gelir ve oyuncunun çevresini kapalı bir halka halinde sarar.
+- **Boss'lar:** her 5 dakikada bir; saldırılarını yerde kırmızı alanla gösterir, canları azaldıkça öfkelenip yeni saldırılar açar ve her hamleyi vücutlarıyla yaparlar.
+- **Zindan kapıları:** tur içinde açılan mor kapıdan girip mini boss'u 60 saniyede yenersen altın ve kasa kazanırsın.
+- **Gece, gündüz ve hava:** 5 dakikalık gün döngüsü; gece canavarlar daha serttir. Yağmur, fırtına ve sis gelir.
+- **Kabus zorluğu:** hesap seviyesi 8, 16 ve 25'te açılan Kabus I-III; daha sert canavarlar, 2-5 kat ödül.
 - **Ulti (R / Q):** her sınıfın iki ultisi var, haritadaki tüm düşmanlara vurur.
 
-### Karakterler, eşyalar ve kasalar
-- Hesapta 4 karaktere kadar: **Savaşçı**, **Okçu**, **Büyücü**, **Gölge**.
-- 6 nadirlik (Sıradan → Tanrısal) ve 6 ekipman yuvası; takılan eşyalar karakterin üstünde görünür.
-- **Ortak çanta:** slota ve nadirliğe göre filtre, her zaman nadirliğe göre sıralı; başka karakterin taktığı eşyalar en sonda. Üstüne gelince özellikler, takılı eşyayla karşılaştırmalı görünür.
-- **Kasalar:** boss'lar kasa bırakır, Market'ten de alınır; çark dönüp kazandığın eşyada durur.
+### Şehir menüsü
+- Ana menü, gerçek saate göre gün doğumu ve gece yaşayan pikselli bir kasaba: halk yollarda yürür, çeşme akar, bacalar tüter, geceleri lambalar yanar.
+- Her menü bir binada: Yetenek Kulesi, Pet Barınağı, Lonca Binası, Şeref Salonu, Dünya Bossu, Görev Meydanı, Taverna, Dostlar Evi, Ahır, Kuyumcu, Kahramanlar Evi, Zırh Atölyesi, Terzi, Pazar ve Savaş Kapısı.
 
-### Petler
-- Yumurtadan çıkan **9 pet**, 4 nadirlikte: Ayı, Tilki, Kurbağa (Sıradan); Minotor, Baykuş, Kaplumbağa (Nadir); Tekboynuz, Yavru Ejder (Epik); Anka Kuşu (Efsanevi).
-- Hesap seviyesi 10, 25 ve 50'de açılan 3 slot; slottaki petler statlarını verir ve oyunda küçük hâlleriyle seni takip eder (uçanlar üstünde süzülür).
-- **Pet Koleksiyonu:** tüm petler nadirliğe göre; bulunanlar renkli, bulunmayanlar gri.
+### Karakterler, eşyalar ve kasalar
+- Hesapta 5 karaktere kadar: **Savaşçı**, **Okçu**, **Büyücü**, **Gölge** ve takımını iyileştiren **Şifacı**.
+- 6 nadirlik (Sıradan → Tanrısal) ve 6 ekipman yuvası; takılan eşyalar karakterin üstünde görünür.
+- **Demirci:** eşyayı +5'e kadar geliştir. **Taşlar:** nadir eşyalardaki 1-3 sokete ateş, buz, zehir, fırtına ve can taşı tak.
+- **Ortak çanta:** slota ve nadirliğe göre filtre; üstüne gelince özellikler takılı eşyayla karşılaştırmalı görünür.
+- **Kasalar:** boss'lar kasa bırakır, Pazar'dan da alınır; çark dönüp kazandığın eşyada durur.
+- **Gardırop:** sadece görünüş için giysiler ve boyalar, almadan önce üstünde denenir.
+
+### Petler ve binekler
+- Yumurtadan çıkan **9 pet**, 4 nadirlikte (Ayı'dan Anka Kuşu'na). Hesap seviyesi 10, 25 ve 50'de açılan 3 slot; slottaki petler stat verir ve oyunda seni takip eder. Pet Koleksiyonu bulunanları gösterir.
+- **Ahır:** Kır At, Kurt Dostu, Kum Kaplanı ve kanatlı Gök Tulpar. Tavernada bineğinle hızlı gezersin, C ile inip binersin.
 
 ### Yetenek ağacı
-- Ortada **Lumora Kalbi**, etrafına dört dal açılır; her dalın kendi rengi var: **Saldırı**, **Savunma**, **Talih** ve oyun dışı **Hazine** (çanta yeri, kasa şansı, market indirimi, satış fiyatı, eşya düşme şansı, yumurta şansı).
-- Her hesap seviyesi 2 yetenek puanı verir; dışa doğru yetenekler daha çok puan ister. İstediğin zaman sıfırlanır.
+- Ortada **Lumora Kalbi**, etrafında dört dal: **Saldırı**, **Savunma**, **Talih** ve oyun dışı **Hazine**. Toplam 61 yetenek, her dalın sonunda güçlü bir son yetenek.
+- Her hesap seviyesi 2 puan verir; dışa doğru yetenekler daha çok puan ister. Sürükleyerek gezilir, tekerlekle yakınlaşır, istediğin zaman sıfırlanır.
+
+### Taverna
+- İçinde ve bahçesinde gezdiğin 3D bir taverna: masalara otur, salıncakta sallan, dans pistinde dans et, sohbet balonlarıyla yaz (Enter).
+- Bahçede kamp ateşi, dilek kuyusu, gölet ve **balık tutma** (E); tuttuğun balığı Mutfak'ta pişirip bir sonraki tura güç olarak yersin.
+- **Parkur:** kontrol noktalı bir parkur, en hızlı on süre ve altın ödülü.
+- **Zar ve kart:** yakındaki oyuncuya G ile altın bahisli oyun öner; zarlar ve kartlar masaya uçar.
 
 ### Çevrimiçi
-- **Hesaplar:** kullanıcı adı ve şifreyle; oyunun sunucuda saklanır, her bilgisayardan aynı hesapla girersin. "Beni hatırla" ile şifre sorulmaz.
-- **Taverna odası:** oda kur, arkadaşını davet et ya da 5 harfli kodu ver (en fazla 4 kişi). Odadakiler tavernada masaya oturur; biri katılınca karakteri kapıdan girip boş sandalyeye oturur. Ev sahibi OYNA'ya basınca herkes aynı haritada canlı oynar.
-- **Sıralamalar:** hesap seviyesi, canavar kesme, boss yenme, karakter seviyesi, hayatta kalma süresi, verilen hasar ve kazanılan altın.
-- **Arkadaşlar:** çevrimiçi durumu ve adının yanında hesap seviyesi; şu an çevrimiçi olanlar listesi.
+- **Hesaplar:** kullanıcı adı ve şifreyle; kaydın sunucuda saklanır, her cihazdan aynı hesapla girersin. "Beni hatırla" ile şifre sorulmaz.
+- **Co-op:** oda kur, arkadaşını davet et ya da 5 harfli kodu ver (en fazla 4 kişi); ev sahibi OYNA'ya basınca herkes aynı haritada canlı oynar.
+- **Düello:** sunucunun güçlere göre oynattığı Düello Arenası ve 1'e 1 gerçek zamanlı PvP.
+- **Loncalar:** lonca kur ya da katıl; lonca sohbeti, haftalık ortak hedef, kasaya bağış ve 5 seviyeli lonca yükseltmeleri.
+- **Haftalık dünya bossu:** tüm sunucunun ortak canlı dev boss'u; verdiğin hasar payına göre altın.
+- **Ticaret, sıralamalar ve arkadaşlar:** eşyayı altına takas et; 7 kategoride sıralama; arkadaşların çevrimiçi durumu ve seviyesi.
 
 ### Diğer
-- 24 başarım (altın ödüllü), son 50 oyunun kayıtları, sürüm notları, grafik/kamera/arayüz ayarları.
+- Günlük 3 görev ve 7 günlük giriş ödülü takvimi.
+- 48 başarım (altın ödüllü), son 50 oyunun kayıtları, sürüm notları.
+- Ses ve müzik (ayrı ayarlanır), grafik/kamera/arayüz ayarları, tam ekran (F11).
+- Telefon ve tablette dokunmatik kontroller (yürüme çubuğu, kamera, ULTİ ve ZIPLA düğmeleri).
 - Windows sürümü her açılışta kendini günceller (sadece küçük oyun paketini indirir).
 
 ## Kontroller
@@ -94,6 +119,11 @@ Bir karakter seçip açık bir haritaya iniyorsun; canavarlar her yönden gelir,
 | 1 · 2 · 3 | Seviye kartı seç |
 | R / Q | Ulti |
 | Esc / P | Duraklat (devam, kalite, ana menü, boostlar) |
+| F11 | Tam ekran |
+| E | Tavernada otur, sallan, dans et, balık tut |
+| C | Tavernada bineğinden in / bin |
+| G | Tavernada zar ya da kart oyunu öner |
+| Enter | Tavernada sohbet |
 | F1 | Geliştirici menüsü (yalnızca Ayarlar'da gizli kod girilen hesapta) |
 
 ## Nasıl çalışır
