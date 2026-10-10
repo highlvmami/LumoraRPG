@@ -49,6 +49,7 @@ const NAV := [
 	["market", "Market", "clover"],
 	["quests", "Görevler", "scroll"],
 	["worldboss", "Dünya Bossu", "skull"],
+	["wardrobe", "Gardırop", "cls_mage"],
 	["gems", "Taşlar", "trophy"],
 	["stable", "Ahır", "paw"],
 	["achievements", "Başarımlar", "skull"],
@@ -68,7 +69,7 @@ const BUILDINGS := [
 	{"id": "board", "name": "Görev Meydanı", "style": "house", "wall": "#b08a5a", "roof": "#7a3a2a", "icon": "scroll", "row": "back", "slot": 1, "sections": ["quests", "worldboss", "achievements", "leaderboard"]},
 	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "slot": 2, "sections": ["guild"]},
 	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade"]},
-	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack"]},
+	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack", "wardrobe"]},
 	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market", "gems", "stable"]},
 	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 2, "sections": []},
 ]
@@ -112,6 +113,7 @@ var _guild_tab := "main"
 ## The account's pets (set by the game after setup).
 var pets: RefCounted
 var mounts: RefCounted
+var cosmetics: RefCounted
 var section := "city"
 ## Item selected in the backpack (uid, -1 = none).
 var selected_item := -1
@@ -316,6 +318,9 @@ func open_section(id: String) -> void:
 		"hub":
 			_section_title.text = "Lumora Tavernası"
 			_build_hub()
+		"wardrobe":
+			_section_title.text = "Gardırop"
+			_build_wardrobe()
 		"stable":
 			_section_title.text = "Ahır"
 			_build_stable()
@@ -2684,6 +2689,47 @@ func friend_suggestions() -> Array:
 
 
 ## Past runs, newest first: when, map, character, level, kills, time, gold.
+## The wardrobe: outfits and dyes for the active character (looks only).
+func _build_wardrobe() -> void:
+	var c := inventory.active_character()
+	if c.is_empty():
+		_text("Önce bir karakter oluştur.", 16, UiTheme.MUTED)
+		return
+	_text("%s için görünüm. Giysi ve boyalar güç vermez, sadece görünüşü değiştirir. Boya giysinin rengini ezer." % str(c.name), 14, UiTheme.MUTED)
+	var preview: SubViewportContainer = CharacterPreview.new()
+	preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_content.add_child(preview)
+	preview.setup(inventory.character_look(c), Vector2(200, 230), 2, true)
+	for part: Array in [["Giysiler", "outfit", cosmetics.outfits], ["Gövde boyaları", "dyeTunic", cosmetics.tunic_dyes], ["Saç boyaları", "dyeHair", cosmetics.hair_dyes]]:
+		_header(str(part[0]))
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 8)
+		flow.add_theme_constant_override("v_separation", 8)
+		_content.add_child(flow)
+		var none := Button.new()
+		none.text = "Çıkar"
+		none.disabled = str(c.get(part[1], "")) == ""
+		none.pressed.connect(func() -> void:
+			cosmetics.wear(c, str(part[1]), "")
+			open_section("wardrobe"))
+		flow.add_child(none)
+		for d: Dictionary in part[2]:
+			var b := Button.new()
+			var mine: bool = cosmetics.has(str(d.id))
+			var worn := str(c.get(part[1], "")) == str(d.id)
+			b.text = "%s%s" % [d.name, " ✓" if worn else ("" if mine else "  %d" % int(d.price))]
+			if d.has("color"):
+				b.add_theme_color_override("font_color", Color(str(d.color)).lightened(0.25))
+			b.disabled = worn or (not mine and int(progression.profile.gold) < int(d.price))
+			b.pressed.connect(func() -> void:
+				if not mine:
+					cosmetics.buy(str(d.id))
+					refresh()
+				cosmetics.wear(c, str(part[1]), str(d.id))
+				open_section("wardrobe"))
+			flow.add_child(b)
+
+
 ## The stable: buy a mount and pick the one to ride in the tavern.
 func _build_stable() -> void:
 	_text("Bineğinle Taverna'da çok daha hızlı gezersin. Satın aldığın binekten istediğini seç.", 14, UiTheme.MUTED)

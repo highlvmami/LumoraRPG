@@ -55,6 +55,15 @@ func build(look: Dictionary) -> void:
 	_box(_visual, Vector3(0.5, 0.5, 0.5), Vector3(0, 1.75, 0), SKIN)
 	_box(_visual, Vector3(0.08, 0.08, 0.02), Vector3(-0.12, 1.78, 0.26), EYES)
 	_box(_visual, Vector3(0.08, 0.08, 0.02), Vector3(0.12, 1.78, 0.26), EYES)
+	var cape := str(look.get("cape", ""))
+	if cape != "":
+		var cc := Color(cape)
+		_box(_visual, Vector3(0.66, 1.0, 0.08), Vector3(0, 1.0, -0.26), cc)
+		_box(_visual, Vector3(0.72, 0.1, 0.12), Vector3(0, 1.5, -0.22), cc.lightened(0.2))
+	if bool(look.get("crown", false)):
+		_glow(_box(_visual, Vector3(0.52, 0.12, 0.52), Vector3(0, 2.1, 0), Color("#ffd23f")), Color("#ffd23f"), 0.6)
+		for cx in [-0.2, 0.0, 0.2]:
+			_glow(_box(_visual, Vector3(0.08, 0.14, 0.08), Vector3(cx, 2.24, 0.2), Color("#ffd23f")), Color("#ffd23f"), 0.6)
 	if helmet != "":
 		var hc := Color(helmet)
 		var helmet_tier := int(look.get("helmet_tier", 0))

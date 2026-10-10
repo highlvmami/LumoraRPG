@@ -12,6 +12,10 @@ var gear := Gear.new()
 var classes: Dictionary
 
 
+## Dyes and outfits (set by the game; null = none).
+var cosmetics: RefCounted
+
+
 func _init(p_profile: Dictionary, p_store: RefCounted) -> void:
 	profile = p_profile
 	store = p_store
@@ -99,6 +103,8 @@ func character_look(c: Dictionary) -> Dictionary:
 		if not it.is_empty():
 			look[slot + "_color"] = str(gear.rarity(int(it.rarity)).color)
 			look[slot + "_tier"] = gear.tier(int(it.rarity))
+	if cosmetics:
+		cosmetics.apply(c, look)
 	return look
 
 
