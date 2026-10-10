@@ -74,3 +74,21 @@ func apply(c: Dictionary, look: Dictionary) -> void:
 	var hair := entry(str(c.get("dyeHair", "")))
 	if not hair.is_empty() and has(str(hair.id)):
 		look.hair = hair.color
+
+
+## The look with `trial` ({outfit, dyeTunic, dyeHair} ids, owned or not) put on
+## top of what the character wears: to try things on before buying.
+func try_on(c: Dictionary, trial: Dictionary, look: Dictionary) -> void:
+	var outfit := entry(str(trial.get("outfit", "")))
+	if not outfit.is_empty():
+		look.tunic = outfit.tunic
+		if str(outfit.hair) != "":
+			look.hair = outfit.hair
+		look.cape = outfit.cape
+		look.crown = bool(outfit.crown)
+	var tunic := entry(str(trial.get("dyeTunic", "")))
+	if not tunic.is_empty():
+		look.tunic = tunic.color
+	var hair := entry(str(trial.get("dyeHair", "")))
+	if not hair.is_empty():
+		look.hair = hair.color

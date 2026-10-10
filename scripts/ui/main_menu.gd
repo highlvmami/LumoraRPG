@@ -128,6 +128,8 @@ var _guild_tab := "main"
 var pets: RefCounted
 var mounts: RefCounted
 var cosmetics: RefCounted
+## What is being tried on in the wardrobe before buying: {outfit, dyeTunic, dyeHair} ids.
+var _wardrobe_trial: Dictionary = {}
 var section := "city"
 ## Item selected in the backpack (uid, -1 = none).
 var selected_item := -1
@@ -274,6 +276,8 @@ func refresh() -> void:
 
 func open_section(id: String) -> void:
 	section = id
+	if id != "wardrobe":
+		_wardrobe_trial.clear()
 	if id != "hub":
 		_duel_asked = false
 	_city.visible = id == "city"
@@ -794,6 +798,70 @@ func _build_characters() -> void:
 		_text("Henüz karakterin yok. Savaşçı, Okçu ya da Büyücü oluşturarak başla.", 18, UiTheme.MUTED)
 	else:
 		_text("OYNA'ya basınca aktif karakterle oynarsın. Çanta tüm karakterlerin ortak çantasıdır.", 15, UiTheme.MUTED)
+		_build_showcase(active)
+
+
+## Under the character cards: the mounts and the outfits you own, shown on the
+## active character.
+func _build_showcase(active: Dictionary) -> void:
+	if active.is_empty():
+		return
+	_header("Binekler")
+	if mounts.owned().is_empty():
+		_text("Ahırdan binek alırsan burada görürsün.", 14, UiTheme.MUTED)
+	else:
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 10)
+		flow.add_theme_constant_override("v_separation", 10)
+		_content.add_child(flow)
+		for d: Dictionary in mounts.defs:
+			if not mounts.has(str(d.id)):
+				continue
+			var box := VBoxContainer.new()
+			var stage := _stage(Color(str(d.body)))
+			stage.add_child(_mount_preview(d, Vector2(210, 170)))
+			box.add_child(stage)
+			box.add_child(_centered(str(d.name), UiTheme.label_settings(16, Color(str(d.body)).lightened(0.3), 2)))
+			var ride := Button.new()
+			var riding: bool = mounts.active() == str(d.id)
+			ride.text = "Biniliyor ✓" if riding else "Bin"
+			ride.disabled = riding
+			ride.pressed.connect(func() -> void:
+				mounts.ride(str(d.id))
+				open_section("characters"))
+			box.add_child(ride)
+			flow.add_child(box)
+	_header("Giysilerin")
+	var mine: Array = []
+	for o: Dictionary in cosmetics.outfits:
+		if cosmetics.has(str(o.id)):
+			mine.append(o)
+	if mine.is_empty():
+		_text("Terzi'den giysi alırsan burada görürsün.", 14, UiTheme.MUTED)
+		return
+	var outfits := HFlowContainer.new()
+	outfits.add_theme_constant_override("h_separation", 10)
+	outfits.add_theme_constant_override("v_separation", 10)
+	_content.add_child(outfits)
+	for o: Dictionary in mine:
+		var box := VBoxContainer.new()
+		var stage := _stage(Color(str(o.tunic)))
+		var look: Dictionary = inventory.character_look(active)
+		cosmetics.try_on(active, {"outfit": str(o.id)}, look)
+		var preview: SubViewportContainer = CharacterPreview.new()
+		preview.call("setup", look, Vector2(150, 170))
+		stage.add_child(preview)
+		box.add_child(stage)
+		box.add_child(_centered(str(o.name), UiTheme.label_settings(16, Color(str(o.tunic)).lightened(0.3), 2)))
+		var wear := Button.new()
+		var worn := str(active.get("outfit", "")) == str(o.id)
+		wear.text = "Giyili ✓" if worn else "Giy"
+		wear.disabled = worn
+		wear.pressed.connect(func() -> void:
+			cosmetics.wear(active, "outfit", str(o.id))
+			open_section("characters"))
+		box.add_child(wear)
+		outfits.add_child(box)
 
 
 ## Name field, three class cards (with the class in 3D) and the create button.
@@ -2807,10 +2875,13 @@ func _build_wardrobe() -> void:
 		_text("Önce bir karakter oluştur.", 16, UiTheme.MUTED)
 		return
 	_text("%s için görünüm. Giysi ve boyalar güç vermez, sadece görünüşü değiştirir. Boya giysinin rengini ezer." % str(c.name), 14, UiTheme.MUTED)
+	var look: Dictionary = inventory.character_look(c)
+	cosmetics.try_on(c, _wardrobe_trial, look)
 	var preview: SubViewportContainer = CharacterPreview.new()
 	preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_content.add_child(preview)
-	preview.setup(inventory.character_look(c), Vector2(200, 230), 2, true)
+	preview.setup(look, Vector2(200, 230), 2, true)
+	_build_trial_bar(c)
 	for part: Array in [["Giysiler", "outfit", cosmetics.outfits], ["Gövde boyaları", "dyeTunic", cosmetics.tunic_dyes], ["Saç boyaları", "dyeHair", cosmetics.hair_dyes]]:
 		_header(str(part[0]))
 		var flow := HFlowContainer.new()
@@ -2822,23 +2893,58 @@ func _build_wardrobe() -> void:
 		none.disabled = str(c.get(part[1], "")) == ""
 		none.pressed.connect(func() -> void:
 			cosmetics.wear(c, str(part[1]), "")
+			_wardrobe_trial.erase(str(part[1]))
 			open_section("wardrobe"))
 		flow.add_child(none)
 		for d: Dictionary in part[2]:
 			var b := Button.new()
 			var mine: bool = cosmetics.has(str(d.id))
 			var worn := str(c.get(part[1], "")) == str(d.id)
+			var trying := str(_wardrobe_trial.get(part[1], "")) == str(d.id)
 			b.text = "%s%s" % [d.name, " ✓" if worn else ("" if mine else "  %d" % int(d.price))]
+			if trying:
+				b.text += "  (üstünde)"
 			if d.has("color"):
 				b.add_theme_color_override("font_color", Color(str(d.color)).lightened(0.25))
-			b.disabled = worn or (not mine and int(progression.profile.gold) < int(d.price))
+			b.tooltip_text = "Üstünde dene: almadan önce nasıl durduğunu gör"
+			b.disabled = worn or trying
 			b.pressed.connect(func() -> void:
-				if not mine:
-					cosmetics.buy(str(d.id))
-					refresh()
-				cosmetics.wear(c, str(part[1]), str(d.id))
+				_wardrobe_trial[str(part[1])] = str(d.id)
 				open_section("wardrobe"))
 			flow.add_child(b)
+
+
+## Under the wardrobe preview: what is being tried on, with buy / wear / cancel.
+func _build_trial_bar(c: Dictionary) -> void:
+	if _wardrobe_trial.is_empty():
+		_text("Bir giysiye ya da boyaya tıkla: önce üstünde dene, beğenirsen al.", 14, UiTheme.MUTED)
+		return
+	for kind: String in _wardrobe_trial.keys():
+		var d: Dictionary = cosmetics.entry(str(_wardrobe_trial[kind]))
+		if d.is_empty():
+			continue
+		var bar := HBoxContainer.new()
+		bar.alignment = BoxContainer.ALIGNMENT_CENTER
+		bar.add_theme_constant_override("separation", 10)
+		var mine: bool = cosmetics.has(str(d.id))
+		bar.add_child(UiTheme.label("Deneniyor: %s" % str(d.name), UiTheme.label_settings(17, UiTheme.TEXT, 3)))
+		var go := UiTheme.primary_button("Giy" if mine else "Al ve giy  %d" % int(d.price))
+		go.disabled = not mine and int(progression.profile.gold) < int(d.price)
+		go.pressed.connect(func() -> void:
+			if not mine:
+				cosmetics.buy(str(d.id))
+				refresh()
+			cosmetics.wear(c, kind, str(d.id))
+			_wardrobe_trial.erase(kind)
+			open_section("wardrobe"))
+		bar.add_child(go)
+		var cancel := Button.new()
+		cancel.text = "Vazgeç"
+		cancel.pressed.connect(func() -> void:
+			_wardrobe_trial.erase(kind)
+			open_section("wardrobe"))
+		bar.add_child(cancel)
+		_content.add_child(bar)
 
 
 ## The stable: buy a mount and pick the one to ride in the tavern.
@@ -2854,6 +2960,9 @@ func _build_stable() -> void:
 	for d: Dictionary in mounts.defs:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
+		var stage := _stage(Color(str(d.body)))
+		stage.add_child(_mount_preview(d, Vector2(230, 190)))
+		row.add_child(stage)
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_child(UiTheme.label(str(d.name), UiTheme.label_settings(18, Color(str(d.body)).lightened(0.3), 2)))
@@ -3362,6 +3471,15 @@ func _slot_button(it: Dictionary, slot_id: String, size: float) -> Button:
 func _preview(c: Dictionary, view_size: Vector2) -> Control:
 	var preview: SubViewportContainer = CharacterPreview.new()
 	preview.call("setup", inventory.character_look(c), view_size)
+	return preview
+
+
+## `d` (a mount) standing on its hind legs with the active character on it.
+func _mount_preview(d: Dictionary, view_size: Vector2) -> Control:
+	var c := inventory.active_character()
+	var look: Dictionary = inventory.character_look(c) if not c.is_empty() else {}
+	var preview: SubViewportContainer = CharacterPreview.new()
+	preview.call("setup_mount", d, look, view_size)
 	return preview
 
 

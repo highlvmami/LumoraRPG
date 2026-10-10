@@ -17,6 +17,11 @@ signal leave_cancelled
 ## The notice panel (rankings) was closed.
 signal panel_closed
 
+## The player picked a game (dice or cards) with a guest: name, kind, bet.
+signal game_challenge(target: String, kind: String, bet: int)
+## The player answered a game invitation.
+signal game_answered(from_name: String, accept: bool)
+
 const MAX_LINES := 8
 
 var _root: Control
@@ -30,6 +35,13 @@ var _leave_box: Control
 var _run_label: Label
 var _panel: Control
 var _panel_text: Label
+var _games_box: PanelContainer
+var _games_list: VBoxContainer
+var _bet: SpinBox
+var _invite_box: PanelContainer
+var _invite_label: Label
+var _invite_from := ""
+var _invite_yes: Button
 
 
 func _ready() -> void:
@@ -51,7 +63,7 @@ func _ready() -> void:
 	top.add_child(title)
 	_count = UiTheme.label("", UiTheme.label_settings(16, UiTheme.TEXT, 4))
 	top.add_child(_count)
-	_hint = UiTheme.label("WASD yürü · Boşluk zıpla · E kullan · Enter yaz · Esc çık", UiTheme.label_settings(14, UiTheme.MUTED, 3))
+	_hint = UiTheme.label("WASD yürü · Boşluk zıpla · E kullan · G zar/kart · Enter yaz · Esc çık", UiTheme.label_settings(14, UiTheme.MUTED, 3))
 	top.add_child(_hint)
 
 	_prompt = UiTheme.label("", UiTheme.label_settings(22, UiTheme.ACCENT, 6))
@@ -144,6 +156,8 @@ func _ready() -> void:
 	close.pressed.connect(close_panel)
 	panel_col.add_child(close)
 	_root.add_child(_panel)
+	_build_games_box()
+	_build_invite_box()
 
 
 func set_count(n: int) -> void:
@@ -239,3 +253,131 @@ func _on_edit_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and (event as InputEventKey).keycode == KEY_ESCAPE:
 		_edit.accept_event()
 		close_chat()
+
+
+# --- Dice and card games --------------------------------------------------------
+
+func _build_games_box() -> void:
+	_games_box = PanelContainer.new()
+	_games_box.add_theme_stylebox_override("panel", UiTheme.box(Color(0.05, 0.06, 0.09, 0.95), 12, 22))
+	_games_box.set_anchors_preset(Control.PRESET_CENTER)
+	_games_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_games_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_games_box.visible = false
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	col.custom_minimum_size.x = 380
+	_games_box.add_child(col)
+	var title := UiTheme.label("Zar ve Kart", UiTheme.label_settings(26, UiTheme.ACCENT, 6))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(title)
+	var info := UiTheme.label("Yakındaki biriyle bahse gir: ikiniz de kabul ederseniz zarlar ya da kartlar masada atılır, yüksek gelen kazanır.", UiTheme.label_settings(14, UiTheme.MUTED, 3))
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(info)
+	var bet_row := HBoxContainer.new()
+	bet_row.add_theme_constant_override("separation", 10)
+	bet_row.add_child(UiTheme.label("Bahis:", UiTheme.label_settings(17, UiTheme.TEXT, 3)))
+	_bet = SpinBox.new()
+	_bet.min_value = 10
+	_bet.max_value = 5000
+	_bet.step = 10
+	_bet.value = 100
+	bet_row.add_child(_bet)
+	col.add_child(bet_row)
+	_games_list = VBoxContainer.new()
+	_games_list.add_theme_constant_override("separation", 6)
+	col.add_child(_games_list)
+	var close := Button.new()
+	close.text = "Kapat"
+	close.pressed.connect(close_games)
+	col.add_child(close)
+	_root.add_child(_games_box)
+
+
+func _build_invite_box() -> void:
+	_invite_box = PanelContainer.new()
+	_invite_box.add_theme_stylebox_override("panel", UiTheme.box(Color(0.12, 0.09, 0.03, 0.94), 12, 14))
+	_invite_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_invite_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_invite_box.offset_top = 62
+	_invite_box.visible = false
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	_invite_box.add_child(col)
+	_invite_label = UiTheme.label("", UiTheme.label_settings(19, Color("#ffe27a"), 5))
+	_invite_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(_invite_label)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	col.add_child(row)
+	_invite_yes = UiTheme.primary_button("Kabul (Y)")
+	_invite_yes.pressed.connect(answer_invite.bind(true))
+	row.add_child(_invite_yes)
+	var no := Button.new()
+	no.text = "Reddet (N)"
+	no.pressed.connect(answer_invite.bind(false))
+	row.add_child(no)
+	_root.add_child(_invite_box)
+
+
+## Opens the game panel with the `names` of the guests in reach.
+func open_games(names: Array, gold: int) -> void:
+	for c in _games_list.get_children():
+		_games_list.remove_child(c)
+		c.queue_free()
+	_bet.max_value = maxi(10, mini(5000, gold))
+	_bet.value = clampf(_bet.value, 10.0, _bet.max_value)
+	if names.is_empty():
+		_games_list.add_child(UiTheme.label("Yakında kimse yok. Birinin yanına git (en fazla 6 adım).", UiTheme.label_settings(16, Color("#ff8a8a"), 3)))
+	for n: String in names:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var who := UiTheme.label(n, UiTheme.label_settings(18, UiTheme.TEXT, 3))
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(who)
+		for kind: Array in [["dice", "Zar at"], ["cards", "Kart çek"]]:
+			var b := Button.new()
+			b.text = str(kind[1])
+			b.disabled = gold < 10
+			b.pressed.connect(func() -> void:
+				game_challenge.emit(n, str(kind[0]), int(_bet.value))
+				close_games())
+			row.add_child(b)
+		_games_list.add_child(row)
+	_games_box.visible = true
+
+
+func is_games_open() -> bool:
+	return _games_box.visible
+
+
+func close_games() -> void:
+	if _games_box.visible:
+		_games_box.visible = false
+		panel_closed.emit()
+
+
+## A game invitation on top of the screen (answered with Y / N or the buttons).
+func show_invite(from_name: String, kind: String, bet: int, can_pay: bool) -> void:
+	_invite_from = from_name
+	_invite_label.text = "%s seni %s oyununa çağırıyor: %d altın" % [from_name, "zar" if kind == "dice" else "kart", bet]
+	_invite_yes.disabled = not can_pay
+	_invite_box.visible = true
+
+
+func hide_invite() -> void:
+	_invite_box.visible = false
+	_invite_from = ""
+
+
+func has_invite() -> bool:
+	return _invite_box.visible
+
+
+func answer_invite(accept: bool) -> void:
+	if not _invite_box.visible:
+		return
+	var from_name := _invite_from
+	hide_invite()
+	game_answered.emit(from_name, accept)

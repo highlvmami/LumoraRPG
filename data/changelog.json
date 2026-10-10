@@ -1,5 +1,15 @@
 {
 	"versions": [
+		{ "version": "0.60", "date": "2026-10-10", "title": "Canlı zar ve kart", "notes": [
+			"Tavernada yakındaki biriyle zar ya da kart oynayabilirsin: G'ye bas, bahsi seç, oyuncuya teklif et",
+			"Davet edilen oyuncunun ekranında davet çıkar (Y kabul, N reddet)",
+			"Kabul edilince zarlar ya da kartlar iki oyuncudan masanın ortasına uçar, dönerek düşer ve kazanan altın renkle parlar" ] },
+		{ "version": "0.59", "date": "2026-10-10", "title": "Binekler ve giysi denemesi", "notes": [
+			"Binince karakter artık bineğin üstünde oturuyor: bacakları iki yanda, elleri dizginde; binek yürürken ve koşarken bacaklarını açıp kapatıyor ve sana doğru dönüyor",
+			"Binekler yeniden yapıldı: daha büyük ve ayrıntılı; pahalı olan daha iri (kurt, çizgili kaplan) ve yeni Gök Tulpar: kanatlı, boynuzlu, 3 kat hızlı",
+			"Ahırda her bineğin şahlanmış hâli üstünde karakterinle görünüyor",
+			"Kahramanlar Evi'nde sahip olduğun binekleri ve giysileri görüp seçebilirsin",
+			"Terzi'de giysi ve boyaya tıklayınca satın almadan önce üstünde denersin" ] },
 		{ "version": "0.58", "date": "2026-10-10", "title": "Telefonda yazı girişi", "notes": [
 			"Telefondaki web sürümünde giriş ve diğer yazı kutularına dokununca klavye artık açılıyor" ] },
 		{ "version": "0.57", "date": "2026-10-10", "title": "Canlı pikselli şehir", "notes": [
