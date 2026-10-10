@@ -27,6 +27,8 @@ func _run() -> void:
 	var boot: GDScript = load("res://scripts/boot.gd")
 	_check(boot != null and boot.can_instantiate(), "the self-updating start-up script loads")
 	_check(str(ProjectSettings.get_setting("application/run/main_scene")) == "res://scenes/boot.tscn", "the game starts through the updater")
+	# An updated game pack cannot add autoloads to an exe built before it.
+	_check(not FileAccess.get_file_as_string("res://project.godot").contains("[autoload]"), "the project has no autoloads (downloaded updates could not add them)")
 	_check(main.get("login_screen") != null, "login screen is shown")
 	main.get("store").path = TEST_SAVE
 	main.set("forced_map", "forest")
@@ -766,7 +768,7 @@ func _run() -> void:
 	main.call("start_run")
 	await _frames(2)
 	_check(str(main.get("map_id")) == "dungeon" and str(hud.get("_title").text) == "ÖLÜMCÜL ZİNDAN", "a run shows the map's name")
-	var sound: Node = root.get_node("Sound")
+	var sound: Node = main.get("sound")
 	_check(str(sound.get("current")) == "run", "runs have their own music")
 	var track: AudioStreamWAV = sound.call("_make_track", "calm")
 	_check(track.loop_mode == AudioStreamWAV.LOOP_FORWARD and track.get_length() > 10.0, "the music is a long loop")

@@ -1,7 +1,7 @@
 ## Sound effects and music, all made in code (no audio files): short
 ## synthesized blips, pops and chimes, and two music loops (a calm one for
-## the menu and the tavern, a quicker one for runs). An autoload: call
-## Sound.play("coin") or Sound.music("run") from anywhere.
+## the menu and the tavern, a quicker one for runs). The game owns one
+## (main.sound): sound.play("coin"), sound.music("run").
 ## Volumes come from the settings (musicVolume, sfxVolume, 0..1).
 extends Node
 
