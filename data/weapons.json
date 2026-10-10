@@ -16,6 +16,8 @@
 			"desc": "Yay + 3 Şanslı Atış: oklar 1.6 kat hasar verir, %40 daha hızlı atılır", "damage": 1.6, "speed": 1.4 },
 		{ "id": "storm_blade", "weapon": "slash", "boost": "crit_damage", "name": "Fırtına Kılıcı", "icon": "sword_t2", "color": "#8fe3ff",
 			"desc": "Kılıç Savuruşu + Ölümcül Vuruş: 2 kat hasar, daha hızlı ve geniş savuruş", "damage": 2.0, "speed": 1.4, "area": 1.3 },
+		{ "id": "shadow_fang", "weapon": "dagger", "boost": "crit_chance", "boostStacks": 2, "name": "Gölge Dişi", "icon": "dagger", "color": "#3fd0c0",
+			"desc": "Hançer + 2 Şanslı Atış: 1.8 kat hasar, kat kat daha hızlı hançerler", "damage": 1.8, "speed": 1.6 },
 		{ "id": "star_orb", "weapon": "magic", "boost": "attack_speed", "name": "Yıldız Küresi", "icon": "staff_t2", "color": "#ffe066",
 			"desc": "Büyü Küresi + Hızlı Çekiş: 1.8 kat hasar, kat kat daha hızlı küreler", "damage": 1.8, "speed": 1.6 },
 		{ "id": "blade_storm", "weapon": "orbit", "boost": "move_speed", "name": "Kılıç Kasırgası", "icon": "blades", "color": "#ff7aa8",
@@ -34,6 +36,9 @@
 			"desc": "Kalkan Darbesi + Sağlam Beden: 2 kat hasar, daha sık ve geniş darbe", "damage": 2.0, "speed": 1.5, "area": 1.35 }
 	],
 	"extra": [
+		{ "id": "dagger", "name": "Hançer", "desc": "En yakın düşmanlara hızlı hançer fırlatır", "icon": "dagger", "color": "#cfe8e4",
+			"starter": true, "class": "rogue", "maxLevel": 5, "damage": 6.0, "damagePerLevel": 0.25, "cooldown": 0.45, "range": 10.0, "speed": 26.0,
+			"shotsPerLevel": 0.5, "upgrade": "+25% hasar, daha fazla hançer" },
 		{
 			"id": "slash", "name": "Kılıç Savuruşu", "desc": "Önündeki düşmanları biçer", "icon": "sword", "color": "#e0e6ee",
 			"starter": true, "class": "warrior",

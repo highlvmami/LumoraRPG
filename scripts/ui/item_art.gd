@@ -137,6 +137,8 @@ func _draw() -> void:
 			_draw_rotated(-PI / 4.0, _draw_bow)
 		"staff":
 			_draw_rotated(PI / 6.0, _draw_staff)
+		"dagger":
+			_draw_rotated(-PI / 4.0, _draw_dagger)
 		"helmet":
 			_draw_helmet()
 		"armor":
@@ -252,6 +254,23 @@ func _draw_bow() -> void:
 		_gem(bottom, 4.0 + tier, color)
 	if tier >= 2:
 		_gem(Vector2(62, 50), 5.0, color.lightened(0.3))
+
+
+func _draw_dagger() -> void:
+	var w := 6.0 + tier * 1.5
+	var tip := 12.0
+	var guard_y := 62.0
+	_poly([Vector2(50, tip), Vector2(50 + w, tip + 16), Vector2(50 + w, guard_y), Vector2(50 - w, guard_y), Vector2(50 - w, tip + 16)], STEEL if tier < 2 else STEEL.lerp(color, 0.3))
+	_poly([Vector2(50, tip), Vector2(50 + w, tip + 16), Vector2(50 + w, guard_y), Vector2(50, guard_y)], STEEL_DARK.lerp(color, 0.15 * tier), false)
+	if tier >= 1:
+		draw_line(Vector2(50, tip + 18), Vector2(50, guard_y - 4), color.lightened(0.2), 2.0)
+	var guard_c: Color = [WOOD, GOLD, color][tier]
+	_poly([Vector2(36, guard_y), Vector2(64, guard_y), Vector2(61, guard_y + 6), Vector2(39, guard_y + 6)], guard_c)
+	_poly([Vector2(46, guard_y + 6), Vector2(54, guard_y + 6), Vector2(54, guard_y + 24), Vector2(46, guard_y + 24)], WOOD_DARK)
+	for i in 3:
+		draw_line(Vector2(46, guard_y + 10 + i * 5), Vector2(54, guard_y + 8 + i * 5), LEATHER.lightened(0.3), 1.5)
+	if tier >= 1:
+		_gem(Vector2(50, guard_y + 29), 5.0 + tier, color)
 
 
 func _draw_staff() -> void:

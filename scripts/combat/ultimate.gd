@@ -31,6 +31,7 @@ const VARIANTS := {
 	"mage": ["meteor", "storm"],
 	"warrior": ["quake", "blades"],
 	"archer": ["arrows", "stars"],
+	"rogue": ["blades", "stars"],
 }
 const NAMES := {
 	"meteor": "Göktaşı", "storm": "Şimşek Fırtınası",

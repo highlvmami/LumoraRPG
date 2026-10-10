@@ -56,7 +56,7 @@ const NAV := [
 	["versions", "Sürümler", "staff"],
 	["settings", "Ayarlar", "shield"],
 ]
-const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü"}
+const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü", "rogue": "Gölge"}
 ## Leaderboards: [id, title, where the number is in a saved game, format].
 ## The server (server/index.js BOARDS) uses the same ids and paths.
 const LEADERBOARDS := [

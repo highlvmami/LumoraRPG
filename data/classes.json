@@ -13,6 +13,13 @@
 		"bonus": { "attackSpeed": 0.1, "critChance": 0.03 },
 		"tunic": "#3a6ea5", "hair": "#5a3820"
 	},
+	"rogue": {
+		"name": "Gölge", "icon": "cls_rogue", "color": "#3fd0c0",
+		"desc": "Peş peşe hançer fırlatır. Hızlı ve ölümcül, ama canı azdır.",
+		"weapon": "dagger", "maxHp": 90.0,
+		"bonus": { "attackSpeed": 0.12, "critChance": 0.08, "moveSpeed": 0.05 },
+		"tunic": "#2c3a46", "hair": "#c9d1d6"
+	},
 	"mage": {
 		"name": "Büyücü", "icon": "cls_mage", "color": "#b65cff",
 		"desc": "Büyülü küreler fırlatır. Canı az ama kritik vuruşları çok güçlüdür.",
