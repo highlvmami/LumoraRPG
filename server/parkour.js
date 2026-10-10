@@ -1,7 +1,7 @@
 // The tavern parkour course: every finished run is recorded per player (best
 // time, runs, falls) and the board shows the fastest ten. Times are checked
-// only for sanity: nobody finishes the course faster than MIN_MS.
-const MIN_MS = 25000;
+// only for sanity: nobody finishes the course (on foot, about 100 m of jumps) faster than MIN_MS.
+const MIN_MS = 12000;
 const MAX_MS = 3600000;
 const FIRST_GOLD = 300;
 const RUN_GOLD = 40;
