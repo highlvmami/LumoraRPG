@@ -84,6 +84,7 @@ var store := ProfileStore.new()
 ## Online server connection (rooms, invites) and the live co-op run.
 var net: NetClient
 var coop: Coop
+var _pvp_over := false
 ## The hub tavern (walkable, with everyone online).
 var hub: Hub
 ## Extra gold in runs while in a guild.
@@ -349,6 +350,7 @@ func login(username: String, remember := false) -> void:
 	main_menu.duel_fighter = duel_fighter
 	main_menu.pets = pets
 	main_menu.play_pressed.connect(start_run)
+	main_menu.duel_requested.connect(start_duel)
 	main_menu.chest_open_requested.connect(open_chest)
 	main_menu.quality_selected.connect(set_quality)
 	main_menu.settings_changed.connect(apply_settings)
@@ -549,14 +551,14 @@ func show_menu() -> void:
 
 ## Starts a run. In a room only the host starts, and the room starts with it;
 ## `guest_map` is set when the host started one and this game joins it.
-func start_run(guest_map := "") -> void:
+func start_run(guest_map := "", pvp := false) -> void:
 	var guest := guest_map != ""
 	if net and net.in_room() and not net.is_host() and not guest:
 		main_menu.notify("Oyunu oda sahibi başlatır. Başlayınca otomatik katılırsın.")
 		return
 	# Every run picks a random map and shows its name.
 	var ids := maps.keys()
-	var next := guest_map if guest else (forced_map if forced_map != "" else str(ids[_rng.randi() % ids.size()]))
+	var next := "dungeon" if pvp else guest_map if guest else (forced_map if forced_map != "" else str(ids[_rng.randi() % ids.size()]))
 	if next != map_id:
 		load_map(next)
 	enemies.set_map(next)
@@ -577,7 +579,8 @@ func start_run(guest_map := "") -> void:
 	enemies.clear()
 	bow.clear()
 	loot_orbs.clear()
-	enemies.mirror = guest
+	enemies.mirror = guest or pvp
+	_pvp_over = false
 	enemies.targets = [player]
 	_run_gold = 0
 	_run_loot.clear()
@@ -598,6 +601,9 @@ func start_run(guest_map := "") -> void:
 	player.visible = true
 	player.set_look(character_look(_character))
 	player.reset(_max_hp())
+	if pvp:
+		var side := 6.0 if guest else -6.0
+		player.global_position = Vector3(side, terrain.height_at(side, 0.0) + 0.5, 0.0)
 	_apply_stats()
 	range_ring.visible = true
 
@@ -606,7 +612,7 @@ func start_run(guest_map := "") -> void:
 	weapons.active = true
 	# Dungeon gates open in solo runs (the host runs the enemies in co-op).
 	dungeon.reset()
-	dungeon.active = not guest and coop.partner_count() == 0
+	dungeon.active = not guest and not pvp and coop.partner_count() == 0
 	ultimate.reset()
 	ultimate.class_id = class_id()
 	ultimate.active = true
@@ -623,7 +629,13 @@ func start_run(guest_map := "") -> void:
 	_last_step_pos = player.global_position
 	# In a room the run is shared live (see Coop); the pause menu can't stop it.
 	pause_menu.freezes = not (net and net.in_room())
-	if net and net.in_room():
+	if pvp:
+		if guest:
+			coop.start_duel_as_guest()
+		else:
+			coop.start_duel_as_host()
+		hud.show_title("DÜELLO", " vs ".join(net.members().map(func(m: Dictionary) -> String: return str(m.name))))
+	elif net and net.in_room():
 		if guest:
 			coop.start_as_guest()
 		else:
@@ -631,14 +643,14 @@ func start_run(guest_map := "") -> void:
 
 
 ## The room's host started a run: join it on the same map.
-func join_coop_run(map: String) -> void:
+func join_coop_run(map: String, pvp := false) -> void:
 	if not maps.has(map):
 		map = "forest"
 	chest_wheel.visible = false
 	main_menu.close_confirm()
 	if in_run and not player.dead:
 		_end_run()
-	start_run(map)
+	start_run(map, pvp)
 
 
 ## The host left the run or the room closed: back to the menu.
@@ -653,7 +665,32 @@ func coop_host_ended() -> void:
 	main_menu.notify("Ev sahibi oyunu bitirdi.")
 
 
+## The room host starts a real-time duel with the other player in the room.
+func start_duel() -> void:
+	if net and net.in_room() and net.is_host() and net.members().size() == 2 and not in_run:
+		chest_wheel.visible = false
+		start_run("", true)
+
+
+## One of the two duellists fell: counts the win or loss and ends the duel.
+func pvp_finished(won: bool) -> void:
+	if _pvp_over or not coop.pvp:
+		return
+	_pvp_over = true
+	achievements.add("duelsWon" if won else "duelsLost")
+	achievements.check()
+	progression.store.save_to_disk()
+	if won:
+		hud.toast("KAZANDIN!")
+		await get_tree().create_timer(3.0).timeout
+		if in_run and coop.pvp:
+			leave_run()
+
+
 func _on_restart() -> void:
+	if coop.pvp:
+		show_menu()
+		return
 	if net.in_room() and not net.is_host():
 		show_menu()
 	else:
@@ -1164,6 +1201,8 @@ func _on_player_died() -> void:
 	if _run_loot.size() > 6:
 		loot.append("+%d daha" % (_run_loot.size() - 6))
 	hud.show_death(progression.level, enemies.kills, _run_gold, enemies.run_time, loot)
+	if coop.pvp:
+		pvp_finished(false)
 
 
 func _update_menu_camera(delta: float) -> void:

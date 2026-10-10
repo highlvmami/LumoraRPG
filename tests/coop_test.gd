@@ -193,6 +193,22 @@ func _run() -> void:
 	# The host leaves: the run ends for the friend too.
 	host.leave_run()
 	_check(await _until(func() -> bool: return not guest.in_run), "the host leaving ends the run for the friend")
+
+	# Real-time duel: weapons aim at the other player; hits hurt them.
+	host.start_duel()
+	_check(await _until(func() -> bool: return guest.in_run and guest.coop.pvp and host.coop.pvp), "the host starts a real-time duel and the friend joins")
+	_check(await _until(func() -> bool: return host.coop.puppet(guest.net.my_id) != null and guest.enemies.count() == 1 and host.enemies.count() == 1), "each side gets the other as a target")
+	var duel_hp: float = host.player.hp
+	guest.enemies.damage(0, 5.0)
+	_check(await _until(func() -> bool: return host.player.hp < duel_hp), "a hit on the opponent hurts them in their own game")
+	var wins_before := int(guest.progression.profile.get("stats", {}).get("duelsWon", 0))
+	await create_timer(1.5).timeout
+	guest.enemies.damage(0, 99999.0)
+	_check(await _until(func() -> bool: return host.player.dead), "the opponent falls")
+	_check(await _until(func() -> bool: return int(guest.progression.profile.get("stats", {}).get("duelsWon", 0)) == wins_before + 1), "the winner gets a win and the loser a loss")
+	_check(int(host.progression.profile.get("stats", {}).get("duelsLost", 0)) >= 1, "the loser's loss is counted")
+	host.leave_run()
+	_check(await _until(func() -> bool: return not guest.in_run), "the duel ends for both")
 	guest.net.leave_room()
 	_check(await _until(func() -> bool: return not host.net.members().size() == 2), "leaving the room shows for the host")
 

@@ -509,7 +509,7 @@ func _run() -> void:
 	for r in 400:
 		rolled += int(enemies.call("_roll_amount", 0.4))
 	_check(rolled > 100 and rolled < 220, "small rewards still add up (%d of 160)" % rolled)
-	_check((enemies.get("_announced") as Dictionary).size() == (enemies.get("_kinds") as Array).filter(func(k: Dictionary) -> bool: return not k.has("map")).size(), "all enemy kinds unlock as time goes on")
+	_check((enemies.get("_announced") as Dictionary).size() == (enemies.get("_kinds") as Array).filter(func(k: Dictionary) -> bool: return not k.has("map") and not k.has("hidden")).size(), "all enemy kinds unlock as time goes on")
 	_check(float(enemies.call("growth", "hpGrowthPerMinute")) > 1.4, "enemies get tougher over time")
 
 	# Every extra weapon damages enemies around the player.
@@ -1002,11 +1002,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.40")) and not bool(menu.call("is_version_open", "0.39")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.41")) and not bool(menu.call("is_version_open", "0.40")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.39")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.40")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

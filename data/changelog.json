@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.41", "date": "2026-10-10", "title": "Gerçek zamanlı düello", "notes": [
+			"Oda kurup birini davet et; oda sahibi Arkadaşlar sayfasından \"Gerçek zamanlı düello başlat\" ile 1'e 1 canlı dövüş başlatır",
+			"Silahların, yeteneklerin ve ultilerin rakibe otomatik nişan alır; vuruşlar rakibin oyununda hasar olur, can bitince kazanan belli olur",
+			"Altın ödülü yok: sadece galibiyet ve yenilgi sayılır (Düello başarımları)" ] },
 		{ "version": "0.40", "date": "2026-10-10", "title": "Şehir menüsü", "notes": [
 			"Ana menü artık bir şehir: Yetenek Kulesi, Görev Meydanı, Lonca Binası, Taverna, Kahramanlar Evi, Pazar ve Savaş Kapısı. Binanın üstünde adı yazar, tıklayınca menüsü ve alt başlıkları açılır",
 			"Sağ altta Profil, Kayıtlar, Sürümler ve en sağda Ayarlar kutusu; OYNA düğmesi sol altta",
