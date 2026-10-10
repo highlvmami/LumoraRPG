@@ -11,7 +11,7 @@ const SIGN_H := 28.0
 ## [id, sign text, style, wall color, roof color, emblem icon, row, column slot, tooltip]
 const SLOTS := {
 	"back": [0.14, 0.38, 0.62, 0.86],
-	"front": [0.2, 0.5, 0.8],
+	"front": [0.14, 0.38, 0.62, 0.86],
 }
 
 var _buildings: Array[Control] = []
