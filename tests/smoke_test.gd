@@ -529,6 +529,18 @@ func _run() -> void:
 	menu.call("open_section", "gems")
 	await _frames(2)
 	_check(str(menu.get("section")) == "gems", "the gems page opens")
+	var mount_store: RefCounted = main.get("mounts")
+	var mount_profile: Dictionary = (main.get("progression") as RefCounted).get("profile")
+	mount_profile.gold = 100
+	_check(not bool(mount_store.call("buy", "horse")), "a mount costs gold")
+	mount_profile.gold = 5000
+	_check(bool(mount_store.call("buy", "horse")) and str(mount_store.call("active")) == "horse" and int(mount_profile.gold) == 3800, "buying a mount pays and rides it")
+	_check(float(mount_store.call("speed")) > 1.5, "a mount makes walking faster")
+	mount_store.call("ride", "")
+	_check(float(mount_store.call("speed")) == 1.0, "on foot is normal speed")
+	menu.call("open_section", "stable")
+	await _frames(2)
+	_check(str(menu.get("section")) == "stable", "the stable page opens")
 	var weather_script: GDScript = load("res://scripts/world/weather.gd")
 	_check(float(weather_script.call("night_at", 10.0)) == 0.0 and float(weather_script.call("night_at", 200.0)) == 1.0 and float(weather_script.call("night_at", 310.0)) == 0.0, "the day turns into night and back")
 	_check(str(weather_script.call("kind_at", 10.0)) == "clear" and str(weather_script.call("kind_at", 100.0)) == "rain", "rain comes after the first spell")
@@ -1041,11 +1053,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.45")) and not bool(menu.call("is_version_open", "0.44")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.46")) and not bool(menu.call("is_version_open", "0.45")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.44")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.45")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
