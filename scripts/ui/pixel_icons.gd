@@ -591,6 +591,20 @@ const GRIDS := {
 		".kbbkkkbbk..",
 		"..kk...kk...",
 	],
+	"cls_healer": [
+		"....xxxx....",
+		".....kk.....",
+		"...kbbbk....",
+		"..kbbxbbk...",
+		".kbbbbbbbk..",
+		"..kkwwwkk...",
+		"...kwkwk....",
+		"...kwwwk....",
+		"..kbbbbbk...",
+		".kbbbbbbbk..",
+		".kbbkkkbbk..",
+		"..kk...kk...",
+	],
 }
 
 static var _cache := {}

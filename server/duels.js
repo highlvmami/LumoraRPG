@@ -9,7 +9,7 @@ const MAX_SECONDS = 90;
 const STEP = 0.1;
 const FRAME_EVERY = 5; // steps between replay frames
 
-const CLASSES = new Set(["warrior", "archer", "mage", "rogue"]);
+const CLASSES = new Set(["warrior", "archer", "mage", "rogue", "healer"]);
 const clamp = (v, lo, hi, d) => {
   v = Number(v);
   return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d;
