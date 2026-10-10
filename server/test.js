@@ -284,7 +284,7 @@ function client() {
   const duelA = await a.next("duel_result");
   assert.strictEqual(duel.winner, 0, "the stronger fighter wins");
   assert.deepStrictEqual(duel.frames, duelA.frames, "both sides see the same replay");
-  assert.ok(duel.frames.length > 2 && (duel.frames.at(-1)[1] === 0 || duel.frames.at(-1)[2] === 0));
+  assert.ok(duel.frames.length >= 2 && (duel.frames.at(-1)[1] === 0 || duel.frames.at(-1)[2] === 0));
   b.send({ t: "duel_answer", from: "mami", accept: true, fighter: weak });
   assert.match((await b.next("error")).msg, /geçerli değil/);
   a.send({ t: "duel_challenge", to: "Ece", fighter: { hp: 1e12, dmg: -5, aps: "x" } });

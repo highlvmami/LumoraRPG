@@ -81,9 +81,7 @@ func setup(p_player: CharacterBody3D, p_enemies: EnemyManager, p_bow: AutoBow, p
 	evolutions = cfg.get("evolutions", [])
 	slots = int(cfg.slots)
 
-	var blade := BoxMesh.new()
-	blade.size = Vector3(1.0, 0.06, 0.16)
-	_blades = _multimesh(blade, MAX_BLADES, Color("#dfe8f2"), Color("#9fc3ff"))
+	_blades = _multimesh(_sword_mesh(), MAX_BLADES, Color("#dfe8f2"), Color("#9fc3ff"))
 
 	var ball := SphereMesh.new()
 	ball.radius = 0.3
@@ -590,7 +588,7 @@ func _process(_delta: float) -> void:
 		var a := _orbit_angle + TAU * n / blades
 		var at := center + Vector3(cos(a), 0.0, sin(a)) * _orbit_radius
 		# Long axis points away from the player.
-		_blades.set_instance_transform(n, Transform3D(Basis(Vector3.UP, -a), at))
+		_blades.set_instance_transform(n, Transform3D(Basis(Vector3.UP, -a).scaled(Vector3.ONE * 1.5), at))
 	var counts := [0, 0, 0]
 	var mms := [_fb_mm, _orb_mm, _dagger_mm]
 	for i in _fb_pos.size():
@@ -629,6 +627,31 @@ func _sphere_mesh(radius: float) -> SphereMesh:
 	m.radial_segments = 12
 	m.rings = 6
 	return m
+
+
+## A small sword lying along +X: pommel, grip, crossguard, blade and a pointed tip.
+func _sword_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	var parts := [
+		[_box(Vector3(0.12, 0.12, 0.12)), Vector3(-0.42, 0.0, 0.0), Basis.IDENTITY],
+		[_box(Vector3(0.3, 0.07, 0.07)), Vector3(-0.21, 0.0, 0.0), Basis.IDENTITY],
+		[_box(Vector3(0.07, 0.1, 0.5)), Vector3(-0.03, 0.0, 0.0), Basis.IDENTITY],
+		[_box(Vector3(0.95, 0.05, 0.16)), Vector3(0.47, 0.0, 0.0), Basis.IDENTITY],
+		[_box(Vector3(0.95, 0.07, 0.04)), Vector3(0.47, 0.0, 0.0), Basis.IDENTITY],
+	]
+	var tip := PrismMesh.new()
+	tip.size = Vector3(0.16, 0.3, 0.05)
+	parts.append([tip, Vector3(1.09, 0.0, 0.0), Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0))])
+	for part: Array in parts:
+		st.append_from(part[0], 0, Transform3D(part[2], part[1]))
+	st.generate_normals()
+	return st.commit()
+
+
+func _box(size: Vector3) -> BoxMesh:
+	var box := BoxMesh.new()
+	box.size = size
+	return box
 
 
 func _multimesh(mesh: Mesh, count: int, color: Color, glow: Color) -> MultiMesh:
