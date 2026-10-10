@@ -819,6 +819,17 @@ func _run() -> void:
 	menu.call("open_section", "characters")
 	await _frames(1)
 
+	# Duel arena: the fighter's numbers, and a played duel is counted.
+	var fighter: Dictionary = main.call("duel_fighter")
+	_check(float(fighter.hp) >= 80.0 and float(fighter.dmg) > 0.0 and float(fighter.aps) > 0.0, "a duel fighter has health, damage and speed (%s)" % str(fighter.cls))
+	gnet.set("account", "ci_test")
+	var won_before := int((profile.stats as Dictionary).get("duelsWon", 0))
+	menu.call("show_duel", {"a": {"name": "ci_test", "cls": "archer", "hp": 100}, "b": {"name": "Rakip", "cls": "mage", "hp": 80}, "winner": 0, "frames": [[0, 100, 80, 0, 0], [1.0, 90, 0, 1, 0]]})
+	_check(int((profile.stats as Dictionary).get("duelsWon", 0)) == won_before + 1, "a won duel is counted")
+	menu.call("show_duel", {"a": {"name": "ci_test", "cls": "archer", "hp": 100}, "b": {"name": "Rakip", "cls": "mage", "hp": 80}, "winner": 1, "frames": [[0, 100, 80, 0, 0], [1.0, 0, 70, 0, 1]]})
+	_check(int((profile.stats as Dictionary).get("duelsLost", 0)) >= 1, "a lost duel is counted")
+	_check(bool(main.get("achievements").call("is_done", "duelist")), "the first won duel unlocks Düellocu")
+
 	# Blacksmith: upgrading an item for gold.
 	var inventory: RefCounted = main.get("inventory")
 	var gear: RefCounted = inventory.get("gear")
@@ -968,11 +979,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.36")) and not bool(menu.call("is_version_open", "0.35")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.37")) and not bool(menu.call("is_version_open", "0.36")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.35")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.36")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

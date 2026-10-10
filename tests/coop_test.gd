@@ -113,6 +113,15 @@ func _run() -> void:
 	guest.net.leave_guild()
 	_check(await _until(func() -> bool: return not guest.net.in_guild() and (host.net.guild.members as Array).size() == 1), "leaving the guild")
 
+	# Duel: the host challenges the friend, who accepts; both get the same replay and a result.
+	host.net.challenge_duel(guest.net.account, host.duel_fighter())
+	_check(await _until(func() -> bool: return (guest.net.duel_invites as Array).size() == 1), "a duel challenge reaches the friend")
+	guest.net.answer_duel(host.net.account, true, guest.duel_fighter())
+	var counted := func(m: Node) -> int:
+		var st: Dictionary = m.progression.profile.stats
+		return int(st.get("duelsWon", 0)) + int(st.get("duelsLost", 0))
+	_check(await _until(func() -> bool: return counted.call(host) == 1 and counted.call(guest) == 1), "both fighters get the duel result")
+
 	# Trade: the host sells an item to the friend for gold.
 	var sold: Dictionary = host.inventory.add_random_item(3)
 	host.progression.profile.gold = 0
