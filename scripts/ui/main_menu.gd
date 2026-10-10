@@ -25,6 +25,7 @@ const Daily := preload("res://scripts/progression/daily.gd")
 
 signal play_pressed
 signal duel_requested
+signal world_boss_requested
 ## The player wants to open this chest (the game shows the wheel).
 signal chest_open_requested(uid: int)
 signal quality_selected(quality: String)
@@ -47,6 +48,7 @@ const NAV := [
 	["skills", "Yetenek Ağacı", "storm"],
 	["market", "Market", "clover"],
 	["quests", "Görevler", "scroll"],
+	["worldboss", "Dünya Bossu", "skull"],
 	["achievements", "Başarımlar", "skull"],
 	["leaderboard", "Sıralama", "trophy"],
 	["profile", "Profil", "eye"],
@@ -61,7 +63,7 @@ const NAV := [
 ## The town's buildings; clicking one opens its menu (its `sections` become the tabs).
 const BUILDINGS := [
 	{"id": "tower", "name": "Yetenek Kulesi", "style": "tower", "wall": "#6b5a8a", "roof": "#3a2f5a", "icon": "storm", "row": "back", "slot": 0, "sections": ["skills", "pets"]},
-	{"id": "board", "name": "Görev Meydanı", "style": "house", "wall": "#b08a5a", "roof": "#7a3a2a", "icon": "scroll", "row": "back", "slot": 1, "sections": ["quests", "achievements", "leaderboard"]},
+	{"id": "board", "name": "Görev Meydanı", "style": "house", "wall": "#b08a5a", "roof": "#7a3a2a", "icon": "scroll", "row": "back", "slot": 1, "sections": ["quests", "worldboss", "achievements", "leaderboard"]},
 	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "slot": 2, "sections": ["guild"]},
 	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade"]},
 	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack"]},
@@ -95,6 +97,7 @@ var _duel_clock := 0.0
 var _duel_bars: Array = []
 var _duel_title: Label
 var _duel_asked := false
+var _wb_asked := -10000
 ## Achievements (set by the game after setup).
 var achievements: RefCounted
 ## Daily quests and the login reward (scripts/progression/daily.gd).
@@ -308,6 +311,9 @@ func open_section(id: String) -> void:
 		"hub":
 			_section_title.text = "Lumora Tavernası"
 			_build_hub()
+		"worldboss":
+			_section_title.text = "Dünya Bossu"
+			_build_world_boss()
 		"logs":
 			_section_title.text = "Kayıtlar"
 			_build_logs()
@@ -2667,6 +2673,44 @@ func friend_suggestions() -> Array:
 
 
 ## Past runs, newest first: when, map, character, level, kills, time, gold.
+## The weekly world boss: shared health bar, your damage, top fighters.
+func _build_world_boss() -> void:
+	if net == null or not net.is_online():
+		_text("Dünya bossu için sunucuya bağlı olmalısın.", 16, Color("#ff8a8a"))
+		return
+	if Time.get_ticks_msec() - _wb_asked > 4000:
+		_wb_asked = Time.get_ticks_msec()
+		net.ask_world_boss()
+	var info: Dictionary = net.world_boss
+	if info.is_empty():
+		_text("Boss aranıyor...", 16, UiTheme.MUTED)
+		return
+	_text("Bu hafta: %s" % info.name, 24, UiTheme.ACCENT)
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(0, 26)
+	bar.max_value = float(info.max)
+	bar.value = float(info.hp)
+	bar.show_percentage = false
+	_content.add_child(bar)
+	var days := int(float(info.endsIn) / 86400000.0)
+	_text("Can: %d / %d  ·  Haftanın bitmesine %d gün" % [int(info.hp), int(info.max), days], 15, UiTheme.MUTED)
+	_text("Boss'la 2 dakika baş başa dövüşürsün; verdiğin hasar (en çok 40.000) sunucudaki ortak cana yazılır. Can bitince hasar payına göre altın alırsın.", 14, UiTheme.MUTED)
+	_text("Senin hasarın: %d  ·  Sıran: %s" % [int(info.mine), str(info.rank) if int(info.rank) > 0 else "-"], 17, UiTheme.TEXT)
+	for row: Dictionary in info.top:
+		_text("%s: %d" % [row.name, int(row.dmg)], 15, UiTheme.MUTED)
+	if bool(info.dead):
+		var claim := UiTheme.primary_button("Ödülü al (%d altın)" % int(info.reward))
+		claim.disabled = bool(info.claimed) or int(info.mine) <= 0
+		claim.pressed.connect(func() -> void: net.claim_world_boss())
+		_content.add_child(claim)
+		_text("Boss yenildi! Yeni boss haftaya geliyor." if int(info.mine) > 0 else "Boss yenildi. Bu hafta vurmadığın için ödül yok.", 15, UiTheme.MUTED)
+	else:
+		var fight := UiTheme.primary_button("Savaşa gir")
+		fight.disabled = net.in_room()
+		fight.pressed.connect(func() -> void: world_boss_requested.emit())
+		_content.add_child(fight)
+
+
 func _build_logs() -> void:
 	var history: Array = progression.profile.get("history", [])
 	if history.is_empty():

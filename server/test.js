@@ -336,6 +336,27 @@ function client() {
   a.close();
   assert.match((await b.next("trade_closed")).reason, /çevrimdışı/, "offers end when the seller goes offline");
 
+  // World boss: shared health, capped fights, a share of gold once it is down.
+  
+  b.send({ t: "wb_info" });
+  const wb0 = await b.next("wb_state");
+  assert.ok(wb0.hp === wb0.max && wb0.name && !wb0.dead);
+  b.send({ t: "wb_hit", dmg: 999999 });
+  const wb1 = await b.next("wb_state");
+  assert.ok(wb1.mine === 40000 && wb1.hp === wb0.max - 40000 && wb1.rank === 1, "a fight is capped");
+  b.send({ t: "wb_hit", dmg: 100 });
+  await b.next("error");
+  b.send({ t: "wb_claim" });
+  assert.match((await b.next("error")).msg, /henüz yenilmedi/);
+  const { WorldBoss, MAX_HP } = require("./worldboss.js");
+  const boss = new WorldBoss(null);
+  const t0 = Date.now();
+  for (let i = 0; i < 10; i++) await boss.hit("x", 40000, t0 + i * 60000);
+  assert.ok(boss.view("x", t0 + 600000).dead && boss.view("x", t0 + 600000).hp === 0, "ten big fights bring it down (" + MAX_HP + ")");
+  const first = await boss.claim("x", t0 + 600000);
+  assert.ok(first.ok && first.gold > 300);
+  assert.ok(!(await boss.claim("x", t0 + 600000)).ok, "the reward is claimed once");
+
   b.close();
   wss.close();
   server.close();

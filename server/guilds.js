@@ -229,4 +229,4 @@ class Guilds {
   }
 }
 
-module.exports = { Guilds, MAX_GUILD, UPGRADES, weekKey, GOAL_BASE, GOAL_PER_MEMBER, REWARD_GOLD };
+module.exports = { Guilds, MAX_GUILD, UPGRADES, weekKey, weekEnd, GOAL_BASE, GOAL_PER_MEMBER, REWARD_GOLD };

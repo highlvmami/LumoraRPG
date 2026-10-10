@@ -31,6 +31,7 @@
 //   {t:"guild_list"}             the biggest guilds
 //   {t:"guild_create", name, tag} {t:"guild_join", name}  {t:"guild_leave"}  {t:"guild_kick", name}
 //   {t:"guild_chat", text}       say something to your guild
+//   {t:"wb_info"} / {t:"wb_hit", dmg} / {t:"wb_claim"}   weekly world boss (wb_state, wb_reward)
 //   {t:"guild_kills", n}         monsters defeated in a run (weekly guild goal)
 //   {t:"duel_challenge", to, fighter}  {t:"duel_inbox"}  {t:"duel_answer", from, accept, fighter}
 //   {t:"guild_donate", gold}     put gold in the guild treasury  {t:"guild_upgrade", id}  (leader) buy an upgrade
@@ -62,6 +63,7 @@ const http = require("http");
 const { WebSocketServer } = require("ws");
 const { Accounts, key } = require("./accounts.js");
 const { Guilds, UPGRADES } = require("./guilds.js");
+const { WorldBoss } = require("./worldboss.js");
 const { Duels } = require("./duels.js");
 const { Trades } = require("./trades.js");
 
@@ -93,6 +95,7 @@ const boardCache = new Map(); // cat -> {at, rows}
 
 const accounts = new Accounts(process.env.DATABASE_URL);
 const guilds = new Guilds(accounts.store.pool);
+const worldBoss = new WorldBoss(accounts.store.pool);
 const duels = new Duels();
 const trades = new Trades();
 
@@ -480,6 +483,19 @@ async function handle(c, msg) {
   if (msg.t === "exists") return send(c, { t: "exists", name: String(msg.name), found: await accounts.exists(msg.name) });
   if (!c.name) return send(c, { t: "error", msg: "Önce giriş yap." });
   switch (msg.t) {
+    case "wb_info":
+      return send(c, { t: "wb_state", ...worldBoss.view(c.name) });
+    case "wb_hit": {
+      const res = await worldBoss.hit(c.name, msg.dmg);
+      if (!res.ok && res.msg) send(c, { t: "error", msg: res.msg });
+      return send(c, { t: "wb_state", ...worldBoss.view(c.name) });
+    }
+    case "wb_claim": {
+      const res = await worldBoss.claim(c.name);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      send(c, { t: "wb_reward", gold: res.gold });
+      return send(c, { t: "wb_state", ...worldBoss.view(c.name) });
+    }
     case "save":
       if (msg.profile && typeof msg.profile === "object" && (await accounts.save(c.name, msg.profile, msg.at))) send(c, { t: "saved", at: msg.at });
       return;
@@ -626,6 +642,7 @@ wss.on("close", () => clearInterval(heartbeat));
 const ready = accounts
   .init()
   .then(() => guilds.init())
+  .then(() => worldBoss.init())
   .catch((e) => console.error("account database failed to start", e))
   .then(
     () =>
