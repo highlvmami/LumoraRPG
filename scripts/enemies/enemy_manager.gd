@@ -49,6 +49,11 @@ var targets: Array = []
 ## Night level (0..1) from the weather: enemies hit and run harder in the dark.
 var night := 0.0
 const DUELIST_UID := 9000001
+## World boss fight: this boss id fights alone; `world_damage` is what it took.
+var world_fight := ""
+var world_damage := 0.0
+var _world_spawned := false
+const WORLD_BOSS_HP := 40000.0
 var mirror := false
 ## Seconds since the run started; drives spawn rate, new kinds and toughness.
 var run_time := 0.0
@@ -179,6 +184,9 @@ func count_kind(id: String) -> int:
 
 
 func clear() -> void:
+	world_fight = ""
+	world_damage = 0.0
+	_world_spawned = false
 	_kind.clear()
 	_uid.clear()
 	_goal.clear()
@@ -302,6 +310,14 @@ func set_map(id: String) -> void:
 
 
 func _update_spawning(delta: float) -> void:
+	if world_fight != "":
+		if not _world_spawned and run_time > 1.0:
+			_world_spawned = true
+			if spawn_boss(world_fight, _spawn_anchor() + Vector3(0, 0, 14.0)):
+				var last := _hp.size() - 1
+				_hp[last] = WORLD_BOSS_HP
+				_max_hp[last] = WORLD_BOSS_HP
+		return
 	for k: Dictionary in _kinds:
 		if _unlocked(k) and not _announced.has(k.id):
 			_announced[k.id] = true
@@ -980,6 +996,8 @@ func damage(index: int, amount: float, push_dir := Vector3.ZERO) -> void:
 		_flash[index] = HIT_FLASH_TIME
 		remote_hit.emit(_uid[index], amount, push_dir)
 		return
+	if world_fight != "" and _kinds[_kind[index]].get("boss", false):
+		world_damage += minf(amount, _hp[index])
 	_hp[index] -= amount
 	_flash[index] = HIT_FLASH_TIME
 	# Small knockback so hits feel punchy (big enemies barely move).

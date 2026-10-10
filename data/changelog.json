@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.43", "date": "2026-10-10", "title": "Haftalık dünya bossu", "notes": [
+			"Görev Meydanı'nda yeni Dünya Bossu sayfası: her hafta sunucudaki herkesin ortak canı olan dev bir boss gelir",
+			"Boss'la 2 dakika baş başa dövüşürsün; verdiğin hasar ortak cana yazılır. Can bitince hasar payına göre altın ödülü alırsın",
+			"Her hafta farklı bir boss: Örümcek Kraliçe, Buzul Yeti, Kum Firavunu, Orman Devi" ] },
 		{ "version": "0.42", "date": "2026-10-10", "title": "Gece, gündüz ve hava", "notes": [
 			"Run sırasında akşam çöker, gece olur ve sabah olur (5 dakikalık döngü); gece düşmanlar daha sert vurur ve daha hızlı koşar",
 			"Yağmur, fırtına ve sis zaman zaman gelir; zindan haritasında hava yoktur" ] },

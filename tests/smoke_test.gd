@@ -992,6 +992,16 @@ func _run() -> void:
 	main.call("leave_hub")
 	_check(not bool(hub.get("active")) and menu.visible and not ply.visible, "leaving the tavern shows the menu again")
 
+	enemies.call("clear")
+	enemies.set("world_fight", "boss")
+	enemies.set("run_time", 2.0)
+	enemies.call("_update_spawning", 0.1)
+	var wb_index: int = enemies.call("boss_index")
+	_check(wb_index >= 0 and is_equal_approx(float((enemies.get("_hp") as PackedFloat32Array)[wb_index]), 40000.0), "the world boss fights alone with its shared-fight health")
+	enemies.call("damage", wb_index, 500.0)
+	_check(is_equal_approx(float(enemies.get("world_damage")), 500.0), "damage to the world boss is counted")
+	enemies.call("clear")
+	_check(str(enemies.get("world_fight")) == "", "a new run is not a world boss fight")
 	# Full screen is kept per device; the menu fits a 1280x720 window.
 	var screen_script: GDScript = load("res://scripts/core/screen.gd")
 	screen_script.call("set_fullscreen", true)
@@ -1011,11 +1021,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.42")) and not bool(menu.call("is_version_open", "0.41")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.43")) and not bool(menu.call("is_version_open", "0.42")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.41")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.42")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

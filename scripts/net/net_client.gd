@@ -49,6 +49,8 @@ signal trades_changed
 signal trade_done(info: Dictionary)
 ## The weekly guild reward was granted by the server.
 signal guild_reward(gold: int)
+signal world_boss_changed
+signal world_boss_reward(gold: int)
 ## Gold the server accepted into the guild treasury.
 signal guild_donated(gold: int)
 ## Duel invites changed, or a duel was played ({a, b, winner, frames}).
@@ -336,6 +338,25 @@ func guild_bonus(stat: String) -> float:
 		return 0.0
 	var up: Dictionary = guild.get("upgrades", {})
 	return float((up.get("bonuses", {}) as Dictionary).get(stat, 0.0))
+
+
+## The weekly world boss as the server last sent it (see server/worldboss.js).
+var world_boss: Dictionary = {}
+
+
+func ask_world_boss() -> void:
+	if status == "online":
+		_send({"t": "wb_info"})
+
+
+func report_world_boss(damage: float) -> void:
+	if status == "online" and damage > 0.0:
+		_send({"t": "wb_hit", "dmg": roundi(damage)})
+
+
+func claim_world_boss() -> void:
+	if status == "online":
+		_send({"t": "wb_claim"})
 
 
 ## Tells the server how many monsters a run defeated (weekly guild goal).
@@ -633,6 +654,11 @@ func _handle(msg: Dictionary) -> void:
 			guild_donated.emit(int(msg.get("gold", 0)))
 		"guild_reward":
 			guild_reward.emit(int(msg.get("gold", 0)))
+		"wb_state":
+			world_boss = msg
+			world_boss_changed.emit()
+		"wb_reward":
+			world_boss_reward.emit(int(msg.get("gold", 0)))
 		"trade_closed":
 			notice.emit(str(msg.reason))
 		"error":

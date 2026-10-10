@@ -85,6 +85,7 @@ var store := ProfileStore.new()
 ## Online server connection (rooms, invites) and the live co-op run.
 var net: NetClient
 var coop: Coop
+var _world_fight_over := false
 var weather: Node
 var _pvp_over := false
 ## The hub tavern (walkable, with everyone online).
@@ -208,6 +209,7 @@ func _process(delta: float) -> void:
 		if weather:
 			weather.clear()
 		return
+	_world_fight_tick()
 	if weather:
 		weather.update(delta, enemies.run_time)
 		enemies.night = weather.night
@@ -360,6 +362,7 @@ func login(username: String, remember := false) -> void:
 	main_menu.pets = pets
 	main_menu.play_pressed.connect(start_run)
 	main_menu.duel_requested.connect(start_duel)
+	main_menu.world_boss_requested.connect(start_world_boss)
 	main_menu.chest_open_requested.connect(open_chest)
 	main_menu.quality_selected.connect(set_quality)
 	main_menu.settings_changed.connect(apply_settings)
@@ -409,6 +412,13 @@ func login(username: String, remember := false) -> void:
 		_on_net_notice("Lonca kasasına %d altın bağışladın." % gold))
 	net.duel_changed.connect(main_menu.refresh_duel)
 	net.duel_played.connect(main_menu.show_duel)
+	net.world_boss_changed.connect(func() -> void:
+		if main_menu.visible and main_menu.section == "worldboss":
+			main_menu.open_section("worldboss"))
+	net.world_boss_reward.connect(func(gold: int) -> void:
+		progression.add_gold(gold)
+		progression.store.save_to_disk()
+		main_menu.notify("Dünya bossu ödülü: +%d altın" % gold))
 	net.who_updated.connect(main_menu.update_friend_status)
 	net.online_list_updated.connect(main_menu.update_online_list)
 	net.leaderboard_received.connect(main_menu.on_leaderboard)
@@ -678,6 +688,34 @@ func coop_host_ended() -> void:
 	coop.stop()
 	show_menu()
 	main_menu.notify("Ev sahibi oyunu bitirdi.")
+
+
+## The weekly world boss: a two minute fight alone with it; the damage done
+## counts toward the server's shared health (see server/worldboss.js).
+func start_world_boss() -> void:
+	var info: Dictionary = net.world_boss
+	if in_run or not net.is_online() or net.in_room() or info.is_empty() or bool(info.get("dead", false)):
+		return
+	start_run()
+	enemies.world_fight = str(info.kind)
+	enemies.world_damage = 0.0
+	_world_fight_over = false
+	dungeon.active = false
+	hud.show_title(UiTheme.upper(str(info.name)), "Dünya Bossu")
+
+
+func _world_fight_tick() -> void:
+	if enemies.world_fight == "" or _world_fight_over:
+		return
+	var boss_gone: bool = enemies.run_time > 3.0 and enemies.boss_index() < 0
+	if player.dead or boss_gone or enemies.run_time > 120.0:
+		_world_fight_over = true
+		net.report_world_boss(enemies.world_damage)
+		hud.toast("Boss'a %d hasar verdin" % roundi(enemies.world_damage))
+		if not player.dead:
+			await get_tree().create_timer(3.0).timeout
+			if in_run:
+				leave_run()
 
 
 ## The room host starts a real-time duel with the other player in the room.
