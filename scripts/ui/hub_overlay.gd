@@ -63,7 +63,7 @@ func _ready() -> void:
 	top.add_child(title)
 	_count = UiTheme.label("", UiTheme.label_settings(16, UiTheme.TEXT, 4))
 	top.add_child(_count)
-	_hint = UiTheme.label("WASD yürü · Boşluk zıpla · E kullan · G zar/kart · Enter yaz · Esc çık", UiTheme.label_settings(14, UiTheme.MUTED, 3))
+	_hint = UiTheme.label("WASD yürü · Boşluk zıpla · E kullan · G zar/kart · C bin/in · Enter yaz · Esc çık", UiTheme.label_settings(14, UiTheme.MUTED, 3))
 	top.add_child(_hint)
 
 	_prompt = UiTheme.label("", UiTheme.label_settings(22, UiTheme.ACCENT, 6))

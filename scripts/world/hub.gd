@@ -73,8 +73,12 @@ var _was_captured := false
 var _releasing := false
 var _bubble: Label3D
 var _want_board := false
-## The rider got off for the parkour run (back on after it).
+## The rider is off the mount (C, or the parkour run).
 var _dismounted := false
+## The player got off with C (stays on foot until C is pressed again).
+var _on_foot := false
+## Seconds left of the mount's rear-up after the rider gets off.
+var _rear_time := 0.0
 
 
 func setup(p_main: Node, p_net: Node) -> void:
@@ -150,6 +154,8 @@ func enter() -> void:
 ## Puts the ridden mount (if any) under the player.
 func _ride(player: CharacterBody3D) -> void:
 	_dismounted = false
+	_on_foot = false
+	_rear_time = 0.0
 	if _mount_node:
 		_mount_node.queue_free()
 		_mount_node = null
@@ -168,16 +174,59 @@ func _ride(player: CharacterBody3D) -> void:
 func _move_mount(delta: float, player: CharacterBody3D) -> void:
 	if _mount_node == null:
 		return
-	if _dismounted and not tavern.parkour.running:
-		_set_riding(true)
-	_mount_node.visible = _action == "" and not _dismounted
+	var ride: bool = not _on_foot and not tavern.parkour.running
+	if ride == _dismounted:
+		_set_riding(ride)
 	if _dismounted:
+		_mount_beside(delta, player)
 		return
+	_mount_node.visible = _action == ""
 	_mount_node.rotation.y = float(player.get("facing"))
 	var speed := float(player.call("horizontal_speed")) / maxf(WALK_SCALE, 0.01)
 	_mount_node.animate(delta, speed)
 	var model: Node3D = player.get("_model")
 	model.set("ride_bob", absf(sin(float(_mount_node.get("_phase")))) * 0.07 * clampf(speed / 6.0, 0.0, 1.0))
+
+
+## Off the saddle the mount walks beside the player (hidden on the parkour,
+## where it couldn't follow), rearing up for a moment after the rider gets off.
+func _mount_beside(delta: float, player: CharacterBody3D) -> void:
+	_mount_node.visible = not tavern.parkour.running
+	if not _mount_node.visible:
+		return
+	_rear_time = maxf(0.0, _rear_time - delta)
+	_mount_node.set_rear(_rear_time > 0.0)
+	var facing := float(player.get("facing"))
+	var target: Vector3 = player.global_position + Vector3(cos(facing), 0.0, -sin(facing)) * 1.6 * float(_mount_node.get("mount_scale"))
+	var before: Vector3 = _mount_node.global_position
+	var at := before
+	if before.distance_to(target) > 10.0:
+		at = target
+	else:
+		at.x = lerpf(before.x, target.x, minf(1.0, delta * 5.0))
+		at.z = lerpf(before.z, target.z, minf(1.0, delta * 5.0))
+		if player.is_on_floor():
+			at.y = lerpf(before.y, target.y, minf(1.0, delta * 8.0))
+	_mount_node.global_position = at
+	var step := Vector2(at.x - before.x, at.z - before.z)
+	if step.length() > 0.01:
+		_mount_node.rotation.y = lerp_angle(_mount_node.rotation.y, atan2(step.x, step.y), minf(1.0, delta * 8.0))
+	_mount_node.animate(delta, step.length() / maxf(delta, 0.001) / maxf(WALK_SCALE, 0.01))
+
+
+## C: gets off the mount, or back on it.
+func toggle_mount() -> void:
+	if _mount_node == null:
+		overlay.add_note("Bineğin yok. Ahırdan bir binek seçebilirsin.")
+		return
+	if tavern.parkour.running:
+		overlay.add_note("Parkur yaya koşulur, bitince binebilirsin.")
+		return
+	if _action != "":
+		_stand_up(true)
+	_on_foot = not _on_foot
+	_set_riding(not _on_foot)
+	overlay.add_note("Bineğinden indin (C ile tekrar bin)." if _on_foot else "Bineğine bindin.")
 
 
 ## The parkour is run on foot: the rider gets off when the clock starts.
@@ -188,10 +237,21 @@ func _on_parkour_started() -> void:
 		overlay.add_note("Parkur yaya koşulur: bineğinden indin.")
 
 
-## Gets on or off the mount (the parkour needs both feet on the ground).
+## Gets on or off the mount (C, or the parkour that needs both feet on the
+## ground). Off the saddle the mount stands free beside the player.
 func _set_riding(on: bool) -> void:
 	_dismounted = not on
 	var player: CharacterBody3D = _main.player
+	if _mount_node != null:
+		var at: Vector3 = _mount_node.global_position
+		_mount_node.top_level = not on
+		if on:
+			_mount_node.position = Vector3.ZERO
+			_mount_node.set_rear(false)
+			_rear_time = 0.0
+		else:
+			_mount_node.global_position = at
+			_rear_time = 0.7
 	player.set("riding", on and _mount_node != null)
 	player.set("ride_height", _mount_node.seat_height() if on and _mount_node != null else 0.0)
 	player.set("speed_multiplier", WALK_SCALE * (float(_main.mounts.speed()) if on else 1.0))
@@ -215,6 +275,7 @@ func leave() -> void:
 		_mount_node.queue_free()
 		_mount_node = null
 	_dismounted = false
+	_on_foot = false
 	player.set("ride_height", 0.0)
 	player.set("riding", false)
 	player.call("set_pose", false, false)
@@ -362,6 +423,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif key == KEY_G and not overlay.is_typing() and not overlay.is_asking_leave():
 		_open_games()
+		get_viewport().set_input_as_handled()
+	elif key == KEY_C and not overlay.is_typing() and not overlay.is_asking_leave() and not overlay.is_games_open():
+		toggle_mount()
 		get_viewport().set_input_as_handled()
 	elif (key == KEY_Y or key == KEY_N) and overlay.has_invite() and not overlay.is_typing():
 		overlay.answer_invite(key == KEY_Y)
