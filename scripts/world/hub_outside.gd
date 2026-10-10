@@ -11,6 +11,7 @@
 extends Node3D
 
 const Toon := preload("res://scripts/core/toon.gd")
+const Parkour := preload("res://scripts/world/parkour.gd")
 
 ## The walkable meadow ends here (invisible walls behind the trees).
 const BOUND := 46.0
@@ -24,6 +25,7 @@ const POND_RADIUS := 6.0
 const GARDEN := Rect2(-31, -3, 11, 13)
 
 var _hub: Node3D
+var parkour: Node3D
 var _rng := RandomNumberGenerator.new()
 var _time := 0.0
 var _colliders: StaticBody3D
@@ -53,6 +55,11 @@ func build(hub: Node3D) -> void:
 	_pond()
 	_garden()
 	_yard()
+	parkour = Parkour.new()
+	parkour.name = "Parkour"
+	add_child(parkour)
+	parkour.build(_hub)
+	_hub.parkour = parkour
 	_trees()
 	_ground_cover()
 	_far_away()
@@ -600,6 +607,9 @@ func _yard() -> void:
 # --- Trees, grass and flowers ---------------------------------------------------
 
 func _blocked(x: float, z: float, margin: float) -> bool:
+	# The parkour meadow in the east.
+	if x > 20.0 - margin and z < 9.0 + margin:
+		return true
 	if absf(x) < HALF.x + 4.0 + margin and z > -HALF.y - 4.0 - margin and z < HALF.y + 5.0 + margin:
 		return true
 	# The path from the door to the square.

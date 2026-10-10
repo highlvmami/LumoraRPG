@@ -1038,6 +1038,29 @@ func _run() -> void:
 			if str(hub.call("action")) != "":
 				hub.call("interact")
 	_check(float((hub_hall.get("outside") as Node).get("_campfire_boost")) > 0.5, "throwing wood on the campfire makes it flare up")
+	var pk: Node3D = hub_hall.get("parkour")
+	var pk_script: GDScript = load("res://scripts/world/parkour.gd")
+	var pk_course: Array = pk_script.call("course")
+	_check(pk_course.size() >= 20 and bool(pk_script.call("possible", pk_course)), "every jump on the parkour course can be made (%d platforms)" % pk_course.size())
+	_check(str((pk_course.back() as Dictionary).kind) == "finish" and (pk_course.back() as Dictionary).pos.y > 8.0, "the course climbs to a finish")
+	var pk_done := []
+	pk.connect("finished", func(ms: int, falls: int) -> void: pk_done.append([ms, falls]))
+	ply.velocity = Vector3.ZERO
+	ply.global_position = hub_hall.to_global((pk_course[0] as Dictionary).pos + Vector3(0, 0.2, 0))
+	pk.call("update", 0.1, ply)
+	ply.global_position = hub_hall.to_global((pk_course[1] as Dictionary).pos + Vector3(0, 0.3, 0))
+	pk.call("update", 0.5, ply)
+	_check(bool(pk.get("running")), "stepping off the start pad starts the clock")
+	ply.global_position = hub_hall.to_global(Vector3(30, 0.0, 10))
+	pk.call("update", 0.5, ply)
+	_check(int(pk.get("falls")) == 1 and not bool(pk.get("running")) == false or int(pk.get("falls")) == 0, "falling is counted or restarts at the start")
+	ply.global_position = hub_hall.to_global((pk_course[1] as Dictionary).pos + Vector3(0, 0.3, 0))
+	pk.call("update", 0.1, ply)
+	ply.global_position = hub_hall.to_global((pk_course.back() as Dictionary).pos + Vector3(0, 0.3, 0))
+	pk.call("update", 0.1, ply)
+	_check(pk_done.size() == 1 and int(pk_done[0][0]) > 0, "the finish ends the run with its time")
+	_check(str(pk.call("status_text")) == "", "no clock runs after the finish")
+	pk.call("cancel")
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
 	esc.pressed = true
@@ -1135,11 +1158,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.55")) and not bool(menu.call("is_version_open", "0.54")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.56")) and not bool(menu.call("is_version_open", "0.55")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.54")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.55")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
