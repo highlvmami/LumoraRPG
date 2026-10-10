@@ -12,6 +12,7 @@ const Progression := preload("res://scripts/progression/progression.gd")
 const SkillTree := preload("res://scripts/progression/skill_tree.gd")
 const CityView := preload("res://scripts/ui/city_view.gd")
 const SkillTreeView := preload("res://scripts/ui/skill_tree_view.gd")
+const PanZoomView := preload("res://scripts/ui/pan_zoom_view.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const ItemArt := preload("res://scripts/ui/item_art.gd")
 const ItemSlot := preload("res://scripts/ui/item_slot.gd")
@@ -1428,47 +1429,28 @@ func _build_skills() -> void:
 			notify("Yetenek puanların geri verildi.")
 			refresh()))
 	head.add_child(reset)
-	var key := HFlowContainer.new()
-	key.add_theme_constant_override("h_separation", 12)
-	_content.add_child(key)
-	for b: Dictionary in skill_tree.branches:
-		var chip := HBoxContainer.new()
-		chip.add_theme_constant_override("separation", 6)
-		var dot := ColorRect.new()
-		dot.color = Color(str(b.color))
-		dot.custom_minimum_size = Vector2(12, 12)
-		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		chip.add_child(dot)
-		chip.add_child(UiTheme.label(str(b.name), UiTheme.label_settings(15, Color(str(b.color)).lightened(0.2), 2)))
-		chip.add_child(UiTheme.label(str(b.get("desc", "")), UiTheme.label_settings(12, UiTheme.MUTED, 0)))
-		key.add_child(chip)
 	var view: Control = SkillTreeView.new()
 	view.call("setup", skill_tree, learn_skill)
-	var holder := Control.new()
+	var holder: Control = PanZoomView.new()
+	holder.call("setup", view)
 	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	holder.add_child(view)
 	_content.add_child(holder)
-	# Fit again whenever the page is laid out (window resized, text wrapped).
-	var refit := func() -> void: _fit_tree(holder, view)
+	# The window takes the rest of the page; the tree inside is moved and zoomed with the mouse.
+	var refit := func() -> void: _fit_tree(holder)
 	_content.sort_children.connect(refit)
 	holder.tree_exiting.connect(func() -> void:
 		if _content.sort_children.is_connected(refit):
 			_content.sort_children.disconnect(refit))
 
 
-## Shrinks the skill tree to fit the page, so the whole tree shows without scrolling.
-func _fit_tree(holder: Control, view: Control) -> void:
+## Gives the skill tree window the free height of the page.
+func _fit_tree(holder: Control) -> void:
 	if not is_instance_valid(holder) or not holder.is_inside_tree():
 		return
 	var scroll := _content.get_parent() as Control
-	var full: Vector2 = SkillTreeView.VIEW_SIZE
-	var room := Vector2(_content.size.x, scroll.size.y - holder.position.y - 6.0)
-	var k := clampf(minf(room.x / full.x, room.y / full.y), 0.3, 1.0)
-	view.scale = Vector2(k, k)
-	view.size = full
-	view.position = Vector2(maxf(0.0, (room.x - full.x * k) * 0.5), 0)
-	if not is_equal_approx(holder.custom_minimum_size.y, full.y * k):
-		holder.custom_minimum_size = Vector2(0, full.y * k)
+	var height := maxf(200.0, scroll.size.y - holder.position.y - 6.0)
+	if not is_equal_approx(holder.custom_minimum_size.y, height):
+		holder.custom_minimum_size = Vector2(0, height)
 
 
 ## Every achievement with its progress and reward; finished ones glow gold.

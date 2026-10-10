@@ -12,12 +12,12 @@ const ItemSlot := preload("res://scripts/ui/item_slot.gd")
 const NODE := 58.0
 const CORE := 78.0
 ## Distance of each row from the middle, and how far apart the side nodes are.
-const RADII := [105.0, 185.0, 265.0, 340.0]
+const RADII := [105.0, 185.0, 265.0, 340.0, 415.0, 490.0, 565.0]
 const SPREAD := 62.0
-const TITLE_RADIUS := 420.0
+const TITLE_RADIUS := 650.0
 ## The tree is drawn a little wider than tall to fit the screen.
 const STRETCH := Vector2(1.2, 0.82)
-const VIEW_SIZE := Vector2(900, 600)
+const VIEW_SIZE := Vector2(1500, 1000)
 
 ## The skill tree (scripts/progression/skill_tree.gd).
 var tree: RefCounted
@@ -30,8 +30,7 @@ var _nodes := {}
 func setup(p_tree: RefCounted, p_learn: Callable) -> void:
 	tree = p_tree
 	learn = p_learn
-	custom_minimum_size = VIEW_SIZE
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	size = VIEW_SIZE
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	for b: Dictionary in tree.get("branches"):
 		var title := UiTheme.label(UiTheme.upper(str(b.name)), UiTheme.label_settings(20, Color(str(b.color)).lightened(0.2), 4))
@@ -93,8 +92,8 @@ func _draw() -> void:
 	for b: Dictionary in tree.get("branches"):
 		var dir := Vector2.from_angle(deg_to_rad(float(b.angle)))
 		var color := Color(str(b.color))
-		for n in 4:
-			draw_circle(middle + dir * 230.0 * STRETCH, 150.0 - n * 30.0, Color(color, 0.025))
+		for n in 5:
+			draw_circle(middle + dir * 330.0 * STRETCH, 300.0 - n * 50.0, Color(color, 0.025))
 	for r: float in RADII:
 		var ring := PackedVector2Array()
 		for k in 97:
@@ -127,6 +126,8 @@ func _node(id: String) -> Control:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var button: Button = ItemSlot.new()
 	button.size = Vector2(s, s)
+	# Wheel and drag go on to the pan-and-zoom window around the tree.
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.tooltip_text = str(d.name)
 	button.set("tooltip_builder", func() -> Control: return tooltip(id))
 	var border := UiTheme.ACCENT if maxed else (color if lv > 0 else (color.darkened(0.2) if ready else Color(1, 1, 1, 0.18)))
