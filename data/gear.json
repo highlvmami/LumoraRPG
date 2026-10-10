@@ -65,7 +65,7 @@
 		{ "id": "legendary", "name": "Efsanevi Kasa", "color": "#ff9a3c", "price": 2500, "odds": [0, 0, 10, 40, 37, 13] }
 	],
 	"drops": {
-		"enemyItemChance": 0.012,
+		"enemyItemChance": 0.004,
 		"enemyOdds": [75, 20, 5, 0, 0, 0],
 		"bossChestOdds": [[45, 38, 15, 2], [5, 40, 38, 17]],
 		"stashLimit": 60,

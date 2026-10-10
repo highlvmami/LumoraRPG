@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.51", "date": "2026-10-10", "title": "Seyrek eşya, resimli ganimet", "notes": [
+			"Düşmanlardan eşya düşme ihtimali üçte bire indi; bosslar ve kasalar aynı",
+			"Savaş bitince bulduğun eşyalar ve kasalar resimleriyle, nadirlik renginde listelenir" ] },
 		{ "version": "0.50", "date": "2026-10-10", "title": "Dokunmatik kontroller", "notes": [
 			"Telefon ve tabletten oynanabilir: solda yürüme çubuğu, sağda ekrana sürükleyerek kamera, ULTİ, ZIPLA ve duraklatma düğmeleri",
 			"Dokunmatik ekranda kendiliğinden açılır; Ayarlar > Arayüz'den bilgisayarda da açılabilir" ] },

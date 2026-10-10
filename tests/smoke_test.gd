@@ -1090,6 +1090,14 @@ func _run() -> void:
 	_check(not touch_node.visible, "touch controls hide outside play")
 	touch_node.call("set_mode", "auto")
 
+	var drops_hud: Node = main.get("hud")
+	drops_hud.set("gear", inv.get("gear"))
+	var drop_item: Dictionary = (inv.get("gear") as RefCounted).call("roll_item", 3, 99999)
+	drops_hud.call("show_death", 3, 10, 5, 60.0, PackedStringArray(), [{"item": drop_item}, {"chest": 1}])
+	_check((drops_hud.get("_death_drops") as Control).get_child_count() == 2, "the end screen lists the found items with pictures")
+	drops_hud.call("hide_death")
+	_check(float((inv.get("gear") as RefCounted).get("drops").enemyItemChance) <= 0.005, "enemy item drops are rare")
+
 	# Full screen is kept per device; the menu fits a 1280x720 window.
 	var screen_script: GDScript = load("res://scripts/core/screen.gd")
 	screen_script.call("set_fullscreen", true)
@@ -1109,11 +1117,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.50")) and not bool(menu.call("is_version_open", "0.49")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.51")) and not bool(menu.call("is_version_open", "0.50")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.49")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.50")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
