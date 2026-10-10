@@ -112,7 +112,8 @@ func setup(p_store: RefCounted, p_net: Node = null) -> void:
 	box.add_child(_hint)
 
 	set_mode("login" if _name_edit.text != "" else "register")
-	_name_edit.grab_focus.call_deferred()
+	if not DisplayServer.is_touchscreen_available():
+		_name_edit.grab_focus.call_deferred()
 
 
 func _password_field() -> LineEdit:

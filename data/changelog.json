@@ -1,5 +1,7 @@
 {
 	"versions": [
+		{ "version": "0.58", "date": "2026-10-10", "title": "Telefonda yazı girişi", "notes": [
+			"Telefondaki web sürümünde giriş ve diğer yazı kutularına dokununca klavye artık açılıyor" ] },
 		{ "version": "0.57", "date": "2026-10-10", "title": "Canlı pikselli şehir", "notes": [
 			"Ana menü baştan çizildi: üç sıra, ayrıntılı piksel sanatı binalar; yan duvarları ve çatıları ile hafif 3 boyutlu görünür, fareyle hareket edince derinlik hissi verir",
 			"Şehir gerçek saate uyar: gündoğumu, gün, gün batımı, yıldızlı gece ve ay; geceleri pencereler, fenerler ve ateşböcekleri yanar",
