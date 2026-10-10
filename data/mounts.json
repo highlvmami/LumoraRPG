@@ -1,0 +1,7 @@
+{
+	"mounts": [
+		{ "id": "horse", "name": "Kır At", "price": 1200, "speed": 1.7, "body": "#8a5a32", "mane": "#2e1d10", "desc": "Taverna ve çevresinde 1.7 kat hızlı gezdirir" },
+		{ "id": "wolf", "name": "Kurt Dostu", "price": 2800, "speed": 2.1, "body": "#7b8591", "mane": "#d9dee3", "desc": "Taverna ve çevresinde 2.1 kat hızlı gezdirir" },
+		{ "id": "tiger", "name": "Kum Kaplanı", "price": 6000, "speed": 2.5, "body": "#d99a3a", "mane": "#5a3a14", "desc": "Taverna ve çevresinde 2.5 kat hızlı gezdirir" }
+	]
+}

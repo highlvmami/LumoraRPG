@@ -18,6 +18,8 @@ var dead := false
 ## 1.0 = base move speed (items can raise it).
 var speed_multiplier := 1.0
 ## Health regained per second.
+## How far the model is lifted while riding a mount (tavern).
+var ride_height := 0.0
 var regen := 0.0
 ## Developer cheat: ignore all damage.
 var god_mode := false
@@ -89,7 +91,7 @@ func set_pose(sit: bool, dance := false) -> void:
 	seated = sit
 	_model.sitting = sit
 	_model.dancing = dance
-	_model.position.y = -0.27 if sit else 0.0
+	_model.position.y = ride_height + (-0.27 if sit else 0.0)
 
 
 ## Plays the attack animation and turns toward the shot for a moment.

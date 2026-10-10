@@ -25,6 +25,7 @@ const DungeonGate := preload("res://scripts/combat/dungeon_gate.gd")
 const Ultimate := preload("res://scripts/combat/ultimate.gd")
 const PetFollowers := preload("res://scripts/player/pet_followers.gd")
 const Pets := preload("res://scripts/progression/pets.gd")
+const Mounts := preload("res://scripts/progression/mounts.gd")
 const ProfileStore := preload("res://scripts/progression/profile_store.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const SkillTree := preload("res://scripts/progression/skill_tree.gd")
@@ -65,6 +66,7 @@ var weapons: WeaponSet
 var dungeon: DungeonGate
 var ultimate: Ultimate
 var pets: Pets
+var mounts: Mounts
 var pet_followers: PetFollowers
 var progression: Progression
 var skill_tree: SkillTree
@@ -239,6 +241,7 @@ func login(username: String, remember := false) -> void:
 	skill_tree = SkillTree.new(profile, store)
 	inventory = Inventory.new(profile, store)
 	pets = Pets.new(profile, store)
+	mounts = Mounts.new(profile, store)
 	# Account skills (Hazine branch) change the backpack, chests, prices and eggs.
 	inventory.gear.bonus = skill_tree.total
 	pets.bonus = skill_tree.total
@@ -364,6 +367,7 @@ func login(username: String, remember := false) -> void:
 	main_menu.food = food
 	main_menu.duel_fighter = duel_fighter
 	main_menu.pets = pets
+	main_menu.mounts = mounts
 	main_menu.play_pressed.connect(start_run)
 	main_menu.duel_requested.connect(start_duel)
 	main_menu.world_boss_requested.connect(start_world_boss)

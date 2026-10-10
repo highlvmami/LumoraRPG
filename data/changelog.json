@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.46", "date": "2026-10-10", "title": "Binekler", "notes": [
+			"Pazar'da yeni Ahır: Kır At, Kurt Dostu ve Kum Kaplanı satın al, istediğine bin",
+			"Taverna'da bineğinle 1.7 ile 2.5 kat hızlı gezersin; bineğin karakterinin altında görünür" ] },
 		{ "version": "0.45", "date": "2026-10-10", "title": "Taşlar ve soketler", "notes": [
 			"Çok Nadir ve üstü eşyalarda 1-3 soket açılır; Pazar'daki yeni Taşlar sayfasından taş takarsın",
 			"Ateş (hasar), Buz (savunma), Zehir (kritik hasarı), Fırtına (saldırı hızı) ve Can taşları; bosslar yenilince ve kasalardan düşer, ayrıca 400 altına alınır",

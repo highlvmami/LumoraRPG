@@ -17,6 +17,8 @@ const STATE_TIME := 1.0 / 15.0
 const HEARTBEAT := 1.0
 ## Walking is slower than in a run.
 const WALK_SCALE := 0.75
+const MountModel := preload("res://scripts/world/mount_model.gd")
+var _mount_node: Node3D
 ## A calm evening: deep blue sky, soft moonlight, a light haze over the
 ## meadow (same keys as data/maps.json).
 const ENVIRONMENT := {
@@ -104,7 +106,8 @@ func enter() -> void:
 	player.call("set_look", _main.call("character_look", character))
 	player.call("reset", 100.0)
 	player.global_position = tavern.spawn_point(_my_spot())
-	player.set("speed_multiplier", WALK_SCALE)
+	player.set("speed_multiplier", WALK_SCALE * float(_main.mounts.speed()))
+	_ride(player)
 	player.set("controls_enabled", true)
 	player.call("set_pose", false, false)
 	_main.camera_rig.yaw = 0.0
@@ -126,6 +129,20 @@ func enter() -> void:
 	entered.emit()
 
 
+## Puts the ridden mount (if any) under the player.
+func _ride(player: CharacterBody3D) -> void:
+	if _mount_node:
+		_mount_node.queue_free()
+		_mount_node = null
+	var d: Dictionary = _main.mounts.def(_main.mounts.active())
+	player.set("ride_height", MountModel.HEIGHT if not d.is_empty() else 0.0)
+	if not d.is_empty():
+		_mount_node = MountModel.new()
+		_mount_node.build(str(d.body), str(d.mane))
+		player.add_child(_mount_node)
+	player.call("set_pose", false, false)
+
+
 ## Walks out (back to the menu is the caller's job).
 func leave() -> void:
 	if not active:
@@ -137,6 +154,10 @@ func leave() -> void:
 	var player: CharacterBody3D = _main.player
 	player.set("speed_multiplier", 1.0)
 	player.set("controls_enabled", true)
+	if _mount_node:
+		_mount_node.queue_free()
+		_mount_node = null
+	player.set("ride_height", 0.0)
 	player.call("set_pose", false, false)
 	if _bubble:
 		_bubble.queue_free()

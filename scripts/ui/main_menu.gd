@@ -50,6 +50,7 @@ const NAV := [
 	["quests", "Görevler", "scroll"],
 	["worldboss", "Dünya Bossu", "skull"],
 	["gems", "Taşlar", "trophy"],
+	["stable", "Ahır", "paw"],
 	["achievements", "Başarımlar", "skull"],
 	["leaderboard", "Sıralama", "trophy"],
 	["profile", "Profil", "eye"],
@@ -68,7 +69,7 @@ const BUILDINGS := [
 	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "slot": 2, "sections": ["guild"]},
 	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade"]},
 	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack"]},
-	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market", "gems"]},
+	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market", "gems", "stable"]},
 	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 2, "sections": []},
 ]
 ## The small menu box in the bottom right corner (Ayarlar is the last one).
@@ -110,6 +111,7 @@ var _guild_typing := false
 var _guild_tab := "main"
 ## The account's pets (set by the game after setup).
 var pets: RefCounted
+var mounts: RefCounted
 var section := "city"
 ## Item selected in the backpack (uid, -1 = none).
 var selected_item := -1
@@ -314,6 +316,9 @@ func open_section(id: String) -> void:
 		"hub":
 			_section_title.text = "Lumora Tavernası"
 			_build_hub()
+		"stable":
+			_section_title.text = "Ahır"
+			_build_stable()
 		"gems":
 			_section_title.text = "Taşlar ve Soketler"
 			_build_gems()
@@ -2679,6 +2684,43 @@ func friend_suggestions() -> Array:
 
 
 ## Past runs, newest first: when, map, character, level, kills, time, gold.
+## The stable: buy a mount and pick the one to ride in the tavern.
+func _build_stable() -> void:
+	_text("Bineğinle Taverna'da çok daha hızlı gezersin. Satın aldığın binekten istediğini seç.", 14, UiTheme.MUTED)
+	var riding: String = mounts.active()
+	var foot := Button.new()
+	foot.text = "Yaya (binek yok)%s" % ("  ✓" if riding == "" else "")
+	foot.pressed.connect(func() -> void:
+		mounts.ride("")
+		open_section("stable"))
+	_content.add_child(foot)
+	for d: Dictionary in mounts.defs:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_child(UiTheme.label(str(d.name), UiTheme.label_settings(18, Color(str(d.body)).lightened(0.3), 2)))
+		info.add_child(UiTheme.label(str(d.desc), UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+		row.add_child(info)
+		var b := Button.new()
+		if mounts.has(str(d.id)):
+			b.text = "Biniliyor ✓" if riding == str(d.id) else "Bin"
+			b.disabled = riding == str(d.id)
+			b.pressed.connect(func() -> void:
+				mounts.ride(str(d.id))
+				open_section("stable"))
+		else:
+			b.text = "Al %d" % int(d.price)
+			b.disabled = int(progression.profile.gold) < int(d.price)
+			b.pressed.connect(func() -> void:
+				if mounts.buy(str(d.id)):
+					refresh()
+					open_section("stable"))
+		b.custom_minimum_size.x = 130
+		row.add_child(b)
+		_content.add_child(row)
+
+
 ## Gems: buy them, then set them into the sockets of your items.
 func _build_gems() -> void:
 	var gear := inventory.gear
