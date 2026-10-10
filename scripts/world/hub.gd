@@ -73,6 +73,8 @@ var _was_captured := false
 var _releasing := false
 var _bubble: Label3D
 var _want_board := false
+## The rider got off for the parkour run (back on after it).
+var _dismounted := false
 
 
 func setup(p_main: Node, p_net: Node) -> void:
@@ -108,7 +110,7 @@ func enter() -> void:
 		tavern.parkour.finished.connect(_on_parkour_finished)
 		tavern.parkour.fell.connect(func(n: int) -> void: overlay.add_note("Düştün! Son kontrol noktasına döndün (%d düşme)." % n))
 		tavern.parkour.checkpoint_reached.connect(func(_i: int) -> void: overlay.add_note("Kontrol noktası!"))
-		tavern.parkour.started.connect(func() -> void: overlay.add_note("Parkur başladı! Süre işliyor."))
+		tavern.parkour.started.connect(_on_parkour_started)
 		_net.parkour_board_received.connect(_on_parkour_board)
 		_main.add_child(overlay)
 	active = true
@@ -147,6 +149,7 @@ func enter() -> void:
 
 ## Puts the ridden mount (if any) under the player.
 func _ride(player: CharacterBody3D) -> void:
+	_dismounted = false
 	if _mount_node:
 		_mount_node.queue_free()
 		_mount_node = null
@@ -165,12 +168,34 @@ func _ride(player: CharacterBody3D) -> void:
 func _move_mount(delta: float, player: CharacterBody3D) -> void:
 	if _mount_node == null:
 		return
-	_mount_node.visible = _action == ""
+	if _dismounted and not tavern.parkour.running:
+		_set_riding(true)
+	_mount_node.visible = _action == "" and not _dismounted
+	if _dismounted:
+		return
 	_mount_node.rotation.y = float(player.get("facing"))
 	var speed := float(player.call("horizontal_speed")) / maxf(WALK_SCALE, 0.01)
 	_mount_node.animate(delta, speed)
 	var model: Node3D = player.get("_model")
 	model.set("ride_bob", absf(sin(float(_mount_node.get("_phase")))) * 0.07 * clampf(speed / 6.0, 0.0, 1.0))
+
+
+## The parkour is run on foot: the rider gets off when the clock starts.
+func _on_parkour_started() -> void:
+	overlay.add_note("Parkur başladı! Süre işliyor.")
+	if _mount_node != null and not _dismounted:
+		_set_riding(false)
+		overlay.add_note("Parkur yaya koşulur: bineğinden indin.")
+
+
+## Gets on or off the mount (the parkour needs both feet on the ground).
+func _set_riding(on: bool) -> void:
+	_dismounted = not on
+	var player: CharacterBody3D = _main.player
+	player.set("riding", on and _mount_node != null)
+	player.set("ride_height", _mount_node.seat_height() if on and _mount_node != null else 0.0)
+	player.set("speed_multiplier", WALK_SCALE * (float(_main.mounts.speed()) if on else 1.0))
+	player.call("set_pose", false, false)
 
 
 ## Walks out (back to the menu is the caller's job).
@@ -189,6 +214,7 @@ func leave() -> void:
 	if _mount_node:
 		_mount_node.queue_free()
 		_mount_node = null
+	_dismounted = false
 	player.set("ride_height", 0.0)
 	player.set("riding", false)
 	player.call("set_pose", false, false)
