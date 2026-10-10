@@ -66,6 +66,7 @@ var _fb_life := PackedFloat32Array()
 var _fb_kind := PackedInt32Array()
 var _fb_mm: MultiMesh
 var _orb_mm: MultiMesh
+var _dagger_mm: MultiMesh
 var _aura_ring: RangeRing
 var _rng := RandomNumberGenerator.new()
 
@@ -96,6 +97,10 @@ func setup(p_player: CharacterBody3D, p_enemies: EnemyManager, p_bow: AutoBow, p
 	orb.radial_segments = 8
 	orb.rings = 4
 	_orb_mm = _multimesh(orb, MAX_FIREBALLS, Color("#d8b8ff"), Color("#8a4dff"))
+
+	var knife := BoxMesh.new()
+	knife.size = Vector3(0.12, 0.08, 0.55)
+	_dagger_mm = _multimesh(knife, MAX_FIREBALLS, Color("#dff3f0"), Color("#3fd0c0"))
 
 	_aura_ring = RangeRing.new()
 	_aura_ring.terrain = terrain
@@ -227,8 +232,8 @@ func _physics_process(delta: float) -> void:
 		match id:
 			"slash":
 				_update_slash(delta, d, level(id))
-			"magic":
-				_update_magic(delta, d, level(id))
+			"magic", "dagger":
+				_update_magic(id, delta, d, level(id))
 			"orbit":
 				_update_orbit(delta, d, level(id))
 			"fireball":
@@ -356,14 +361,15 @@ func _update_slash(delta: float, d: Dictionary, lv: int) -> void:
 
 
 ## Mage: magic orbs at the nearest enemies (more orbs at higher levels).
-func _update_magic(delta: float, d: Dictionary, lv: int) -> void:
-	if not _ready_to_fire("magic", delta, float(d.cooldown)):
+## The rogue's daggers work the same way, just faster (projectile kind 2).
+func _update_magic(id: String, delta: float, d: Dictionary, lv: int) -> void:
+	if not _ready_to_fire(id, delta, float(d.cooldown)):
 		return
 	var origin := player.global_position + Vector3.UP * 1.4
 	var reach := float(d.range) + bow.range_bonus
 	var first := enemies.nearest(origin, reach)
 	if first < 0:
-		_timers["magic"] = 0.15
+		_timers[id] = 0.15
 		return
 	var shots := 1 + int(float(d.shotsPerLevel) * (lv - 1))
 	var targets := [first]
@@ -375,9 +381,9 @@ func _update_magic(delta: float, d: Dictionary, lv: int) -> void:
 		if i != first:
 			targets.append(i)
 	for i: int in targets:
-		_launch(origin, enemies.position_of(i), float(d.speed), 1)
+		_launch(origin, enemies.position_of(i), float(d.speed), 2 if id == "dagger" else 1)
 	if _rng.randf() < double_chance:
-		_timers["magic"] = 0.15
+		_timers[id] = 0.15
 	var aim := enemies.position_of(first) - origin
 	aim.y = 0.0
 	attacked.emit(aim.normalized())
@@ -391,9 +397,9 @@ func _update_fireballs(delta: float) -> void:
 		_fb_pos[i] += _fb_vel[i] * delta
 		_fb_life[i] -= delta
 		var hit := enemies.hit_test(_fb_pos[i], 0.3)
-		if hit >= 0 and _fb_kind[i] == 1:
-			var m := def("magic")
-			_hit(hit, _base_damage(m, maxi(level("magic"), 1)), _fb_vel[i].normalized(), "magic")
+		if hit >= 0 and _fb_kind[i] >= 1:
+			var wid := "dagger" if _fb_kind[i] == 2 else "magic"
+			_hit(hit, _base_damage(def(wid), maxi(level(wid), 1)), _fb_vel[i].normalized(), wid)
 		elif hit >= 0:
 			var blast := (float(d.blast) + float(d.blastPerLevel) * (lv - 1)) * _area()
 			var at := _fb_pos[i]
@@ -585,14 +591,18 @@ func _process(_delta: float) -> void:
 		var at := center + Vector3(cos(a), 0.0, sin(a)) * _orbit_radius
 		# Long axis points away from the player.
 		_blades.set_instance_transform(n, Transform3D(Basis(Vector3.UP, -a), at))
-	var counts := [0, 0]
-	var mms := [_fb_mm, _orb_mm]
+	var counts := [0, 0, 0]
+	var mms := [_fb_mm, _orb_mm, _dagger_mm]
 	for i in _fb_pos.size():
 		var k := _fb_kind[i]
-		(mms[k] as MultiMesh).set_instance_transform(counts[k], Transform3D(Basis.IDENTITY, _fb_pos[i]))
+		var flight := Basis.IDENTITY
+		if k == 2 and _fb_vel[i].length_squared() > 0.0001:
+			flight = Basis.looking_at(_fb_vel[i].normalized(), Vector3.UP)
+		(mms[k] as MultiMesh).set_instance_transform(counts[k], Transform3D(flight, _fb_pos[i]))
 		counts[k] += 1
 	_fb_mm.visible_instance_count = counts[0]
 	_orb_mm.visible_instance_count = counts[1]
+	_dagger_mm.visible_instance_count = counts[2]
 
 
 ## A short-lived glowing shape (explosions, lightning bolts) that fades out.

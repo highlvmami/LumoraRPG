@@ -34,7 +34,7 @@ func _ready() -> void:
 
 
 ## Rebuilds the character. `look` keys (all optional):
-##   class ("warrior"/"archer"/"mage"), tunic, hair (colors as strings),
+##   class ("warrior"/"archer"/"mage"/"rogue"), tunic, hair (colors as strings),
 ##   weapon_tier (0-2, -1 = nothing equipped), weapon_color (rarity color),
 ##   helmet_color / armor_color / gloves_color / boots_color (worn gear, in its
 ##   rarity color; missing = not worn) and the matching *_tier (0-2) for detail.
@@ -69,6 +69,11 @@ func build(look: Dictionary) -> void:
 			horn_l.rotation.z = 0.5
 			var horn_r := _box(_visual, Vector3(0.08, 0.3, 0.08), Vector3(0.32, 2.15, 0), Color("#f4f1e6"))
 			horn_r.rotation.z = -0.5
+	elif _class == "rogue":
+		# Hood with a shadowed face opening.
+		_box(_visual, Vector3(0.62, 0.34, 0.62), Vector3(0, 2.05, 0.0), tunic.darkened(0.15))
+		_box(_visual, Vector3(0.66, 0.1, 0.66), Vector3(0, 1.9, 0.02), tunic.darkened(0.3))
+		_box(_visual, Vector3(0.4, 0.2, 0.06), Vector3(0, 1.76, -0.3), Color("#101820"))
 	elif _class == "mage":
 		# Pointed wizard hat.
 		_box(_visual, Vector3(0.7, 0.06, 0.7), Vector3(0, 2.02, 0), tunic.darkened(0.2))
@@ -81,6 +86,10 @@ func build(look: Dictionary) -> void:
 		# Robe skirt and a beard.
 		_box(_visual, Vector3(0.74, 0.4, 0.44), Vector3(0, 0.6, 0), tunic.darkened(0.1))
 		_box(_visual, Vector3(0.3, 0.2, 0.06), Vector3(0, 1.55, 0.26), hair)
+	elif _class == "rogue":
+		# Scarf and a belt of knives.
+		_box(_visual, Vector3(0.44, 0.14, 0.4), Vector3(0, 1.62, 0.0), Color("#3fd0c0").darkened(0.2))
+		_box(_visual, Vector3(0.78, 0.08, 0.48), Vector3(0, 0.98, 0), STEEL.darkened(0.55))
 	elif _class == "warrior":
 		# Shoulder plates.
 		_box(_visual, Vector3(0.3, 0.14, 0.34), Vector3(-0.47, 1.5, 0), STEEL)
@@ -96,6 +105,8 @@ func build(look: Dictionary) -> void:
 			_build_sword(tier, glow)
 		"mage":
 			_build_staff(tier, glow)
+		"rogue":
+			_build_daggers(tier, glow)
 		_:
 			_build_bow(tier, glow)
 
@@ -186,6 +197,20 @@ func _build_staff(tier: int, glow: Color) -> void:
 		_glow(ring, glow, 1.2)
 
 
+## A dagger in each hand. Higher tiers: longer, glowing blades.
+func _build_daggers(tier: int, glow: Color) -> void:
+	for arm: Node3D in [_arm_r, _arm_l]:
+		var hand := Node3D.new()
+		hand.position = Vector3(0, -0.62, 0.05)
+		arm.add_child(hand)
+		var length := 0.45 + 0.1 * maxi(tier, 0)
+		_box(hand, Vector3(0.06, 0.16, 0.06), Vector3(0, 0, 0), WOOD)
+		_box(hand, Vector3(0.18, 0.05, 0.08), Vector3(0, 0.1, 0), STEEL.darkened(0.3))
+		var blade := _box(hand, Vector3(0.07, length, 0.03), Vector3(0, 0.12 + length * 0.5, 0), STEEL)
+		if tier >= 1:
+			_glow(blade, glow, 0.3 if tier == 1 else 0.8)
+
+
 ## Called every frame by the player with its current movement state.
 func animate(delta: float, speed: float, on_floor: bool) -> void:
 	if dancing and not sitting:
@@ -237,6 +262,11 @@ func animate(delta: float, speed: float, on_floor: bool) -> void:
 				_arm_r.rotation.x = lerpf(-2.6, -0.4, t)
 				_arm_r.rotation.z = lerpf(0.4, -0.6, t)
 				_visual.rotation.x = 0.12 * pull
+			"rogue":
+				# Quick cross-slash with both hands.
+				_arm_r.rotation.x = lerpf(-2.2, -0.6, t)
+				_arm_l.rotation.x = lerpf(-0.6, -2.2, t)
+				_visual.rotation.x = 0.08 * pull
 			"mage":
 				# Thrust the staff forward.
 				_arm_r.rotation.x = -1.3 - 0.3 * pull

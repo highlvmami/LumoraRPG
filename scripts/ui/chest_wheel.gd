@@ -16,7 +16,7 @@ const TILE := 112.0
 const GAP := 10.0
 const WINDOW := Vector2(940, 150)
 const SPIN_TIME := 4.5
-const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü"}
+const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü", "rogue": "Gölge"}
 
 var gear: Gear
 var spinning := false

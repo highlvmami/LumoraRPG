@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.35", "date": "2026-10-10", "title": "Gölge sınıfı", "notes": [
+			"Yeni sınıf: Gölge. Peş peşe hançer fırlatır, hızlıdır ve kritik şansı yüksektir ama canı azdır",
+			"Gölge'ye özel hançer silahı, Çifte Hançer güçlendirmesi, Gölge Dişi evrimi ve hançer eşyaları",
+			"Hesapta artık 4 karaktere kadar açabilirsin" ] },
 		{ "version": "0.34", "date": "2026-10-10", "title": "Yakıcı Çöl", "notes": [
 			"Yeni harita: Yakıcı Çöl (kum tepeleri, vaha, palmiye ve kaktüsler, piramitler, eski sütunlar, göçebe çadırları ve esen kum)",
 			"Bu haritaya özel düşmanlar: Çöl Akrebi, Çakal ve Mumya",

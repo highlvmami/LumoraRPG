@@ -225,8 +225,9 @@ func _run() -> void:
 	_check(not bool(menu.call("create_character", "x", "warrior")), "a too short name is refused")
 	_check(bool(menu.call("create_character", "Kilicci", "warrior")), "a warrior can be created")
 	_check(bool(menu.call("create_character", "Buyucu", "mage")), "a mage can be created")
+	_check(bool(menu.call("create_character", "Golge", "rogue")), "a rogue can be created")
 	_check(bool(menu.call("create_character", "Okcu", "archer")), "an archer can be created")
-	_check(not bool(menu.call("create_character", "Fazla", "archer")), "at most 3 characters")
+	_check(not bool(menu.call("create_character", "Fazla", "archer")), "at most 4 characters")
 	var archer: Dictionary = inv.call("active_character")
 	_check(str(archer["class"]) == "archer", "the new character becomes active")
 	var warrior: Dictionary = (inv.call("characters") as Array)[0]
@@ -723,7 +724,7 @@ func _run() -> void:
 	_check(int(profile.runs) == 2, "leaving the run records it (runs=%d)" % int(profile.runs))
 
 	# Warrior and mage start with their own weapon instead of the bow.
-	for pair: Array in [[warrior, "slash"], [(inv.call("characters") as Array)[1], "magic"]]:
+	for pair: Array in [[warrior, "slash"], [(inv.call("characters") as Array)[1], "magic"], [(inv.call("characters") as Array)[2], "dagger"]]:
 		menu.call("select_character", int(pair[0].id))
 		main.call("start_run")
 		await _frames(2)
@@ -948,11 +949,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.34")) and not bool(menu.call("is_version_open", "0.33")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.35")) and not bool(menu.call("is_version_open", "0.34")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.33")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.34")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

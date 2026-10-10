@@ -59,7 +59,7 @@ Bir karakter seçip açık bir haritaya iniyorsun; canavarlar her yönden gelir,
 - **Ulti (R / Q):** her sınıfın iki ultisi var, haritadaki tüm düşmanlara vurur.
 
 ### Karakterler, eşyalar ve kasalar
-- Hesapta 3 karaktere kadar: **Savaşçı**, **Okçu**, **Büyücü**.
+- Hesapta 4 karaktere kadar: **Savaşçı**, **Okçu**, **Büyücü**, **Gölge**.
 - 6 nadirlik (Sıradan → Tanrısal) ve 6 ekipman yuvası; takılan eşyalar karakterin üstünde görünür.
 - **Ortak çanta:** slota ve nadirliğe göre filtre, her zaman nadirliğe göre sıralı; başka karakterin taktığı eşyalar en sonda. Üstüne gelince özellikler, takılı eşyayla karşılaştırmalı görünür.
 - **Kasalar:** boss'lar kasa bırakır, Market'ten de alınır; çark dönüp kazandığın eşyada durur.

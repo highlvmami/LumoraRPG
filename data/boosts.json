@@ -11,6 +11,7 @@
 		{ "id": "regen", "icon": "regen", "name": "Yenilenme", "desc": "Saniyede +1 can", "stat": "regen", "amount": 1.0, "maxStacks": 8, "color": "#62d6a0" },
 		{ "id": "double_arrow", "class": "archer", "icon": "double_arrow", "name": "Çift Ok", "desc": "+15% şansla aynı anda 2 ok atar", "stat": "doubleChance", "amount": 0.15, "maxStacks": 5, "color": "#ffe08a" },
 		{ "id": "double_slash", "class": "warrior", "icon": "sword", "name": "Çifte Savuruş", "desc": "+15% şansla iki kez savurur", "stat": "doubleChance", "amount": 0.15, "maxStacks": 5, "color": "#e0e6ee" },
-		{ "id": "spell_echo", "class": "mage", "icon": "staff", "name": "Büyü Yankısı", "desc": "+15% şansla büyüyü iki kez atar", "stat": "doubleChance", "amount": 0.15, "maxStacks": 5, "color": "#b98cff" }
+		{ "id": "spell_echo", "class": "mage", "icon": "staff", "name": "Büyü Yankısı", "desc": "+15% şansla büyüyü iki kez atar", "stat": "doubleChance", "amount": 0.15, "maxStacks": 5, "color": "#b98cff" },
+		{ "id": "double_dagger", "class": "rogue", "icon": "dagger", "name": "Çifte Hançer", "desc": "+15% şansla iki kez fırlatır", "stat": "doubleChance", "amount": 0.15, "maxStacks": 5, "color": "#3fd0c0" }
 	]
 }

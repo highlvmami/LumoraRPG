@@ -13,6 +13,7 @@ const PALETTE := {
 	"b": Color("#4fb8ff"),
 	"p": Color("#b65cff"),
 	"x": Color("#e8f4ff"),
+	"d": Color("#3d5a68"),
 }
 
 const GRIDS := {
@@ -408,6 +409,20 @@ const GRIDS := {
 		"...kxok.....",
 		"..kkx.......",
 	],
+	"dagger": [
+		"..........kk",
+		".........kwk",
+		"........kwk.",
+		".......kwk..",
+		"......kwsk..",
+		".....kwsk...",
+		"..k.kwsk....",
+		"..kkssk.....",
+		"...kyk......",
+		"..kook......",
+		".kook.......",
+		"kkk........."
+	],
 	"staff": [
 		".........kk.",
 		"........kbbk",
@@ -547,6 +562,20 @@ const GRIDS := {
 		".kgggggggk.k",
 		"..kgggggk...",
 		"...kkkkk....",
+	],
+	"cls_rogue": [
+		"....kkkk....",
+		"...kddddk...",
+		"..kddddddk..",
+		"..kddkkddk..",
+		"..kdwwwwdk..",
+		"...kwkwk....",
+		"..kkddddkk..",
+		".kdddxxdddk.",
+		".kdddddddxk.",
+		".kdddddddk..",
+		"..kddkkddk..",
+		"...kk..kk...",
 	],
 	"cls_mage": [
 		".....k......",
