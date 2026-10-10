@@ -112,6 +112,8 @@ var _was_captured := false
 var _run_gold := 0
 ## Names of the items and chests found this run.
 var _run_loot := PackedStringArray()
+## What dropped this run, with pictures on the end screen: {"item": it} or {"chest": tier}.
+var _run_drops: Array = []
 var _bosses_killed := 0
 ## The character playing the current run.
 var _character: Dictionary = {}
@@ -647,6 +649,7 @@ func start_run(guest_map := "", pvp := false) -> void:
 	enemies.targets = [player]
 	_run_gold = 0
 	_run_loot.clear()
+	_run_drops.clear()
 	_bosses_killed = 0
 	cheat_menu.visible = true
 
@@ -1252,6 +1255,7 @@ func _drop_item(rarity_index: int) -> void:
 	var text := "%s (%s)" % [inventory.gear.item_name(it), inventory.gear.rarity(rarity_index).name]
 	achievements.add("itemsFound")
 	_run_loot.append(text)
+	_run_drops.append({"item": it})
 	hud.toast("EŞYA: " + text.to_upper())
 
 
@@ -1259,6 +1263,7 @@ func _drop_chest(tier: int) -> void:
 	var ch := inventory.add_chest(tier)
 	var text := str(inventory.gear.chest(int(ch.tier)).name)
 	_run_loot.append(text)
+	_run_drops.append({"chest": int(ch.tier)})
 	hud.toast("KASA DÜŞTÜ: " + text.to_upper())
 
 
@@ -1350,7 +1355,8 @@ func _on_player_died() -> void:
 	var loot := _run_loot.slice(0, 6)
 	if _run_loot.size() > 6:
 		loot.append("+%d daha" % (_run_loot.size() - 6))
-	hud.show_death(progression.level, enemies.kills, _run_gold, enemies.run_time, loot)
+	hud.gear = inventory.gear
+	hud.show_death(progression.level, enemies.kills, _run_gold, enemies.run_time, loot, _run_drops)
 	if coop.pvp:
 		pvp_finished(false)
 
