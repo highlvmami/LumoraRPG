@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.48", "date": "2026-10-10", "title": "Kabus zorluğu", "notes": [
+			"Savaş Kapısı artık zorluk seçtirir: hesap seviyesi 8, 16 ve 25'te Kabus I, II ve III açılır",
+			"Kabus'ta düşmanlar çok daha dayanıklı ve sert vurur; EXP, altın 2 ile 5 kat olur ve boss'lar fazladan kasa bırakır",
+			"Dünya bossu ve düello her zaman normal zorlukta" ] },
 		{ "version": "0.47", "date": "2026-10-10", "title": "Kostüm ve boyalar", "notes": [
 			"Kahramanlar Evi'nde yeni Gardırop: giysiler (pelerin, taç) ve gövde ile saç boyaları satın al, karakterine giydir",
 			"Hepsi sadece görünüş içindir, güç vermez; canlı önizleme sayfada görünür" ] },
