@@ -3145,6 +3145,13 @@ func _build_settings() -> void:
 	dmg.button_pressed = bool(_settings().get("damageNumbers", true))
 	dmg.add_theme_font_size_override("font_size", 17)
 	dmg.toggled.connect(func(on: bool) -> void: set_setting("damageNumbers", on))
+	var touch_box := CheckBox.new()
+	touch_box.text = "Dokunmatik kontroller (telefon, tablet)"
+	touch_box.button_pressed = bool(_settings().get("touchControls", false))
+	touch_box.tooltip_text = "Ekran dokunmatikse kendiliğinden açılır; bu kutu bilgisayarda da gösterir."
+	touch_box.add_theme_font_size_override("font_size", 17)
+	touch_box.toggled.connect(func(on: bool) -> void: set_setting("touchControls", on))
+	_content.add_child(touch_box)
 	_content.add_child(dmg)
 
 	_header("Hesap")

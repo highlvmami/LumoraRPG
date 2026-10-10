@@ -49,6 +49,7 @@ const UiTheme := preload("res://scripts/ui/theme.gd")
 const NetClient := preload("res://scripts/net/net_client.gd")
 const Coop := preload("res://scripts/net/coop.gd")
 const Weather := preload("res://scripts/world/weather.gd")
+const TouchControls := preload("res://scripts/ui/touch_controls.gd")
 
 ## How many screen pixels each 3D pixel covers, per graphics quality.
 const PIXEL_SCALES := {"low": 3, "medium": 2, "high": 1}
@@ -94,6 +95,7 @@ var _pulse_left := HEAL_PULSE_TIME
 var healed_pulses := 0
 var _world_fight_over := false
 var weather: Node
+var touch: CanvasLayer
 var _pvp_over := false
 ## The hub tavern (walkable, with everyone online).
 var hub: Hub
@@ -211,6 +213,10 @@ func map_name(id := "") -> String:
 	return str(maps.get(id if id != "" else map_id, {}).get("name", ""))
 
 func _process(delta: float) -> void:
+	if touch:
+		var touch_on := (in_run or (hub != null and hub.active)) and not get_tree().paused
+		if touch_on != touch.playing:
+			touch.set_playing(touch_on)
 	if not in_run:
 		_update_menu_camera(delta)
 		if weather:
@@ -390,6 +396,18 @@ func login(username: String, remember := false) -> void:
 	chest_wheel.setup(inventory.gear)
 	chest_wheel.closed.connect(main_menu.refresh)
 
+	touch = TouchControls.new()
+	touch.name = "TouchControls"
+	add_child(touch)
+	touch.camera_rig = camera_rig
+	touch.ultimate_pressed.connect(func() -> void: ultimate.try_cast())
+	touch.jump_pressed.connect(func() -> void:
+		Input.action_press("jump")
+		await get_tree().create_timer(0.12).timeout
+		Input.action_release("jump"))
+	touch.pause_pressed.connect(func() -> void:
+		if in_run:
+			pause_menu.open())
 	weather = Weather.new()
 	weather.name = "Weather"
 	world.add_child(weather)
@@ -467,6 +485,8 @@ func apply_settings() -> void:
 	hud.show_damage_numbers = bool(st.get("damageNumbers", true))
 	main_menu.quality = str(progression.profile.get("quality", DEFAULT_QUALITY))
 	sound.set_volumes(float(st.get("musicVolume", 0.5)), float(st.get("sfxVolume", 0.7)))
+	if touch:
+		touch.set_mode("on" if bool(st.get("touchControls", false)) else "auto")
 
 
 ## Signed in online after the menu opened (remembered account, offline

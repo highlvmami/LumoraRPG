@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.50", "date": "2026-10-10", "title": "Dokunmatik kontroller", "notes": [
+			"Telefon ve tabletten oynanabilir: solda yürüme çubuğu, sağda ekrana sürükleyerek kamera, ULTİ, ZIPLA ve duraklatma düğmeleri",
+			"Dokunmatik ekranda kendiliğinden açılır; Ayarlar > Arayüz'den bilgisayarda da açılabilir" ] },
 		{ "version": "0.49", "date": "2026-10-10", "title": "Taverna oyunları", "notes": [
 			"Taverna'da yeni Zar ve Kart sayfası: çevrimiçi bir oyuncuya altın bahisli zar ya da kart oyunu öner",
 			"İkiniz de kabul edince sunucu zar atar ve kart çeker; yüksek gelen kazanır, kaybeden bahsi öder",
