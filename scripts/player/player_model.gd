@@ -26,6 +26,9 @@ var _class := "archer"
 var sitting := false
 ## Dancing (the tavern's dance floor): arms up, a bounce in the step.
 var dancing := false
+## Riding a mount: legs astride, hands on the reins; `ride_bob` is the mount's bounce.
+var riding := false
+var ride_bob := 0.0
 
 
 func _ready() -> void:
@@ -230,6 +233,22 @@ func _build_daggers(tier: int, glow: Color) -> void:
 
 ## Called every frame by the player with its current movement state.
 func animate(delta: float, speed: float, on_floor: bool) -> void:
+	_leg_l.rotation.z = 0.0
+	_leg_r.rotation.z = 0.0
+	if riding and not sitting:
+		_phase += delta
+		_leg_l.rotation.x = -1.1
+		_leg_r.rotation.x = -1.1
+		_leg_l.rotation.z = -0.55
+		_leg_r.rotation.z = 0.55
+		_arm_l.rotation.x = -0.95
+		_arm_r.rotation.x = -0.95
+		_arm_r.rotation.z = 0.0
+		_arm_r.position.z = 0.0
+		_visual.rotation.z = 0.0
+		_visual.rotation.x = -0.04 - clampf(ride_bob * 0.5, 0.0, 0.2)
+		_visual.position.y = ride_bob * 0.4
+		return
 	if dancing and not sitting:
 		_phase += delta * 9.0
 		var beat := sin(_phase)

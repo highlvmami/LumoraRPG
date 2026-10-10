@@ -1,7 +1,8 @@
 {
 	"mounts": [
-		{ "id": "horse", "name": "Kır At", "price": 1200, "speed": 1.7, "body": "#8a5a32", "mane": "#2e1d10", "desc": "Taverna ve çevresinde 1.7 kat hızlı gezdirir" },
-		{ "id": "wolf", "name": "Kurt Dostu", "price": 2800, "speed": 2.1, "body": "#7b8591", "mane": "#d9dee3", "desc": "Taverna ve çevresinde 2.1 kat hızlı gezdirir" },
-		{ "id": "tiger", "name": "Kum Kaplanı", "price": 6000, "speed": 2.5, "body": "#d99a3a", "mane": "#5a3a14", "desc": "Taverna ve çevresinde 2.5 kat hızlı gezdirir" }
+		{ "id": "horse", "kind": "horse", "scale": 1.0, "name": "Kır At", "price": 1200, "speed": 1.7, "body": "#8a5a32", "mane": "#2e1d10", "accent": "#b8322a", "desc": "Taverna ve çevresinde 1.7 kat hızlı gezdirir" },
+		{ "id": "wolf", "kind": "wolf", "scale": 1.2, "name": "Kurt Dostu", "price": 2800, "speed": 2.1, "body": "#7b8591", "mane": "#d9dee3", "accent": "#3a5a9a", "desc": "Taverna ve çevresinde 2.1 kat hızlı gezdirir" },
+		{ "id": "tiger", "kind": "tiger", "scale": 1.35, "name": "Kum Kaplanı", "price": 6000, "speed": 2.5, "body": "#d99a3a", "mane": "#5a3a14", "accent": "#7a1f3a", "desc": "Taverna ve çevresinde 2.5 kat hızlı gezdirir" },
+		{ "id": "sky", "kind": "sky", "scale": 1.5, "name": "Gök Tulpar", "price": 15000, "speed": 3.0, "body": "#eef0f6", "mane": "#6fd0ff", "accent": "#e0b030", "desc": "Kanatlı, boynuzlu efsane at: 3 kat hızlı gezdirir" }
 	]
 }

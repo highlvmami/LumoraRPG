@@ -18,6 +18,9 @@ const HEARTBEAT := 1.0
 ## Walking is slower than in a run.
 const WALK_SCALE := 0.75
 const MountModel := preload("res://scripts/world/mount_model.gd")
+const GameAnim := preload("res://scripts/world/hub_game_anim.gd")
+## Guests closer than this can be asked for a dice or card game.
+const GAME_REACH := 6.0
 var _mount_node: Node3D
 ## A calm evening: deep blue sky, soft moonlight, a light haze over the
 ## meadow (same keys as data/maps.json).
@@ -79,6 +82,8 @@ func setup(p_main: Node, p_net: Node) -> void:
 	_net.hub_state_received.connect(_on_state)
 	_net.hub_chat_received.connect(_on_chat)
 	_net.status_changed.connect(_on_status)
+	_net.game_changed.connect(_refresh_invite)
+	_net.game_played.connect(_on_game_played)
 
 
 ## Walks into the tavern (the menu hides, the character appears at the door).
@@ -98,6 +103,8 @@ func enter() -> void:
 		overlay.leave_confirmed.connect(_on_leave_confirmed)
 		overlay.leave_cancelled.connect(_on_chat_closed)
 		overlay.panel_closed.connect(_on_chat_closed)
+		overlay.game_challenge.connect(_on_game_challenge)
+		overlay.game_answered.connect(_on_game_answered)
 		tavern.parkour.finished.connect(_on_parkour_finished)
 		tavern.parkour.fell.connect(func(n: int) -> void: overlay.add_note("Düştün! Son kontrol noktasına döndün (%d düşme)." % n))
 		tavern.parkour.checkpoint_reached.connect(func(_i: int) -> void: overlay.add_note("Kontrol noktası!"))
@@ -144,12 +151,26 @@ func _ride(player: CharacterBody3D) -> void:
 		_mount_node.queue_free()
 		_mount_node = null
 	var d: Dictionary = _main.mounts.def(_main.mounts.active())
-	player.set("ride_height", MountModel.HEIGHT if not d.is_empty() else 0.0)
 	if not d.is_empty():
 		_mount_node = MountModel.new()
-		_mount_node.build(str(d.body), str(d.mane))
+		_mount_node.build(d)
 		player.add_child(_mount_node)
+	player.set("ride_height", _mount_node.seat_height() if _mount_node else 0.0)
+	player.set("riding", _mount_node != null)
 	player.call("set_pose", false, false)
+
+
+## The mount turns with the rider and runs while the rider moves; sitting on a
+## chair (or dancing) sets the rider down beside it.
+func _move_mount(delta: float, player: CharacterBody3D) -> void:
+	if _mount_node == null:
+		return
+	_mount_node.visible = _action == ""
+	_mount_node.rotation.y = float(player.get("facing"))
+	var speed := float(player.call("horizontal_speed")) / maxf(WALK_SCALE, 0.01)
+	_mount_node.animate(delta, speed)
+	var model: Node3D = player.get("_model")
+	model.set("ride_bob", absf(sin(float(_mount_node.get("_phase")))) * 0.07 * clampf(speed / 6.0, 0.0, 1.0))
 
 
 ## Walks out (back to the menu is the caller's job).
@@ -169,6 +190,7 @@ func leave() -> void:
 		_mount_node.queue_free()
 		_mount_node = null
 	player.set("ride_height", 0.0)
+	player.set("riding", false)
 	player.call("set_pose", false, false)
 	if _bubble:
 		_bubble.queue_free()
@@ -307,8 +329,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif (key == KEY_ENTER or key == KEY_KP_ENTER) and not overlay.is_typing():
 		_open_chat()
 		get_viewport().set_input_as_handled()
+	elif key == KEY_G and not overlay.is_typing() and not overlay.is_asking_leave():
+		_open_games()
+		get_viewport().set_input_as_handled()
+	elif (key == KEY_Y or key == KEY_N) and overlay.has_invite() and not overlay.is_typing():
+		overlay.answer_invite(key == KEY_Y)
+		get_viewport().set_input_as_handled()
 	elif key == KEY_ESCAPE:
-		if overlay.is_panel_open():
+		if overlay.is_games_open():
+			overlay.close_games()
+		elif overlay.is_panel_open():
 			overlay.close_panel()
 		elif overlay.is_asking_leave():
 			overlay.close_leave()
@@ -328,6 +358,7 @@ func _physics_process(delta: float) -> void:
 			_stand_up(true)
 	if _action == "swing" or _action == "sit":
 		player.global_position = tavern.origin_of(_object)
+	_move_mount(delta, player)
 	# Swings swing while someone is on them.
 	var used := {}
 	if _action == "swing":
@@ -481,6 +512,84 @@ func _on_parkour_board(data: Dictionary) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_main.player.set("controls_enabled", false)
 	overlay.show_panel("\n".join(lines))
+
+
+# --- Dice and card games ----------------------------------------------------------
+
+## G: the guests within reach can be asked for a game.
+func _open_games() -> void:
+	if not _net.is_online():
+		overlay.add_note("Zar ve kart için sunucuya bağlı olmalısın.")
+		return
+	var player: CharacterBody3D = _main.player
+	var names: Array = []
+	for g: Node in _guests.values():
+		var node := g as Node3D
+		if node.visible and node.global_position.distance_to(player.global_position) <= GAME_REACH:
+			names.append(str(g.get("player_name")))
+	_releasing = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.set("controls_enabled", false)
+	overlay.open_games(names, int(_main.progression.profile.gold))
+
+
+func _on_game_challenge(target: String, kind: String, bet: int) -> void:
+	_net.challenge_game(target, kind, bet)
+	overlay.add_note("%s oyuncusuna %d altınlık %s daveti gönderildi." % [target, bet, "zar" if kind == "dice" else "kart"])
+
+
+func _on_game_answered(from_name: String, accept: bool) -> void:
+	_net.answer_game(from_name, accept)
+	if not accept:
+		overlay.add_note("%s davetini reddettin." % from_name)
+
+
+## Shows the first waiting invitation (or hides the box).
+func _refresh_invite() -> void:
+	if not active:
+		return
+	var invites: Array = _net.game_invites
+	if invites.is_empty():
+		overlay.hide_invite()
+		return
+	var inv: Dictionary = invites[0]
+	overlay.show_invite(str(inv.from), str(inv.kind), int(inv.bet), int(_main.progression.profile.gold) >= int(inv.bet))
+	overlay.add_note("%s seni oyuna çağırıyor (Y kabul, N reddet)." % str(inv.from))
+
+
+## The server rolled a game this player is in: dice or cards fly over the
+## middle between the two.
+func _on_game_played(result: Dictionary) -> void:
+	if not active:
+		return
+	var player: CharacterBody3D = _main.player
+	var me := str(_net.account).to_lower()
+	var pos := {}
+	for i in 2:
+		var side: Dictionary = result.a if i == 0 else result.b
+		var who := str(side.name)
+		var at: Vector3 = player.global_position
+		if who.to_lower() != me:
+			for g: Node in _guests.values():
+				if str(g.get("player_name")).to_lower() == who.to_lower():
+					at = (g as Node3D).global_position
+		pos[i] = at
+	var anim: Node3D = GameAnim.new()
+	tavern.add_child(anim)
+	var mid: Vector3 = ((pos[0] as Vector3) + (pos[1] as Vector3)) * 0.5
+	if (pos[0] as Vector3).distance_to(pos[1] as Vector3) < 0.5:
+		mid = player.global_position + Vector3(0, 0, 1.5)
+	anim.global_position = Vector3(mid.x, player.global_position.y, mid.z)
+	anim.call("setup", result, str(_net.account), pos[0], pos[1])
+	var winner := int(result.winner)
+	var won: bool = str((result.a if winner == 0 else result.b).name).to_lower() == me
+	overlay.add_note("%s: %s %s, %s %s. %s" % ["Zar" if str(result.kind) == "dice" else "Kart", str(result.a.name), _hand_text(result, result.a), str(result.b.name), _hand_text(result, result.b), ("Kazandın! +%d altın" if won else "Kaybettin. -%d altın") % int(result.bet)])
+
+
+func _hand_text(result: Dictionary, side: Dictionary) -> String:
+	if str(result.kind) == "dice":
+		return "%d" % int(side.total)
+	return GameAnim._card_name(int(side.v[0]), int(side.v[1]))
 
 
 func _on_chat_closed() -> void:
