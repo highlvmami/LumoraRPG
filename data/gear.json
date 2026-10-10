@@ -49,6 +49,15 @@
 		{ "stat": "expGain", "label": "EXP Kazancı", "min": 0.04, "max": 0.1, "format": "percent" },
 		{ "stat": "goldGain", "label": "Altın Kazancı", "min": 0.05, "max": 0.12, "format": "percent" }
 	],
+	"gems": [
+		{ "id": "fire", "name": "Ateş Taşı", "color": "#ff6a2a", "stat": "damage", "value": 0.05 },
+		{ "id": "ice", "name": "Buz Taşı", "color": "#6fd3ff", "stat": "defense", "value": 0.03 },
+		{ "id": "poison", "name": "Zehir Taşı", "color": "#7ddc4a", "stat": "critDamage", "value": 0.12 },
+		{ "id": "storm", "name": "Fırtına Taşı", "color": "#ffe14d", "stat": "attackSpeed", "value": 0.04 },
+		{ "id": "life", "name": "Can Taşı", "color": "#ff5a7a", "stat": "maxHp", "value": 14.0 }
+	],
+	"sockets": [0, 0, 1, 1, 2, 3],
+	"gemPrice": 400,
 	"chests": [
 		{ "id": "common", "name": "Sıradan Kasa", "color": "#b8c2cc", "price": 120, "odds": [60, 28, 9, 3, 0, 0] },
 		{ "id": "rare", "name": "Nadir Kasa", "color": "#4fb8ff", "price": 350, "odds": [20, 42, 25, 10, 3, 0] },
