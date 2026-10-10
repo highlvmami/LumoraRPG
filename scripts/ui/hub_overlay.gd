@@ -10,6 +10,11 @@ signal chat_submitted(text: String)
 ## The chat box closed (sent or cancelled).
 signal chat_closed
 
+## The player picked "leave" in the leave question.
+signal leave_confirmed
+## The leave question closed without leaving.
+signal leave_cancelled
+
 const MAX_LINES := 8
 
 var _root: Control
@@ -19,6 +24,7 @@ var _log: RichTextLabel
 var _edit: LineEdit
 var _hint: Label
 var _lines := 0
+var _leave_box: Control
 
 
 func _ready() -> void:
@@ -84,6 +90,32 @@ func _ready() -> void:
 	back.visible = false
 	_log.set_meta("back", back)
 
+	_leave_box = PanelContainer.new()
+	_leave_box.add_theme_stylebox_override("panel", UiTheme.box(Color(0.05, 0.06, 0.09, 0.94), 12, 22))
+	_leave_box.set_anchors_preset(Control.PRESET_CENTER)
+	_leave_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_leave_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_leave_box.visible = false
+	var ask := VBoxContainer.new()
+	ask.add_theme_constant_override("separation", 14)
+	_leave_box.add_child(ask)
+	var ask_text := UiTheme.label("Tavernadan çıkmak istiyor musun?", UiTheme.label_settings(22, UiTheme.TEXT, 5))
+	ask_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ask.add_child(ask_text)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	ask.add_child(row)
+	var yes := Button.new()
+	yes.text = "Evet, çık"
+	yes.pressed.connect(func() -> void: leave_confirmed.emit())
+	row.add_child(yes)
+	var no := Button.new()
+	no.text = "Kal"
+	no.pressed.connect(close_leave)
+	row.add_child(no)
+	_root.add_child(_leave_box)
+
 
 func set_count(n: int) -> void:
 	_count.text = "Tavernada %d kişi" % n
@@ -114,6 +146,20 @@ func add_note(text: String) -> void:
 	_log.append_text("[color=#b8c2cc][i]%s[/i][/color]\n" % text.replace("[", "[lb]"))
 	_lines += 1
 	(_log.get_meta("back") as Control).visible = true
+
+
+func is_asking_leave() -> bool:
+	return _leave_box.visible
+
+
+func ask_leave() -> void:
+	_leave_box.visible = true
+
+
+func close_leave() -> void:
+	if _leave_box.visible:
+		_leave_box.visible = false
+		leave_cancelled.emit()
 
 
 func is_typing() -> bool:
