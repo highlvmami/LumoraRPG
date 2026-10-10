@@ -10,6 +10,7 @@ const UiTheme := preload("res://scripts/ui/theme.gd")
 const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const SkillTree := preload("res://scripts/progression/skill_tree.gd")
+const CityView := preload("res://scripts/ui/city_view.gd")
 const SkillTreeView := preload("res://scripts/ui/skill_tree_view.gd")
 const Inventory := preload("res://scripts/progression/inventory.gd")
 const ItemArt := preload("res://scripts/ui/item_art.gd")
@@ -56,6 +57,18 @@ const NAV := [
 	["versions", "Sürümler", "staff"],
 	["settings", "Ayarlar", "shield"],
 ]
+## The town's buildings; clicking one opens its menu (its `sections` become the tabs).
+const BUILDINGS := [
+	{"id": "tower", "name": "Yetenek Kulesi", "style": "tower", "wall": "#6b5a8a", "roof": "#3a2f5a", "icon": "storm", "row": "back", "slot": 0, "sections": ["skills", "pets"]},
+	{"id": "board", "name": "Görev Meydanı", "style": "house", "wall": "#b08a5a", "roof": "#7a3a2a", "icon": "scroll", "row": "back", "slot": 1, "sections": ["quests", "achievements", "leaderboard"]},
+	{"id": "guildhall", "name": "Lonca Binası", "style": "hall", "wall": "#8a96a8", "roof": "#3a5a9a", "icon": "shield", "row": "back", "slot": 2, "sections": ["guild"]},
+	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade"]},
+	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack"]},
+	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market"]},
+	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 2, "sections": []},
+]
+## The small menu box in the bottom right corner (Ayarlar is the last one).
+const UTILITY := ["profile", "logs", "versions", "settings"]
 const CLASS_NAMES := {"warrior": "Savaşçı", "archer": "Okçu", "mage": "Büyücü", "rogue": "Gölge"}
 ## Leaderboards: [id, title, where the number is in a saved game, format].
 ## The server (server/index.js BOARDS) uses the same ids and paths.
@@ -90,7 +103,7 @@ var _guild_typing := false
 var _guild_tab := "main"
 ## The account's pets (set by the game after setup).
 var pets: RefCounted
-var section := "characters"
+var section := "city"
 ## Item selected in the backpack (uid, -1 = none).
 var selected_item := -1
 ## Backpack filters: an equipment slot ("" = all) and a rarity (-1 = all).
@@ -120,6 +133,10 @@ var _notice: Label
 var _content: VBoxContainer
 var _section_title: Label
 var _tab_buttons := {}
+var _city: Control
+var _page: Control
+var _tabs: HBoxContainer
+var _back_button: Button
 var _name_edit: LineEdit
 var _pet_pictures: Node
 ## The room's tavern (kept while in a room so seated characters stay put).
@@ -163,20 +180,37 @@ func setup(p_progression: Progression, p_skill_tree: SkillTree, p_inventory: Inv
 
 	layout.add_child(_build_top_bar())
 
-	var body := HBoxContainer.new()
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 20)
-	layout.add_child(body)
-	body.add_child(_build_nav())
+	# The stage: the town, or the page of the building that was opened.
+	var stage := Control.new()
+	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layout.add_child(stage)
+	_city = CityView.new()
+	_city.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stage.add_child(_city)
+	_city.setup(_building_defs())
+	_city.building_clicked.connect(_on_building_clicked)
 
 	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(panel)
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stage.add_child(panel)
+	_page = panel
 	var panel_box := VBoxContainer.new()
-	panel_box.add_theme_constant_override("separation", 10)
+	panel_box.add_theme_constant_override("separation", 8)
 	panel.add_child(panel_box)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 14)
+	panel_box.add_child(head)
+	_back_button = Button.new()
+	_back_button.text = "← Şehre dön"
+	_back_button.add_theme_font_size_override("font_size", 16)
+	_back_button.pressed.connect(open_section.bind("city"))
+	head.add_child(_back_button)
 	_section_title = UiTheme.label("", UiTheme.label_settings(26, UiTheme.ACCENT, 0))
-	panel_box.add_child(_section_title)
+	head.add_child(_section_title)
+	_tabs = HBoxContainer.new()
+	_tabs.add_theme_constant_override("separation", 6)
+	panel_box.add_child(_tabs)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -186,7 +220,8 @@ func setup(p_progression: Progression, p_skill_tree: SkillTree, p_inventory: Inv
 	_content.add_theme_constant_override("separation", 10)
 	scroll.add_child(_content)
 
-	open_section("characters")
+	layout.add_child(_build_bottom_bar())
+	open_section("city")
 
 
 func _exit_tree() -> void:
@@ -216,6 +251,13 @@ func open_section(id: String) -> void:
 	section = id
 	if id != "hub":
 		_duel_asked = false
+	_city.visible = id == "city"
+	_page.visible = id != "city"
+	if id == "city":
+		for key: String in _tab_buttons:
+			(_tab_buttons[key] as Button).button_pressed = false
+		return
+	_rebuild_tabs(id)
 	for key: String in _tab_buttons:
 		(_tab_buttons[key] as Button).button_pressed = key == id or (key == "characters" and id == "create")
 	for child in _content.get_children():
@@ -544,53 +586,107 @@ func _build_top_bar() -> Control:
 
 ## The left column: Play and the section buttons. It scrolls when the window
 ## is too short for all of them, so nothing ends up off screen.
-func _build_nav() -> Control:
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size = Vector2(230, 0)
-	var nav := VBoxContainer.new()
-	nav.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	nav.add_theme_constant_override("separation", 2)
-	scroll.add_child(nav)
+## Building data for the town view, with the names of what is inside.
+func _building_defs() -> Array:
+	var out: Array = []
+	for b: Dictionary in BUILDINGS:
+		var d: Dictionary = b.duplicate()
+		var names := PackedStringArray()
+		for id: String in b.sections:
+			names.append(_nav_name(id))
+		d.tip = ("İçinde: " + ", ".join(names)) if not names.is_empty() else "Maceraya başla!"
+		out.append(d)
+	return out
+
+
+func _nav_name(id: String) -> String:
+	for entry: Array in NAV:
+		if str(entry[0]) == id:
+			return str(entry[1])
+	return id
+
+
+func _nav_icon(id: String) -> String:
+	for entry: Array in NAV:
+		if str(entry[0]) == id:
+			return str(entry[2])
+	return "shield"
+
+
+func _on_building_clicked(id: String) -> void:
+	for b: Dictionary in BUILDINGS:
+		if str(b.id) != id:
+			continue
+		if (b.sections as Array).is_empty():
+			play()
+		else:
+			open_section(str(b.sections[0]))
+		return
+
+
+## The bottom row: the big play button, and in the corner a small box with
+## the other menus (the settings are always the last one).
+func _build_bottom_bar() -> Control:
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 14)
 	var play_button := UiTheme.primary_button("OYNA")
-	play_button.custom_minimum_size = Vector2(0, 48)
+	play_button.custom_minimum_size = Vector2(230, 48)
 	play_button.add_theme_font_size_override("font_size", 28)
 	for state: String in ["normal", "hover", "pressed"]:
 		var st := play_button.get_theme_stylebox(state) as StyleBoxFlat
 		st.content_margin_top = 6
 		st.content_margin_bottom = 6
 	play_button.pressed.connect(play)
-	nav.add_child(play_button)
-	for entry: Array in NAV:
+	bar.add_child(play_button)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_child(spacer)
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", _card_style(Color("#4a6a8a"), 2))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	box.add_child(row)
+	for id: String in UTILITY:
 		var button := Button.new()
-		button.text = "  " + str(entry[1])
+		button.text = "  " + _nav_name(id)
 		button.toggle_mode = true
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(0, 27)
-		button.add_theme_font_size_override("font_size", 15)
-		button.icon = PixelIcons.texture(str(entry[2]), UiTheme.ACCENT)
+		button.custom_minimum_size = Vector2(0, 34)
+		button.add_theme_font_size_override("font_size", 16)
+		button.icon = PixelIcons.texture(_nav_icon(id), UiTheme.ACCENT)
 		button.expand_icon = true
 		button.add_theme_constant_override("icon_max_width", 22)
-		var normal := UiTheme.box(Color(0.12, 0.16, 0.21, 0.92), 8, 8)
-		normal.border_width_left = 4
-		normal.border_color = Color(0.12, 0.16, 0.21, 0.92)
-		button.add_theme_stylebox_override("normal", normal)
-		var hover := UiTheme.box(UiTheme.BUTTON_HOVER, 8, 8)
-		hover.border_width_left = 4
-		hover.border_color = UiTheme.ACCENT.darkened(0.4)
-		button.add_theme_stylebox_override("hover", hover)
-		var on := UiTheme.box(Color("#3a5270"), 8, 8)
-		on.border_width_left = 4
-		on.border_color = UiTheme.ACCENT
-		button.add_theme_stylebox_override("pressed", on)
-		button.add_theme_stylebox_override("hover_pressed", on)
-		for style: StyleBoxFlat in [normal, hover, on]:
-			style.content_margin_top = 2
-			style.content_margin_bottom = 2
-		button.pressed.connect(open_section.bind(str(entry[0])))
-		_tab_buttons[entry[0]] = button
-		nav.add_child(button)
-	return scroll
+		button.pressed.connect(open_section.bind(id))
+		_tab_buttons[id] = button
+		row.add_child(button)
+	bar.add_child(box)
+	return bar
+
+
+## The tabs of the building a page belongs to (none for the corner menus).
+func _rebuild_tabs(id: String) -> void:
+	for child in _tabs.get_children():
+		_tabs.remove_child(child)
+		child.queue_free()
+	for key: String in _tab_buttons.keys():
+		if not UTILITY.has(key):
+			_tab_buttons.erase(key)
+	var page_id := "characters" if id == "create" else id
+	for b: Dictionary in BUILDINGS:
+		if not (b.sections as Array).has(page_id):
+			continue
+		for sid: String in b.sections:
+			var button := Button.new()
+			button.text = "  " + _nav_name(sid)
+			button.toggle_mode = true
+			button.custom_minimum_size = Vector2(0, 30)
+			button.add_theme_font_size_override("font_size", 16)
+			button.icon = PixelIcons.texture(_nav_icon(sid), UiTheme.ACCENT)
+			button.expand_icon = true
+			button.add_theme_constant_override("icon_max_width", 20)
+			button.pressed.connect(open_section.bind(sid))
+			_tab_buttons[sid] = button
+			_tabs.add_child(button)
+		return
 
 
 ## Side-by-side character cards: the 3D character with its gear, name, class,
@@ -1332,7 +1428,7 @@ func _fit_tree(holder: Control, view: Control) -> void:
 	var scroll := _content.get_parent() as Control
 	var full: Vector2 = SkillTreeView.VIEW_SIZE
 	var room := Vector2(_content.size.x, scroll.size.y - holder.position.y - 6.0)
-	var k := clampf(minf(room.x / full.x, room.y / full.y), 0.5, 1.0)
+	var k := clampf(minf(room.x / full.x, room.y / full.y), 0.3, 1.0)
 	view.scale = Vector2(k, k)
 	view.size = full
 	view.position = Vector2(maxf(0.0, (room.x - full.x * k) * 0.5), 0)

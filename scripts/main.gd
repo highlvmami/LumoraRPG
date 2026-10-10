@@ -473,7 +473,7 @@ func reset_account() -> void:
 	progression.profile.activeCharacter = -1
 	main_menu.selected_item = -1
 	apply_settings()
-	main_menu.open_section("characters")
+	main_menu.open_section("city")
 	main_menu.refresh()
 	main_menu.notify("Hesap sıfırlandı.")
 
