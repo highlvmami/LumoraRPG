@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.33", "date": "2026-10-10", "title": "Demirci", "notes": [
+			"Çantadaki ve ekipmandaki eşyaların altındaki Geliştir düğmesiyle eşyayı +5'e kadar geliştir",
+			"Her seviye eşyanın tüm özelliklerini temel değerinin %12'si kadar artırır; fiyat nadirlik ve seviyeyle artar",
+			"Geliştirilmiş eşyaların adında seviyesi görünür ve daha pahalıya satılır" ] },
 		{ "version": "0.32", "date": "2026-10-10", "title": "Balık tutma ve yemek", "notes": [
 			"Tavernanın iskelesinde (E) olta at: sazan, alabalık, levrek, yılanbalığı ve nadir Altın Balık tutabilirsin (eski çizme çıkarsa satılır)",
 			"Taverna sayfasındaki yeni Mutfak bölümünde balığı pişirip ye: yemek bir sonraki turda güç verir ve tur bitince biter",

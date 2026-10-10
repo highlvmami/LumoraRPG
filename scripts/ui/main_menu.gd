@@ -424,6 +424,16 @@ func unequip(slot_id: String) -> void:
 	refresh()
 
 
+func upgrade_item(uid: int) -> bool:
+	var ok := inventory.upgrade(uid)
+	if ok:
+		notify("Eşya geliştirildi: %s" % inventory.gear.item_name(inventory.item(uid)))
+	else:
+		notify("Yeterli altının yok.")
+	refresh()
+	return ok
+
+
 func sell(uid: int) -> int:
 	var gold := inventory.sell(uid)
 	if gold > 0:
@@ -2613,6 +2623,14 @@ func _item_card(it: Dictionary, equip_only: bool) -> Control:
 		sell_button.pressed.connect(sell.bind(int(it.uid)))
 		buttons.add_child(sell_button)
 	col.add_child(buttons)
+	var up := Button.new()
+	var cost := gear.upgrade_cost(it)
+	up.text = "Geliştir %d" % cost if cost > 0 else "En üst seviye"
+	up.add_theme_font_size_override("font_size", 12)
+	up.disabled = cost <= 0 or int(progression.profile.gold) < cost
+	up.tooltip_text = "Demirci: tüm özellikler %%%d artar" % roundi(gear.UPGRADE_STEP * 100.0) if cost > 0 else ""
+	up.pressed.connect(upgrade_item.bind(int(it.uid)))
+	col.add_child(up)
 	return card
 
 
