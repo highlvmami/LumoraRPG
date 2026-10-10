@@ -50,6 +50,7 @@ const NAV := [
 	["quests", "Görevler", "scroll"],
 	["worldboss", "Dünya Bossu", "skull"],
 	["wardrobe", "Gardırop", "cls_mage"],
+	["difficulty", "Zorluk", "sword"],
 	["gems", "Taşlar", "trophy"],
 	["stable", "Ahır", "paw"],
 	["achievements", "Başarımlar", "skull"],
@@ -71,7 +72,7 @@ const BUILDINGS := [
 	{"id": "inn", "name": "Taverna", "style": "house", "wall": "#a5703a", "roof": "#5a3a1c", "icon": "mug", "row": "back", "slot": 3, "sections": ["hub", "friends", "trade"]},
 	{"id": "barracks", "name": "Kahramanlar Evi", "style": "house", "wall": "#9a5a4a", "roof": "#5a2a22", "icon": "cls_warrior", "row": "front", "slot": 0, "sections": ["characters", "equipment", "backpack", "wardrobe"]},
 	{"id": "bazaar", "name": "Pazar", "style": "market", "wall": "#b08a5a", "roof": "#d9534f", "icon": "clover", "row": "front", "slot": 1, "sections": ["market", "gems", "stable"]},
-	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 2, "sections": []},
+	{"id": "gate", "name": "Savaş Kapısı", "style": "gate", "wall": "#7b7f86", "roof": "#5a5e66", "icon": "sword", "row": "front", "slot": 2, "sections": ["difficulty"]},
 ]
 ## The small menu box in the bottom right corner (Ayarlar is the last one).
 const UTILITY := ["profile", "logs", "versions", "settings"]
@@ -318,6 +319,9 @@ func open_section(id: String) -> void:
 		"hub":
 			_section_title.text = "Lumora Tavernası"
 			_build_hub()
+		"difficulty":
+			_section_title.text = "Savaş Kapısı"
+			_build_difficulty()
 		"wardrobe":
 			_section_title.text = "Gardırop"
 			_build_wardrobe()
@@ -2689,6 +2693,34 @@ func friend_suggestions() -> Array:
 
 
 ## Past runs, newest first: when, map, character, level, kills, time, gold.
+## The gate: pick the difficulty for the next runs. Nightmare levels open
+## with the account level; they make enemies tougher but pay much more.
+func _build_difficulty() -> void:
+	var chosen := str(progression.profile.get("difficulty", "normal"))
+	_text("Zorluk bir sonraki oyunlar için geçerli. Kabus seviyeleri hesap seviyesiyle açılır; düşmanlar çok daha güçlü olur ama EXP, altın ve boss kasaları artar.", 14, UiTheme.MUTED)
+	for d: Dictionary in Config.load_json("res://data/difficulty.json").levels:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_child(UiTheme.label(str(d.name), UiTheme.label_settings(20, UiTheme.ACCENT if str(d.id) == chosen else UiTheme.TEXT, 2)))
+		var lines := UiTheme.label(str(d.desc), UiTheme.label_settings(13, UiTheme.MUTED, 0))
+		lines.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.add_child(lines)
+		row.add_child(info)
+		var b := Button.new()
+		var open: bool = progression.account_level() >= int(d.level)
+		b.text = ("Seçili ✓" if str(d.id) == chosen else "Seç") if open else "Seviye %d" % int(d.level)
+		b.disabled = not open or str(d.id) == chosen
+		b.custom_minimum_size.x = 120
+		b.pressed.connect(func() -> void:
+			progression.profile.difficulty = str(d.id)
+			progression.store.save_to_disk()
+			open_section("difficulty"))
+		row.add_child(b)
+		_content.add_child(row)
+
+
 ## The wardrobe: outfits and dyes for the active character (looks only).
 func _build_wardrobe() -> void:
 	var c := inventory.active_character()

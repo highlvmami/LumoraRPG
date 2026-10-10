@@ -618,6 +618,7 @@ func start_run(guest_map := "", pvp := false) -> void:
 	bow.clear()
 	loot_orbs.clear()
 	enemies.mirror = guest or pvp
+	enemies.difficulty = {"hp": 1.0, "damage": 1.0, "reward": 1.0} if pvp else difficulty_info()
 	_pvp_over = false
 	enemies.targets = [player]
 	_run_gold = 0
@@ -710,6 +711,7 @@ func start_world_boss() -> void:
 	if in_run or not net.is_online() or net.in_room() or info.is_empty() or bool(info.get("dead", false)):
 		return
 	start_run()
+	enemies.difficulty = {"hp": 1.0, "damage": 1.0, "reward": 1.0}
 	enemies.world_fight = str(info.kind)
 	enemies.world_damage = 0.0
 	_world_fight_over = false
@@ -733,6 +735,10 @@ func _healer_pulse(delta: float) -> void:
 		for r: Node3D in coop.puppets():
 			net.send_game({"k": "heal", "a": snappedf(amount, 0.1)}, int(r.peer_id))
 	healed_pulses += 1
+
+
+func world_fight_running() -> bool:
+	return enemies.world_fight != ""
 
 
 func _world_fight_tick() -> void:
@@ -1159,8 +1165,24 @@ func _on_enemy_killed(at: Vector3, exp_amount: int, gold_amount: int) -> void:
 
 
 ## Every boss drops a chest; later bosses drop better chests.
+## The difficulty picked for runs ({hp, damage, reward, id}); locked ones fall back to normal.
+func difficulty_info() -> Dictionary:
+	var id := str(progression.profile.get("difficulty", "normal"))
+	for d: Dictionary in difficulty_levels():
+		if str(d.id) == id and progression.account_level() >= int(d.level):
+			return d
+	return difficulty_levels()[0]
+
+
+func difficulty_levels() -> Array:
+	return Config.load_json("res://data/difficulty.json").levels
+
+
 func _on_boss_defeated(_boss_name: String) -> void:
 	var odds: Array = inventory.gear.drops.bossChestOdds
+	var extra_chests := int(Config.load_json("res://data/difficulty.json").bossChestBonus.get(str(difficulty_info().id), 0)) if not world_fight_running() else 0
+	for i in extra_chests:
+		_drop_chest(inventory.gear.roll_weighted(odds[mini(_bosses_killed, odds.size() - 1)]))
 	_drop_chest(inventory.gear.roll_weighted(odds[mini(_bosses_killed, odds.size() - 1)]))
 	_bosses_killed += 1
 	var gem_id := inventory.random_gem_id()
