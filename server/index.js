@@ -32,6 +32,7 @@
 //   {t:"guild_create", name, tag} {t:"guild_join", name}  {t:"guild_leave"}  {t:"guild_kick", name}
 //   {t:"guild_chat", text}       say something to your guild
 //   {t:"guild_kills", n}         monsters defeated in a run (weekly guild goal)
+//   {t:"duel_challenge", to, fighter}  {t:"duel_inbox"}  {t:"duel_answer", from, accept, fighter}
 //   {t:"guild_claim"}            take the weekly reward once the goal is reached
 //   {t:"trade_offer", to, item, price}  offer an item from your backpack for gold
 //   {t:"trade_answer", id, accept}      accept or decline an offer made to you
@@ -48,6 +49,8 @@
 //   {t:"hub_state", id, d}       another visitor of the hub tavern moved or sat down
 //   {t:"guild", guild:{name, tag, leader, members:[{name, level, online}], chat, quest:{goal, progress, reward, claimed, top, endsIn}}|null}
 //   {t:"guild_reward", gold}
+//   {t:"duel_sent", to}  {t:"duel_inbox", invites:[{from, cls}]}  {t:"duel_declined", by}
+//   {t:"duel_result", a, b, winner:0|1|-1, frames:[[seconds, hpA, hpB, hitA, hitB]]}
 //   {t:"guild_list", guilds:[{name, tag, members, leader}]}  {t:"guild_chat", name, text, at}
 //   {t:"trades", offers:[{id, from, to, item, price}]}  (sent whenever your offers change)
 //   {t:"trade_done", id, from, to, item, price}  a trade went through: the seller gives the
@@ -58,6 +61,7 @@ const http = require("http");
 const { WebSocketServer } = require("ws");
 const { Accounts, key } = require("./accounts.js");
 const { Guilds } = require("./guilds.js");
+const { Duels } = require("./duels.js");
 const { Trades } = require("./trades.js");
 
 const PORT = Number(process.env.PORT) || 8080;
@@ -88,6 +92,7 @@ const boardCache = new Map(); // cat -> {at, rows}
 
 const accounts = new Accounts(process.env.DATABASE_URL);
 const guilds = new Guilds(accounts.store.pool);
+const duels = new Duels();
 const trades = new Trades();
 
 const clients = new Map(); // id -> client
@@ -346,6 +351,37 @@ async function guildMessage(c, msg) {
   }
 }
 
+// --- Duels ---
+
+async function duelMessage(c, msg) {
+  switch (msg.t) {
+    case "duel_challenge": {
+      const target = online(String(msg.to || ""));
+      if (!target) return send(c, { t: "error", msg: "Bu oyuncu çevrimiçi değil." });
+      const res = duels.challenge(c.name, target.name, msg.fighter);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      send(target, { t: "duel_inbox", invites: duels.inbox(target.name) });
+      return send(c, { t: "duel_sent", to: target.name });
+    }
+    case "duel_inbox":
+      return send(c, { t: "duel_inbox", invites: duels.inbox(c.name) });
+    case "duel_answer": {
+      const res = duels.answer(c.name, String(msg.from || ""), Boolean(msg.accept), msg.fighter);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      send(c, { t: "duel_inbox", invites: duels.inbox(c.name) });
+      const challenger = online(String(msg.from || ""));
+      if (res.declined) {
+        if (challenger) send(challenger, { t: "duel_declined", by: c.name });
+        return;
+      }
+      const result = { t: "duel_result", a: res.a, b: res.b, winner: res.winner, frames: res.frames };
+      send(c, result);
+      if (challenger) send(challenger, result);
+      return;
+    }
+  }
+}
+
 // --- Trades ---
 
 function sendTrades(name) {
@@ -473,6 +509,10 @@ async function handle(c, msg) {
     case "guild_claim":
     case "guild_chat":
       return guildMessage(c, msg);
+    case "duel_challenge":
+    case "duel_inbox":
+    case "duel_answer":
+      return duelMessage(c, msg);
     case "trades":
     case "trade_offer":
     case "trade_cancel":

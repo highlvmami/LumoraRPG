@@ -49,6 +49,9 @@ signal trades_changed
 signal trade_done(info: Dictionary)
 ## The weekly guild reward was granted by the server.
 signal guild_reward(gold: int)
+## Duel invites changed, or a duel was played ({a, b, winner, frames}).
+signal duel_changed
+signal duel_played(result: Dictionary)
 
 var url := DEFAULT_URL
 var status := "offline"
@@ -74,6 +77,8 @@ var hub_chat: Array = []
 var guild: Dictionary = {}
 ## The biggest guilds: [{name, tag, members, leader}].
 var guild_list: Array = []
+## Duel challenges waiting for you: [{from, cls}].
+var duel_invites: Array = []
 ## Open trade offers: [{id, from, to, item, price}].
 var trades: Array = []
 ## False stops reconnecting (tests, offline play).
@@ -295,6 +300,20 @@ func leave_guild() -> void:
 func kick_from_guild(member: String) -> void:
 	if is_online():
 		_send({"t": "guild_kick", "name": member})
+
+
+## Challenges an online player to a duel with `fighter` (see Main.duel_fighter).
+func challenge_duel(to: String, fighter: Dictionary) -> void:
+	_send({"t": "duel_challenge", "to": to, "fighter": fighter})
+
+
+func answer_duel(from_name: String, accept: bool, fighter: Dictionary) -> void:
+	_send({"t": "duel_answer", "from": from_name, "accept": accept, "fighter": fighter})
+
+
+func ask_duel_inbox() -> void:
+	if is_online():
+		_send({"t": "duel_inbox"})
 
 
 ## Tells the server how many monsters a run defeated (weekly guild goal).
@@ -573,6 +592,17 @@ func _handle(msg: Dictionary) -> void:
 		"trade_done":
 			if msg.get("item") is Dictionary:
 				trade_done.emit({"id": int(msg.id), "from": str(msg.from), "to": str(msg.to), "item": msg.item, "price": int(msg.price)})
+		"duel_inbox":
+			duel_invites = []
+			for i: Dictionary in msg.get("invites", []):
+				duel_invites.append({"from": str(i.from), "cls": str(i.get("cls", ""))})
+			duel_changed.emit()
+		"duel_sent":
+			notice.emit("Düello daveti %s'a gönderildi." % str(msg.to))
+		"duel_declined":
+			notice.emit("%s düelloyu reddetti." % str(msg.by))
+		"duel_result":
+			duel_played.emit({"a": msg.a, "b": msg.b, "winner": int(msg.winner), "frames": msg.frames})
 		"guild_reward":
 			guild_reward.emit(int(msg.get("gold", 0)))
 		"trade_closed":

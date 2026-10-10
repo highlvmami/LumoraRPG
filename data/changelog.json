@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.37", "date": "2026-10-10", "title": "Düello Arenası", "notes": [
+			"Taverna sayfasında yeni Düello Arenası: çevrimiçi bir oyuncuyu düelloya çağır, gelen davetleri kabul et ya da reddet",
+			"Dövüşü sunucu iki karakterin gücüyle (can, hasar, saldırı hızı, kritik, savunma) oynatır; ikiniz de aynı tekrarı canlı can çubuklarıyla izlersiniz",
+			"Galibiyet ve yenilgiler sayılır; yeni başarımlar: Düellocu ve Arena Ustası" ] },
 		{ "version": "0.36", "date": "2026-10-10", "title": "Lonca görevleri", "notes": [
 			"Loncalarda haftalık ortak hedef: üyeler turlarda yendikleri canavarlarla hedefe katkı yapar (hedef üye sayısıyla büyür)",
 			"Lonca sayfasında ilerleme çubuğu ve en çok katkı yapanlar; hedef dolunca katkı yapan herkes 400 altın ödülünü bir kez alır",
