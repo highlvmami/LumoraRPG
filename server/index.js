@@ -33,6 +33,7 @@
 //   {t:"guild_chat", text}       say something to your guild
 //   {t:"guild_kills", n}         monsters defeated in a run (weekly guild goal)
 //   {t:"duel_challenge", to, fighter}  {t:"duel_inbox"}  {t:"duel_answer", from, accept, fighter}
+//   {t:"guild_donate", gold}     put gold in the guild treasury  {t:"guild_upgrade", id}  (leader) buy an upgrade
 //   {t:"guild_claim"}            take the weekly reward once the goal is reached
 //   {t:"trade_offer", to, item, price}  offer an item from your backpack for gold
 //   {t:"trade_answer", id, accept}      accept or decline an offer made to you
@@ -48,7 +49,7 @@
 //   {t:"hub", members:[{id, name, look, seat, level}], you, chat:[{name, text, at}]}  {t:"hub_chat", id, name, text, at}
 //   {t:"hub_state", id, d}       another visitor of the hub tavern moved or sat down
 //   {t:"guild", guild:{name, tag, leader, members:[{name, level, online}], chat, quest:{goal, progress, reward, claimed, top, endsIn}}|null}
-//   {t:"guild_reward", gold}
+//   {t:"guild_reward", gold}  {t:"guild_donated", gold}
 //   {t:"duel_sent", to}  {t:"duel_inbox", invites:[{from, cls}]}  {t:"duel_declined", by}
 //   {t:"duel_result", a, b, winner:0|1|-1, frames:[[seconds, hpA, hpB, hitA, hitB]]}
 //   {t:"guild_list", guilds:[{name, tag, members, leader}]}  {t:"guild_chat", name, text, at}
@@ -60,7 +61,7 @@
 const http = require("http");
 const { WebSocketServer } = require("ws");
 const { Accounts, key } = require("./accounts.js");
-const { Guilds } = require("./guilds.js");
+const { Guilds, UPGRADES } = require("./guilds.js");
 const { Duels } = require("./duels.js");
 const { Trades } = require("./trades.js");
 
@@ -275,6 +276,7 @@ async function guildInfo(g) {
       members: g.members.map((m) => ({ name: m, level: levels[m] || 1, online: Boolean(online(m)) })),
       chat: g.chat,
       quest: guilds.questView(g),
+      upgrades: { ...guilds.upgradeView(g), names: Object.fromEntries(Object.entries(UPGRADES).map(([id, u]) => [id, u.name])) },
     },
   };
 }
@@ -325,6 +327,17 @@ async function guildMessage(c, msg) {
     case "guild_kills": {
       const res = await guilds.addKills(c.name, msg.n);
       if (!res.ok) return;
+      return broadcastGuild(res.guild);
+    }
+    case "guild_donate": {
+      const res = await guilds.donate(c.name, msg.gold);
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
+      send(c, { t: "guild_donated", gold: res.gold });
+      return broadcastGuild(res.guild);
+    }
+    case "guild_upgrade": {
+      const res = await guilds.buy(c.name, String(msg.id || ""));
+      if (!res.ok) return send(c, { t: "error", msg: res.msg });
       return broadcastGuild(res.guild);
     }
     case "guild_claim": {
@@ -506,6 +519,8 @@ async function handle(c, msg) {
     case "guild_leave":
     case "guild_kick":
     case "guild_kills":
+    case "guild_donate":
+    case "guild_upgrade":
     case "guild_claim":
     case "guild_chat":
       return guildMessage(c, msg);

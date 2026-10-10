@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.39", "date": "2026-10-10", "title": "Lonca yükseltmeleri", "notes": [
+			"Lonca sayfası artık sekmeli: Genel (haftalık hedef ve bonuslar), Üyeler, Sohbet ve Yükseltmeler",
+			"Üyeler altınlarını lonca kasasına bağışlar; lider kasayla yükseltme alır: Altın Bereketi, Bilgelik (EXP), Savaş Çığlığı (hasar), Sağlam Kale (can) ve Geniş Salon (üye kapasitesi)",
+			"Her yükseltme 5 seviyeye kadar çıkar ve tüm lonca üyelerine geçer" ] },
 		{ "version": "0.38", "date": "2026-10-10", "title": "Sürü modu", "notes": [
 			"Çok daha fazla düşman: turlar daha kalabalık başlıyor ve süre geçtikçe 400'den fazla düşmana çıkabiliyor",
 			"Sürüler: belli aralıklarla tek bir cins düşman büyük bir sürü halinde bir yönden üstüne koşuyor (uyarı yazısı çıkar)",

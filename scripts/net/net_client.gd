@@ -49,6 +49,8 @@ signal trades_changed
 signal trade_done(info: Dictionary)
 ## The weekly guild reward was granted by the server.
 signal guild_reward(gold: int)
+## Gold the server accepted into the guild treasury.
+signal guild_donated(gold: int)
 ## Duel invites changed, or a duel was played ({a, b, winner, frames}).
 signal duel_changed
 signal duel_played(result: Dictionary)
@@ -316,6 +318,26 @@ func ask_duel_inbox() -> void:
 		_send({"t": "duel_inbox"})
 
 
+## Gives gold to the guild treasury (the gold is taken when the server accepts).
+func donate_guild(gold: int) -> void:
+	if status == "online" and in_guild():
+		_send({"t": "guild_donate", "gold": gold})
+
+
+## The leader buys a guild upgrade with the treasury.
+func upgrade_guild(id: String) -> void:
+	if status == "online" and in_guild():
+		_send({"t": "guild_upgrade", "id": id})
+
+
+## What the guild's upgrades add to a stat of every member (0 without a guild).
+func guild_bonus(stat: String) -> float:
+	if not in_guild():
+		return 0.0
+	var up: Dictionary = guild.get("upgrades", {})
+	return float((up.get("bonuses", {}) as Dictionary).get(stat, 0.0))
+
+
 ## Tells the server how many monsters a run defeated (weekly guild goal).
 func report_guild_kills(kills: int) -> void:
 	if status == "online" and in_guild() and kills > 0:
@@ -563,13 +585,17 @@ func _handle(msg: Dictionary) -> void:
 			guild = {}
 			if msg.get("guild") is Dictionary:
 				var g: Dictionary = msg.guild
-				guild = {"name": str(g.name), "tag": str(g.tag), "leader": str(g.leader), "members": [], "chat": [], "quest": {}}
+				guild = {"name": str(g.name), "tag": str(g.tag), "leader": str(g.leader), "members": [], "chat": [], "quest": {}, "upgrades": {}}
 				for m: Dictionary in g.get("members", []):
 					(guild.members as Array).append({"name": str(m.name), "level": int(m.get("level", 1)), "online": bool(m.get("online", false))})
 				var q: Dictionary = g.get("quest", {}) if g.get("quest") is Dictionary else {}
 				if not q.is_empty():
 					guild.quest = {"goal": int(q.get("goal", 1)), "progress": int(q.get("progress", 0)), "reward": int(q.get("reward", 0)),
 						"claimed": (q.get("claimed", []) as Array).map(func(n: Variant) -> String: return str(n).to_lower()), "top": q.get("top", []), "endsIn": float(q.get("endsIn", 0.0))}
+				if g.get("upgrades") is Dictionary:
+					var u: Dictionary = g.upgrades
+					guild.upgrades = {"treasury": int(u.get("treasury", 0)), "levels": u.get("levels", {}), "costs": u.get("costs", {}), "names": u.get("names", {}),
+						"bonuses": u.get("bonuses", {}), "maxMembers": int(u.get("maxMembers", 20)), "donors": u.get("donors", [])}
 				for line: Dictionary in g.get("chat", []):
 					(guild.chat as Array).append({"name": str(line.name), "text": str(line.text)})
 			guild_changed.emit()
@@ -603,6 +629,8 @@ func _handle(msg: Dictionary) -> void:
 			notice.emit("%s düelloyu reddetti." % str(msg.by))
 		"duel_result":
 			duel_played.emit({"a": msg.a, "b": msg.b, "winner": int(msg.winner), "frames": msg.frames})
+		"guild_donated":
+			guild_donated.emit(int(msg.get("gold", 0)))
 		"guild_reward":
 			guild_reward.emit(int(msg.get("gold", 0)))
 		"trade_closed":

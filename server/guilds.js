@@ -6,6 +6,16 @@
 const { key } = require("./accounts.js");
 
 const MAX_GUILD = 20;
+// Guild upgrades are bought by the leader with the treasury (gold the
+// members donate). Each level adds `per` to a stat of every member.
+const UPGRADES = {
+  gold: { name: "Altın Bereketi", stat: "goldGain", per: 0.02, max: 5, base: 600 },
+  exp: { name: "Bilgelik", stat: "expGain", per: 0.03, max: 5, base: 600 },
+  damage: { name: "Savaş Çığlığı", stat: "damage", per: 0.02, max: 5, base: 900 },
+  health: { name: "Sağlam Kale", stat: "maxHp", per: 8, max: 5, base: 900 },
+  size: { name: "Geniş Salon", stat: null, per: 4, max: 5, base: 1200 },
+};
+const MAX_DONATION = 100000;
 const GUILD_CHAT_KEEP = 40;
 const GUILD_NAME_RE = /^[\p{L}\p{N} _]{3,20}$/u;
 const TAG_RE = /^[\p{L}\p{N}]{2,4}$/u;
@@ -88,7 +98,8 @@ class Guilds {
     const g = this.byKey.get(key(String(name || "")));
     if (!g) return { ok: false, msg: "Böyle bir lonca yok." };
     if (this.of(who)) return { ok: false, msg: "Zaten bir loncadasın, önce ayrıl." };
-    if (g.members.length >= MAX_GUILD) return { ok: false, msg: `Lonca dolu (en fazla ${MAX_GUILD} kişi).` };
+    const cap = this.maxMembers(g);
+    if (g.members.length >= cap) return { ok: false, msg: `Lonca dolu (en fazla ${cap} kişi).` };
     g.members.push(who);
     await this._save(g);
     return { ok: true, guild: g };
@@ -113,6 +124,59 @@ class Guilds {
     const before = g.members.length;
     g.members = g.members.filter((m) => key(m) !== key(who));
     if (g.members.length === before) return { ok: false, msg: "Bu oyuncu loncada değil." };
+    await this._save(g);
+    return { ok: true, guild: g };
+  }
+  // Upgrade levels, treasury and what each upgrade costs next.
+  upgradeLevel(g, id) {
+    return Math.min(UPGRADES[id].max, Math.max(0, Math.floor((g.upgrades && g.upgrades[id]) || 0)));
+  }
+  maxMembers(g) {
+    return MAX_GUILD + UPGRADES.size.per * this.upgradeLevel(g, "size");
+  }
+  upgradeCost(g, id) {
+    const lv = this.upgradeLevel(g, id);
+    return lv >= UPGRADES[id].max ? 0 : UPGRADES[id].base * (lv + 1);
+  }
+  // Stat bonuses every member gets: {goldGain: 0.04, ...}.
+  bonuses(g) {
+    const out = {};
+    for (const [id, u] of Object.entries(UPGRADES)) {
+      if (u.stat) out[u.stat] = (out[u.stat] || 0) + u.per * this.upgradeLevel(g, id);
+    }
+    return out;
+  }
+  upgradeView(g) {
+    const levels = {};
+    const costs = {};
+    for (const id of Object.keys(UPGRADES)) {
+      levels[id] = this.upgradeLevel(g, id);
+      costs[id] = this.upgradeCost(g, id);
+    }
+    const donors = Object.entries(g.donors || {}).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, gold]) => ({ name, gold }));
+    return { treasury: g.treasury || 0, levels, costs, bonuses: this.bonuses(g), maxMembers: this.maxMembers(g), donors };
+  }
+  async donate(who, gold) {
+    const g = this.of(who);
+    if (!g) return { ok: false, msg: "Bir loncada değilsin." };
+    const n = Math.floor(Number(gold) || 0);
+    if (n < 1 || n > MAX_DONATION) return { ok: false, msg: `Bağış 1 ile ${MAX_DONATION} altın arasında olmalı.` };
+    g.treasury = (g.treasury || 0) + n;
+    g.donors = g.donors || {};
+    g.donors[who] = (g.donors[who] || 0) + n;
+    await this._save(g);
+    return { ok: true, guild: g, gold: n };
+  }
+  async buy(who, id) {
+    const g = this.of(who);
+    if (!g || key(g.leader) !== key(who)) return { ok: false, msg: "Sadece lonca lideri yükseltme alabilir." };
+    if (!Object.prototype.hasOwnProperty.call(UPGRADES, id)) return { ok: false, msg: "Böyle bir yükseltme yok." };
+    const cost = this.upgradeCost(g, id);
+    if (cost === 0) return { ok: false, msg: "Bu yükseltme en üst seviyede." };
+    if ((g.treasury || 0) < cost) return { ok: false, msg: "Lonca kasasında yeterli altın yok." };
+    g.treasury -= cost;
+    g.upgrades = g.upgrades || {};
+    g.upgrades[id] = this.upgradeLevel(g, id) + 1;
     await this._save(g);
     return { ok: true, guild: g };
   }
@@ -165,4 +229,4 @@ class Guilds {
   }
 }
 
-module.exports = { Guilds, MAX_GUILD, weekKey, GOAL_BASE, GOAL_PER_MEMBER, REWARD_GOLD };
+module.exports = { Guilds, MAX_GUILD, UPGRADES, weekKey, GOAL_BASE, GOAL_PER_MEMBER, REWARD_GOLD };

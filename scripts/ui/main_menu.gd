@@ -87,6 +87,7 @@ var achievements: RefCounted
 var daily: RefCounted
 var _guild_list_asked := false
 var _guild_typing := false
+var _guild_tab := "main"
 ## The account's pets (set by the game after setup).
 var pets: RefCounted
 var section := "characters"
@@ -2121,16 +2122,36 @@ func _build_guild() -> void:
 	leave.pressed.connect(func() -> void: net.leave_guild())
 	top.add_child(leave)
 	_content.add_child(top)
-	_text("%d / 20 üye  ·  Lonca bonusu: turlarda +%%5 altın" % (g.members as Array).size(), 14, UiTheme.MUTED)
-	_build_guild_goal(g)
-	var cols := HBoxContainer.new()
-	cols.add_theme_constant_override("separation", 14)
-	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_content.add_child(cols)
+	_text("%d / %d üye" % [(g.members as Array).size(), int(g.get("upgrades", {}).get("maxMembers", 20))], 14, UiTheme.MUTED)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 6)
+	for t: Array in [["main", "Genel"], ["members", "Üyeler"], ["chat", "Sohbet"], ["upgrades", "Yükseltmeler"]]:
+		var tb := Button.new()
+		tb.text = str(t[0] == _guild_tab and "● " or "") + str(t[1])
+		tb.toggle_mode = true
+		tb.button_pressed = t[0] == _guild_tab
+		tb.pressed.connect(func() -> void:
+			_guild_tab = str(t[0])
+			open_section("guild"))
+		tabs.add_child(tb)
+	_content.add_child(tabs)
+	match _guild_tab:
+		"members":
+			_build_guild_members(g)
+		"chat":
+			_build_guild_chat(g)
+		"upgrades":
+			_build_guild_upgrades(g)
+		_:
+			_build_guild_goal(g)
+			_build_guild_bonuses(g)
+
+
+## The guild's member list (leaders can remove members).
+func _build_guild_members(g: Dictionary) -> void:
 	var members := VBoxContainer.new()
-	members.custom_minimum_size.x = 330
 	members.add_theme_constant_override("separation", 4)
-	cols.add_child(members)
+	_content.add_child(members)
 	for m: Dictionary in g.members:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -2151,11 +2172,14 @@ func _build_guild() -> void:
 			kick.pressed.connect(func() -> void: net.kick_from_guild(str(m.name)))
 			row.add_child(kick)
 		members.add_child(row)
+
+
+## The guild chat.
+func _build_guild_chat(g: Dictionary) -> void:
 	# Guild chat.
 	var chat := VBoxContainer.new()
-	chat.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chat.add_theme_constant_override("separation", 6)
-	cols.add_child(chat)
+	_content.add_child(chat)
 	var log_panel := PanelContainer.new()
 	log_panel.add_theme_stylebox_override("panel", _card_style(Color("#3a5a9a"), 1))
 	log_panel.custom_minimum_size.y = 250
@@ -2181,6 +2205,69 @@ func _build_guild() -> void:
 	if _guild_typing:
 		_guild_typing = false
 		say.grab_focus.call_deferred()
+
+
+## What the guild's upgrades give every member right now.
+func _build_guild_bonuses(g: Dictionary) -> void:
+	_header("Lonca bonusları")
+	var parts := PackedStringArray(["Altın +%%%d" % roundi((0.05 + net.guild_bonus("goldGain")) * 100.0)])
+	for pair: Array in [["expGain", "EXP"], ["damage", "Hasar"]]:
+		if net.guild_bonus(str(pair[0])) > 0.0:
+			parts.append("%s +%%%d" % [pair[1], roundi(net.guild_bonus(str(pair[0])) * 100.0)])
+	if net.guild_bonus("maxHp") > 0.0:
+		parts.append("Can +%d" % roundi(net.guild_bonus("maxHp")))
+	_text("  ·  ".join(parts), 16, UiTheme.TEXT)
+	_text("Bonuslar lonca kasasından alınan yükseltmelerle büyür (Yükseltmeler sekmesi).", 13, UiTheme.MUTED)
+
+
+## The treasury: members donate gold, the leader spends it on upgrades.
+func _build_guild_upgrades(g: Dictionary) -> void:
+	var up: Dictionary = g.get("upgrades", {})
+	if up.is_empty():
+		_text("Yükseltme bilgisi bekleniyor...", 15, UiTheme.MUTED)
+		return
+	_text("Lonca kasası: %d altın" % int(up.treasury), 22, UiTheme.ACCENT)
+	var give := HBoxContainer.new()
+	give.add_theme_constant_override("separation", 8)
+	var amount := LineEdit.new()
+	amount.placeholder_text = "Bağış (altın)"
+	amount.custom_minimum_size.x = 160
+	give.add_child(amount)
+	var donate := UiTheme.primary_button("Bağışla")
+	donate.pressed.connect(func() -> void:
+		var n := int(amount.text)
+		if n < 1 or n > progression.gold():
+			notify("Geçerli bir miktar yaz (en çok %d)." % progression.gold())
+			return
+		net.donate_guild(n))
+	give.add_child(donate)
+	_content.add_child(give)
+	if not (up.donors as Array).is_empty():
+		var names := PackedStringArray()
+		for d: Dictionary in up.donors:
+			names.append("%s %d" % [d.name, int(d.gold)])
+		_text("En cömertler: " + ", ".join(names), 13, UiTheme.MUTED)
+	_header("Yükseltmeler" + ("" if net.is_guild_leader() else " (sadece lider alabilir)"))
+	var per := {"gold": "+%2 altın", "exp": "+%3 EXP", "damage": "+%2 hasar", "health": "+8 can", "size": "+4 üye kapasitesi"}
+	for id: String in ["gold", "exp", "damage", "health", "size"]:
+		var lv := int(up.levels[id])
+		var cost := int(up.costs[id])
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", _card_style(Color("#3a5a9a"), 2))
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 12)
+		card.add_child(line)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_theme_constant_override("separation", 0)
+		info.add_child(UiTheme.label("%s  (Sv. %d / 5)" % [up.names[id], lv], UiTheme.label_settings(18, UiTheme.TEXT, 2)))
+		info.add_child(UiTheme.label("Her seviye: " + str(per[id]), UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+		line.add_child(info)
+		var buy := UiTheme.primary_button("En üst seviye" if cost == 0 else "Al: %d altın" % cost)
+		buy.disabled = cost == 0 or not net.is_guild_leader() or int(up.treasury) < cost
+		buy.pressed.connect(func() -> void: net.upgrade_guild(id))
+		line.add_child(buy)
+		_content.add_child(card)
 
 
 ## The weekly guild goal: a progress bar, the best helpers and the reward button.

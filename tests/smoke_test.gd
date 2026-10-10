@@ -809,8 +809,21 @@ func _run() -> void:
 
 	# Guild weekly goal: progress shows, the reward is paid out once the server grants it.
 	var gnet: Node = main.get("net")
+	gnet.set("account", "ci_test")
 	gnet.call("_handle", {"t": "guild", "guild": {"name": "Test", "tag": "TS", "leader": "ci_test", "members": [{"name": "ci_test", "level": 1, "online": true}], "chat": [],
-		"quest": {"goal": 1400, "progress": 1400, "reward": 400, "claimed": [], "top": [{"name": "ci_test", "kills": 1400}], "endsIn": 3.0 * 86400000.0}}})
+		"quest": {"goal": 1400, "progress": 1400, "reward": 400, "claimed": [], "top": [{"name": "ci_test", "kills": 1400}], "endsIn": 3.0 * 86400000.0},
+		"upgrades": {"treasury": 1000, "levels": {"gold": 2, "exp": 0, "damage": 0, "health": 0, "size": 0}, "costs": {"gold": 1800, "exp": 600, "damage": 900, "health": 900, "size": 1200},
+			"names": {"gold": "Altın Bereketi", "exp": "Bilgelik", "damage": "Savaş Çığlığı", "health": "Sağlam Kale", "size": "Geniş Salon"}, "bonuses": {"goldFake": 0.0, "goldGain": 0.04, "damage": 0.02}, "maxMembers": 20, "donors": []}}})
+	_check(absf(float(gnet.call("guild_bonus", "goldGain")) - 0.04) < 0.0001, "guild upgrades give stat bonuses")
+	_check(float(main.call("_extra", "goldGain")) >= 0.09 - 0.0001, "the guild bonus counts in the player's gold gain")
+	menu.call("open_section", "characters")
+	menu.call("_build_guild_upgrades", gnet.get("guild"))
+	await _frames(2)
+	var buy_btn: Button = null
+	for btn: Node in menu.find_children("*", "Button", true, false):
+		if (btn as Button).text == "Al: 600 altın":
+			buy_btn = btn
+	_check(buy_btn != null and not buy_btn.disabled, "the leader can buy an upgrade the treasury covers")
 	_check(int((gnet.get("guild") as Dictionary).quest.goal) == 1400, "the guild's weekly goal is kept")
 	menu.call("_build_guild_goal", gnet.get("guild"))
 	await _frames(2)
@@ -986,11 +999,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.38")) and not bool(menu.call("is_version_open", "0.37")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.39")) and not bool(menu.call("is_version_open", "0.38")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.37")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.38")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
