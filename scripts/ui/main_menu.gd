@@ -32,6 +32,8 @@ signal chest_open_requested(uid: int)
 signal quality_selected(quality: String)
 ## A setting in profile.settings changed; the game applies it.
 signal settings_changed
+
+const DEV_CODE_HASH := "26def8617ee14e149c745e6f30848376ce9ff5d163b44432ea292a39d452ca70"
 signal logout_requested
 ## The player wants to walk into the hub tavern (the game opens it).
 signal hub_requested
@@ -3290,6 +3292,29 @@ func _build_settings() -> void:
 	reset.pressed.connect(ask_reset_account)
 	acc_row.add_child(reset)
 	_content.add_child(acc_row)
+	var code_row := HBoxContainer.new()
+	code_row.add_theme_constant_override("separation", 8)
+	code_row.add_child(_setting_label("Kod"))
+	var code_edit := LineEdit.new()
+	code_edit.secret = true
+	code_edit.max_length = 40
+	code_edit.custom_minimum_size.x = 220
+	code_row.add_child(code_edit)
+	var code_button := Button.new()
+	code_button.text = "Gir"
+	code_button.pressed.connect(func() -> void:
+		enter_code(code_edit.text)
+		code_edit.text = "")
+	code_row.add_child(code_button)
+	_content.add_child(code_row)
+	if bool(_settings().get("devUnlocked", false)):
+		var lock := Button.new()
+		lock.text = "Geliştirici menüsünü kapat"
+		lock.pressed.connect(func() -> void:
+			set_setting("devUnlocked", false)
+			notify("Geliştirici menüsü kapatıldı.")
+			refresh())
+		_content.add_child(lock)
 	_text("Hesabı sıfırlamak karakterleri, eşyaları, kasaları, altını, seviyeleri, yetenekleri ve başarımları siler. Geri alınamaz.", 13, Color("#ff8a8a"))
 
 
@@ -3303,6 +3328,18 @@ func toggle_fullscreen() -> void:
 func _sync_fullscreen_button() -> void:
 	if _fullscreen_button:
 		_fullscreen_button.text = "Pencere (F11)" if Screen.is_fullscreen() else "Tam ekran (F11)"
+
+
+## A secret code typed in Settings; the developer one unlocks the cheat menu
+## (F1 in a run) for this account only. Only its hash is kept here.
+func enter_code(code: String) -> bool:
+	if code.strip_edges().to_lower().sha256_text() != DEV_CODE_HASH:
+		notify("Geçersiz kod.")
+		return false
+	set_setting("devUnlocked", true)
+	notify("Geliştirici menüsü açıldı: oyunda F1 ya da sağdaki HİLE sekmesi.")
+	refresh()
+	return true
 
 
 func change_password(password: String) -> bool:

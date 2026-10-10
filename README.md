@@ -94,7 +94,7 @@ Bir karakter seçip açık bir haritaya iniyorsun; canavarlar her yönden gelir,
 | 1 · 2 · 3 | Seviye kartı seç |
 | R / Q | Ulti |
 | Esc / P | Duraklat (devam, kalite, ana menü, boostlar) |
-| F1 | Geliştirici menüsü |
+| F1 | Geliştirici menüsü (yalnızca Ayarlar'da gizli kod girilen hesapta) |
 
 ## Nasıl çalışır
 

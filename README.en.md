@@ -94,7 +94,7 @@ You pick a character and drop onto an open map. Monsters come from every side, y
 | 1 · 2 · 3 | Pick a level-up card |
 | R / Q | Ultimate |
 | Esc / P | Pause (resume, quality, main menu, boosts) |
-| F1 | Developer menu |
+| F1 | Developer menu (only on an account that entered the secret code in Settings) |
 
 ## How it works
 
