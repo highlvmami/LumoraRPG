@@ -8,6 +8,7 @@ const UiTheme := preload("res://scripts/ui/theme.gd")
 const Progression := preload("res://scripts/progression/progression.gd")
 const EnemyManager := preload("res://scripts/enemies/enemy_manager.gd")
 const PixelIcons := preload("res://scripts/ui/pixel_icons.gd")
+const ItemArt := preload("res://scripts/ui/item_art.gd")
 
 signal restart_requested
 signal menu_requested
@@ -47,6 +48,9 @@ var _title: Label
 var _subtitle: Label
 ## Floating damage numbers on hits (settings).
 var show_damage_numbers := true
+## Gear rules, to draw the items found (set by main).
+var gear: RefCounted
+var _death_drops: HFlowContainer
 var _death: Control
 var _death_text: Label
 var _float_settings: LabelSettings
@@ -163,6 +167,11 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	var death_box := _death.get_child(0) as VBoxContainer
 	_death_text = _centered_label("", 30)
 	death_box.add_child(_death_text)
+	_death_drops = HFlowContainer.new()
+	_death_drops.alignment = FlowContainer.ALIGNMENT_CENTER
+	_death_drops.add_theme_constant_override("h_separation", 14)
+	_death_drops.add_theme_constant_override("v_separation", 10)
+	death_box.add_child(_death_drops)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 16)
@@ -233,11 +242,45 @@ func _party_row() -> Array:
 	return [panel, name_label, info, bar]
 
 
-func show_death(level: int, kills: int, gold: int, seconds: float, loot: PackedStringArray = PackedStringArray()) -> void:
+func show_death(level: int, kills: int, gold: int, seconds: float, loot: PackedStringArray = PackedStringArray(), drops: Array = []) -> void:
 	_death_text.text = "ÖLDÜN\n\nSeviye %d   ·   %d canavar   ·   +%d altın   ·   %d:%02d" % [level, kills, gold, int(seconds) / 60, int(seconds) % 60]
-	if not loot.is_empty():
+	for child in _death_drops.get_children():
+		_death_drops.remove_child(child)
+		child.queue_free()
+	if gear != null and not drops.is_empty():
+		_death_text.text += "\n\nBulunanlar (çantaya eklendi):"
+		for d: Dictionary in drops.slice(0, 12):
+			_death_drops.add_child(_drop_card(d))
+		if drops.size() > 12:
+			_death_drops.add_child(UiTheme.label("+%d daha" % (drops.size() - 12), UiTheme.label_settings(16, UiTheme.MUTED, 2)))
+	elif not loot.is_empty():
 		_death_text.text += "\n\nBulunanlar (çantaya eklendi):\n" + ", ".join(loot)
 	_death.visible = true
+
+
+## One found item or chest: its picture with the name under it.
+func _drop_card(d: Dictionary) -> Control:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	var art: Control
+	var name_text := ""
+	var color := Color.WHITE
+	if d.has("item"):
+		var it: Dictionary = d.item
+		color = gear.rarity_color(int(it.rarity))
+		art = ItemArt.make(it, color, gear.tier(int(it.rarity)), 56.0)
+		name_text = gear.item_name(it)
+	else:
+		var tier := int(d.chest)
+		color = Color(str(gear.chest(tier).color))
+		art = ItemArt.chest(tier, color, 56.0)
+		name_text = str(gear.chest(tier).name)
+	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(art)
+	var label := UiTheme.label(name_text, UiTheme.label_settings(12, color, 3))
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(label)
+	return col
 
 
 func hide_death() -> void:
