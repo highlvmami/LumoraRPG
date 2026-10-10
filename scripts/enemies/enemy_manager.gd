@@ -107,6 +107,8 @@ var _boss_hold := 0.0
 var _boss_next := 0
 ## 1 calm, 2 angry, 3 enraged (by health left).
 var _boss_phase := 1
+## The boss's body language for its current attack: {type, t, wind, recover}.
+var _boss_pose: Dictionary = {}
 ## How many bosses came before this one in the run (later ones are harder).
 var _boss_rank := 0
 var _bosses_spawned := 0
@@ -472,6 +474,7 @@ func spawn_boss(id: String, at: Vector3) -> bool:
 
 
 func _reset_boss_fight() -> void:
+	_boss_pose = {}
 	_boss_cooldown = 0.0
 	_boss_hold = 0.0
 	_boss_next = 0
@@ -586,6 +589,10 @@ func _update_boss(i: int, kd: Dictionary, delta: float, speed_scale: float, dama
 	var radius := float(kd.radius)
 	_flash[i] = maxf(0.0, _flash[i] - delta)
 	_update_boss_phase(i, kd)
+	if not _boss_pose.is_empty():
+		_boss_pose.t = float(_boss_pose.t) + delta
+		if float(_boss_pose.t) > float(_boss_pose.wind) + float(_boss_pose.recover) + 0.1:
+			_boss_pose = {}
 
 	if not _dash.is_empty():
 		# Charging or leaping along a fixed path.
@@ -663,6 +670,7 @@ func _update_boss_phase(i: int, kd: Dictionary) -> void:
 		_boss_phase = phase
 		# A roar, then the next attack comes quickly.
 		_boss_cooldown = minf(_boss_cooldown, 0.7)
+		_boss_pose = {"type": "roar", "t": 0.0, "wind": 0.4, "recover": 0.9}
 		boss_phase_changed.emit(str(kd.name), phase)
 
 
@@ -785,6 +793,17 @@ func start_boss_attack(i: int, only := "") -> void:
 				attacks.ring(_ground(me), inner, outer, t, color)
 				_strikes.append({"time": t, "damage": dmg, "shapes": [{"type": "ring", "center": me, "inner": inner, "outer": outer}]})
 			_boss_hold = warn + 0.2
+	var recover := 0.6
+	match str(a.type):
+		"charge":
+			recover = 1.5
+		"leap":
+			recover = 1.1
+		"meteor":
+			recover = 0.9
+		"quake", "nova":
+			recover = 0.6 + float(a.get("count", 1)) * float(a.get("delay", 0.3)) / tempo
+	_boss_pose = {"type": str(a.type), "t": 0.0, "wind": warn, "recover": recover}
 
 
 func _start_charge(i: int, a: Dictionary, warn: float, dmg: float, chain: int) -> void:
@@ -887,6 +906,99 @@ func _update_shots(delta: float) -> void:
 			i += 1
 
 
+## How the boss's body moves for its attack: leaning back and rising while it
+## winds up, then smashing, lunging or spinning when it strikes, and settling
+## back. Returns {pitch (forward lean), roll, spin, lift, scale} or {}.
+func _boss_pose_values() -> Dictionary:
+	var type := str(_boss_pose.type)
+	var t := float(_boss_pose.t)
+	var wind := maxf(0.1, float(_boss_pose.wind))
+	var recover := maxf(0.1, float(_boss_pose.recover))
+	if t > wind + recover:
+		return {}
+	var u := clampf(t / wind, 0.0, 1.0)
+	var e := u * u * (3.0 - 2.0 * u)
+	var v := clampf((t - wind) / recover, 0.0, 1.0)
+	var fade := 1.0 - v
+	var pitch := 0.0
+	var roll := 0.0
+	var spin := 0.0
+	var lift := 0.0
+	var sc := Vector3.ONE
+	var striking := t >= wind
+	match type:
+		"slam", "quake", "nova":
+			if not striking:
+				# Rears back and lifts its fists...
+				pitch = -0.5 * e
+				lift = 1.5 * e
+				sc = Vector3(1.0 - 0.05 * e, 1.0 + 0.12 * e, 1.0 - 0.05 * e)
+			else:
+				# ...and smashes down (quakes and novas stomp again and again).
+				var stomp := 1.0
+				if type != "slam":
+					stomp = absf(sin(v * PI * (1.0 + float(_boss_pose.recover) * 2.0)))
+					lift = 0.5 * (1.0 - stomp) * fade
+				pitch = 0.5 * fade * stomp
+				sc = Vector3(1.0 + 0.28 * fade * stomp, 1.0 - 0.3 * fade * stomp, 1.0 + 0.28 * fade * stomp)
+		"charge":
+			if not _dash.is_empty():
+				pitch = 0.55
+				lift = 0.12
+				roll = sin(run_time * 32.0) * 0.07
+				sc = Vector3(0.95, 0.95, 1.12)
+			elif not striking:
+				pitch = 0.4 * e
+				roll = sin(t * 38.0) * 0.07 * e
+				sc = Vector3(1.0 + 0.1 * e, 1.0 - 0.18 * e, 1.0 + 0.1 * e)
+			else:
+				var tail := clampf(1.0 - (t - wind - 0.8) / 0.6, 0.0, 1.0)
+				pitch = 0.25 * tail
+				sc = Vector3(1.0 + 0.15 * tail, 1.0 - 0.2 * tail, 1.0 + 0.15 * tail)
+		"leap":
+			if not _dash.is_empty():
+				var f := clampf(float(_dash.t) / float(_dash.duration), 0.0, 1.0)
+				pitch = lerpf(-0.45, 0.65, f)
+				sc = Vector3(0.9, 1.18, 0.9)
+			elif not striking:
+				sc = Vector3(1.0 + 0.2 * e, 1.0 - 0.32 * e, 1.0 + 0.2 * e)
+				pitch = -0.2 * e
+			else:
+				var tail := clampf(1.0 - (t - wind - 0.55) / 0.45, 0.0, 1.0)
+				sc = Vector3(1.0 + 0.3 * tail, 1.0 - 0.34 * tail, 1.0 + 0.3 * tail)
+		"meteor":
+			if not striking:
+				# Floats up and turns slowly, calling the stones down.
+				lift = 1.7 * e
+				pitch = -0.28 * e
+				spin = t * 2.4 * e
+				sc = Vector3.ONE * (1.0 + 0.16 * e)
+			else:
+				lift = 1.7 * fade * fade
+				pitch = -0.28 * fade
+				spin = (wind * 2.4) * fade
+				sc = Vector3.ONE * (1.0 + 0.16 * fade)
+		"web", "webring":
+			if not striking:
+				pitch = -0.55 * e
+				sc = Vector3(1.0, 1.0 + 0.1 * e, 1.0)
+			else:
+				pitch = 0.4 * fade
+				sc = Vector3(1.0 - 0.1 * fade, 1.0 - 0.1 * fade, 1.0 + 0.22 * fade)
+		"cross":
+			spin = e * e * 14.0 + (v * 4.0 if striking else 0.0) * fade
+			lift = 0.5 * e * fade if striking else 0.5 * e
+			sc = Vector3(1.0 + 0.1 * e, 1.0, 1.0 + 0.1 * e)
+		"roar":
+			var roar := sin(clampf(t / (wind + recover), 0.0, 1.0) * PI)
+			pitch = -0.45 * roar
+			roll = sin(t * 40.0) * 0.06 * roar
+			sc = Vector3.ONE * (1.0 + 0.18 * roar)
+		_:
+			return {}
+	return {"pitch": pitch, "roll": roll, "spin": spin, "lift": lift, "scale": sc}
+
+
 func _update_render() -> void:
 	var counts := PackedInt32Array()
 	counts.resize(_mms.size())
@@ -909,6 +1021,12 @@ func _update_render() -> void:
 		if _kinds[k].get("hidden", false):
 			scale_v = Vector3.ONE * 0.001
 		var xf_basis := Basis(Vector3.UP, _yaw[i]).scaled(scale_v)
+		if _kinds[k].get("boss", false) and not _boss_pose.is_empty():
+			var pose := _boss_pose_values()
+			if not pose.is_empty():
+				var rot := Basis(Vector3.UP, _yaw[i] + float(pose.spin)) * Basis(Vector3.RIGHT, float(pose.pitch)) * Basis(Vector3.FORWARD, float(pose.roll))
+				xf_basis = rot.scaled_local(scale_v * (pose.scale as Vector3))
+				lift += float(pose.lift)
 		var slot := counts[k]
 		counts[k] = slot + 1
 		_mms[k].set_instance_transform(slot, Transform3D(xf_basis, _pos[i] + Vector3.UP * lift))

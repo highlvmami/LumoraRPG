@@ -689,6 +689,15 @@ func _run() -> void:
 			meteor_hit = true
 			break
 	_check(meteor_hit, "standing in the warning zone gets you hit")
+	var posed := 0
+	for pose_type: String in ["slam", "quake", "nova", "charge", "leap", "meteor", "web", "webring", "cross", "roar"]:
+		for at_t: float in [0.25, 0.7]:
+			enemies.set("_boss_pose", {"type": pose_type, "t": at_t, "wind": 0.5, "recover": 0.8})
+			var pose_now: Dictionary = enemies.call("_boss_pose_values")
+			if pose_now.has("pitch") and pose_now.has("scale") and (pose_now.scale as Vector3).y > 0.3:
+				posed += 1
+	_check(posed == 20, "every boss attack has its own wind-up and strike pose (%d)" % posed)
+	enemies.set("_boss_pose", {})
 	for attack: String in ["slam", "charge"]:
 		enemies.call("start_boss_attack", int(enemies.call("boss_index")), attack)
 		for n in 120:
@@ -1222,11 +1231,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.61")) and not bool(menu.call("is_version_open", "0.60")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.63")) and not bool(menu.call("is_version_open", "0.62")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.60")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.62")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
