@@ -22,6 +22,8 @@
 			"names": ["Av Yayı", "Uzun Yay", "Elf Yayı", "Fırtına Yayı", "Anka Yayı", "Tanrıların Yayı"] },
 		{ "id": "staff", "slot": "weapon", "class": "mage", "icon": "staff", "main": { "damage": 0.08 },
 			"names": ["Meşe Asa", "Kristal Asa", "Rün Asası", "Yıldız Asası", "Kadim Asa", "Tanrıların Asası"] },
+		{ "id": "dagger", "slot": "weapon", "class": "rogue", "icon": "dagger", "main": { "damage": 0.08 },
+			"names": ["Paslı Hançer", "Çelik Hançer", "Zehirli Diş", "Gece Pençesi", "Gölge Dişi", "Tanrıların Hançeri"] },
 		{ "id": "helmet", "slot": "helmet", "icon": "helmet", "main": { "maxHp": 10.0 },
 			"names": ["Deri Başlık", "Demir Miğfer", "Şövalye Miğferi", "Ejder Miğferi", "Kral Tacı", "Tanrı Tacı"] },
 		{ "id": "armor", "slot": "armor", "icon": "armor", "main": { "maxHp": 20.0 },
@@ -56,6 +58,6 @@
 		"enemyOdds": [75, 20, 5, 0, 0, 0],
 		"bossChestOdds": [[45, 38, 15, 2], [5, 40, 38, 17]],
 		"stashLimit": 60,
-		"maxCharacters": 3
+		"maxCharacters": 4
 	}
 }
