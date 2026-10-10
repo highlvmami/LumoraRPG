@@ -20,6 +20,8 @@ var speed_multiplier := 1.0
 ## Health regained per second.
 ## How far the model is lifted while riding a mount (tavern).
 var ride_height := 0.0
+## On a mount: ride_height is the saddle height and the model sits astride.
+var riding := false
 var regen := 0.0
 ## Developer cheat: ignore all damage.
 var god_mode := false
@@ -91,7 +93,8 @@ func set_pose(sit: bool, dance := false) -> void:
 	seated = sit
 	_model.sitting = sit
 	_model.dancing = dance
-	_model.position.y = ride_height + (-0.27 if sit else 0.0)
+	_model.riding = riding and not sit
+	_model.position.y = -0.27 if sit else (ride_height - 0.3 if riding else ride_height)
 
 
 ## Plays the attack animation and turns toward the shot for a moment.

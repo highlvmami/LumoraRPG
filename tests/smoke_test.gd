@@ -558,10 +558,35 @@ func _run() -> void:
 	menu.call("open_section", "wardrobe")
 	await _frames(2)
 	_check(str(menu.get("section")) == "wardrobe", "the wardrobe page opens")
+	var trial_look := {"class": "archer", "tunic": "#000000", "hair": "#000000"}
+	wardrobe.call("try_on", wear_char, {"dyeTunic": "t_blue"}, trial_look)
+	_check(str(trial_look.tunic) == "#2f6fd0" and not bool(wardrobe.call("has", "t_blue")), "trying a dye on shows it without buying it")
+	mount_profile.gold = 1000
+	menu.set("_wardrobe_trial", {"dyeTunic": "t_blue"})
+	menu.call("open_section", "wardrobe")
+	await _frames(2)
+	_check(int(mount_profile.gold) == 1000 and not bool(wardrobe.call("has", "t_blue")), "the wardrobe shows the trial and still costs nothing")
+	menu.call("open_section", "stable")
+	await _frames(2)
+	menu.call("open_section", "characters")
+	await _frames(2)
+	_check(str(menu.get("section")) == "characters" and (menu.get("_wardrobe_trial") as Dictionary).is_empty(), "the character house shows mounts and leaving the wardrobe drops the trial")
+	var mount_script: GDScript = load("res://scripts/world/mount_model.gd")
+	var big := 0.0
+	for md: Dictionary in (mount_store.get("defs") as Array):
+		var model: Node3D = mount_script.new()
+		model.call("build", md)
+		model.call("set_rear", true)
+		model.call("animate", 0.5, 0.0)
+		model.call("animate", 0.5, 8.0)
+		_check(float(model.call("seat_height")) > big, "dearer mounts are bigger (%s)" % str(md.id))
+		big = float(model.call("seat_height"))
+		model.free()
 	var weather_script: GDScript = load("res://scripts/world/weather.gd")
 	_check(float(weather_script.call("night_at", 10.0)) == 0.0 and float(weather_script.call("night_at", 200.0)) == 1.0 and float(weather_script.call("night_at", 310.0)) == 0.0, "the day turns into night and back")
 	_check(str(weather_script.call("kind_at", 10.0)) == "clear" and str(weather_script.call("kind_at", 100.0)) == "rain", "rain comes after the first spell")
 	var weather: Node = main.get("weather")
+	weather.call("clear")
 	var day_sun: float = (main.get("_sun") as DirectionalLight3D).light_energy
 	weather.call("update", 0.1, 200.0)
 	_check((main.get("_sun") as DirectionalLight3D).light_energy < day_sun * 0.5 and float(weather.get("night")) == 1.0, "the sun dims at night")
@@ -1061,6 +1086,27 @@ func _run() -> void:
 	_check(pk_done.size() == 1 and int(pk_done[0][0]) > 0, "the finish ends the run with its time")
 	_check(str(pk.call("status_text")) == "", "no clock runs after the finish")
 	pk.call("cancel")
+	var game_overlay: Node = hub.get("overlay")
+	game_overlay.call("open_games", ["Ayşe"], 500)
+	_check(bool(game_overlay.call("is_games_open")), "the dice and card panel lists the guests in reach")
+	game_overlay.call("close_games")
+	game_overlay.call("show_invite", "Ayşe", "dice", 100, true)
+	_check(bool(game_overlay.call("has_invite")), "a game invitation shows in the tavern")
+	game_overlay.call("answer_invite", false)
+	_check(not bool(game_overlay.call("has_invite")), "answering it hides it")
+	var game_kids := hub_hall.get_child_count()
+	hub.call("_on_game_played", {"kind": "dice", "bet": 50, "a": {"name": "x", "v": [3, 4], "total": 7}, "b": {"name": "y", "v": [6, 2], "total": 8}, "winner": 1})
+	hub.call("_on_game_played", {"kind": "cards", "bet": 50, "a": {"name": "x", "v": [14, 1], "total": 14}, "b": {"name": "y", "v": [11, 3], "total": 11}, "winner": 0})
+	await _frames(3)
+	_check(hub_hall.get_child_count() == game_kids + 2, "a played game throws the dice and cards over the tavern")
+	for kid: Node in hub_hall.get_children():
+		if kid.get_script() == load("res://scripts/world/hub_game_anim.gd"):
+			kid.call("_process", 9.0)
+	await _frames(2)
+	_check(hub_hall.get_child_count() == game_kids, "the throw disappears when it is over")
+	# Headless cannot hold the mouse, which would ask the leave question by itself.
+	hub.set("_was_captured", false)
+	(game_overlay.get("_leave_box") as Control).visible = false
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
 	esc.pressed = true
@@ -1167,11 +1213,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.58")) and not bool(menu.call("is_version_open", "0.57")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.60")) and not bool(menu.call("is_version_open", "0.59")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.57")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.59")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
