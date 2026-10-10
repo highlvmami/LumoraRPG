@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.47", "date": "2026-10-10", "title": "Kostüm ve boyalar", "notes": [
+			"Kahramanlar Evi'nde yeni Gardırop: giysiler (pelerin, taç) ve gövde ile saç boyaları satın al, karakterine giydir",
+			"Hepsi sadece görünüş içindir, güç vermez; canlı önizleme sayfada görünür" ] },
 		{ "version": "0.46", "date": "2026-10-10", "title": "Binekler", "notes": [
 			"Pazar'da yeni Ahır: Kır At, Kurt Dostu ve Kum Kaplanı satın al, istediğine bin",
 			"Taverna'da bineğinle 1.7 ile 2.5 kat hızlı gezersin; bineğin karakterinin altında görünür" ] },

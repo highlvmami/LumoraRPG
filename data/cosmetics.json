@@ -1,0 +1,27 @@
+{
+	"tunicDyes": [
+		{ "id": "t_red", "name": "Kızıl", "color": "#c0392b", "price": 150 },
+		{ "id": "t_blue", "name": "Mavi", "color": "#2f6fd0", "price": 150 },
+		{ "id": "t_green", "name": "Yeşil", "color": "#2e8b57", "price": 150 },
+		{ "id": "t_purple", "name": "Mor", "color": "#7b3fb0", "price": 150 },
+		{ "id": "t_black", "name": "Kömür", "color": "#23262b", "price": 150 },
+		{ "id": "t_white", "name": "Kar", "color": "#e8eaee", "price": 150 },
+		{ "id": "t_gold", "name": "Altın", "color": "#d9a62a", "price": 300 },
+		{ "id": "t_pink", "name": "Gül", "color": "#e0709a", "price": 150 }
+	],
+	"hairDyes": [
+		{ "id": "h_black", "name": "Siyah", "color": "#15171a", "price": 100 },
+		{ "id": "h_blonde", "name": "Sarı", "color": "#e3c35a", "price": 100 },
+		{ "id": "h_red", "name": "Kızıl", "color": "#b5401f", "price": 100 },
+		{ "id": "h_blue", "name": "Mavi", "color": "#3a7bd5", "price": 200 },
+		{ "id": "h_green", "name": "Yeşil", "color": "#3fae5a", "price": 200 },
+		{ "id": "h_white", "name": "Gümüş", "color": "#e6e9ee", "price": 150 }
+	],
+	"outfits": [
+		{ "id": "o_ranger", "name": "Avcı Pelerini", "price": 800, "tunic": "#3c6b3a", "hair": "", "cape": "#2a4a28", "crown": false },
+		{ "id": "o_royal", "name": "Kraliyet Giysisi", "price": 2500, "tunic": "#7a1f3a", "hair": "", "cape": "#b01c3c", "crown": true },
+		{ "id": "o_night", "name": "Gece Mantosu", "price": 1800, "tunic": "#1b2140", "hair": "", "cape": "#10142b", "crown": false },
+		{ "id": "o_sun", "name": "Güneş Zırhı", "price": 3500, "tunic": "#d9962a", "hair": "", "cape": "#f2c14e", "crown": true },
+		{ "id": "o_frost", "name": "Buz Pelerini", "price": 1500, "tunic": "#9cc9e6", "hair": "", "cape": "#e9f4fb", "crown": false }
+	]
+}
