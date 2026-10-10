@@ -138,6 +138,8 @@ func _ready() -> void:
 	add_child(sound)
 	InputSetup.register()
 	Screen.restore()
+	# Phones: a tap on any text field must open the on-screen keyboard.
+	get_tree().node_added.connect(_wire_text_field)
 	_world_cfg = Config.load_json("res://data/world.json")
 	maps = Config.load_json("res://data/maps.json")
 	_build_world_viewport()
@@ -476,6 +478,24 @@ func login(username: String, remember := false) -> void:
 
 
 ## F11 switches full screen anywhere in the game.
+func _wire_text_field(node: Node) -> void:
+	if node is LineEdit:
+		(node as LineEdit).gui_input.connect(_text_field_tapped.bind(node))
+
+
+## Web phones only show the keyboard when a tap lands on a text field that already has
+## focus, so ask for it explicitly on every press.
+func _text_field_tapped(event: InputEvent, edit: LineEdit) -> void:
+	var pressed := (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed) \
+		or (event is InputEventMouseButton and (event as InputEventMouseButton).pressed)
+	if not pressed or not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		return
+	if not edit.has_focus():
+		edit.grab_focus()
+	var kind := DisplayServer.KEYBOARD_TYPE_PASSWORD if edit.secret else DisplayServer.KEYBOARD_TYPE_DEFAULT
+	DisplayServer.virtual_keyboard_show(edit.text, edit.get_global_rect(), kind, edit.max_length, edit.caret_column, edit.caret_column)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).keycode == KEY_F11:
 		Screen.toggle()
