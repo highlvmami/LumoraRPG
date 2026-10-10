@@ -346,6 +346,11 @@ func _my_spot() -> int:
 func _unhandled_input(event: InputEvent) -> void:
 	if not active:
 		return
+	# Web: a click on the world takes the mouse back after the browser freed it.
+	if event is InputEventMouseButton and event.pressed and OS.has_feature("web") and not _releasing \
+			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not overlay.is_typing():
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	var key := (event as InputEventKey).keycode
@@ -406,7 +411,12 @@ func _physics_process(delta: float) -> void:
 	# Losing the mouse (Esc in a browser) while walking leaves the tavern.
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if _was_captured and not captured and not overlay.is_typing() and not _releasing:
-		_ask_leave()
+		if OS.has_feature("web"):
+			# Browsers drop the pointer lock on their own (focus, a late
+			# re-capture); that must not throw the player out of the tavern.
+			overlay.add_note("Fare serbest. Ekrana tıkla: devam · Esc: taverna çıkışı")
+		else:
+			_ask_leave()
 	_was_captured = captured
 
 
