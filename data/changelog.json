@@ -1,5 +1,10 @@
 {
 	"versions": [
+		{ "version": "0.34", "date": "2026-10-10", "title": "Yakıcı Çöl", "notes": [
+			"Yeni harita: Yakıcı Çöl (kum tepeleri, vaha, palmiye ve kaktüsler, piramitler, eski sütunlar, göçebe çadırları ve esen kum)",
+			"Bu haritaya özel düşmanlar: Çöl Akrebi, Çakal ve Mumya",
+			"Yeni boss: Kum Firavunu",
+			"Dünya Gezgini başarımı artık beş haritanın hepsini ister" ] },
 		{ "version": "0.33", "date": "2026-10-10", "title": "Demirci", "notes": [
 			"Çantadaki ve ekipmandaki eşyaların altındaki Geliştir düğmesiyle eşyayı +5'e kadar geliştir",
 			"Her seviye eşyanın tüm özelliklerini temel değerinin %12'si kadar artırır; fiyat nadirlik ve seviyeyle artar",

@@ -754,10 +754,19 @@ func _run() -> void:
 
 	# Maps: every map builds, a run shows its name, played maps are counted.
 	var terrain_node: Node = main.get("terrain")
-	for map_id: String in ["beach", "dungeon", "snow", "forest"]:
+	for map_id: String in ["beach", "dungeon", "snow", "desert", "forest"]:
 		main.call("load_map", map_id)
 		await _frames(2)
 		_check(str(main.get("map_id")) == map_id and main.get_node("WorldView/WorldViewport/World/Props").get_child_count() > 5, "the %s map builds" % map_id)
+		if map_id == "desert":
+			var dem: Node = main.get("enemies")
+			var desert_kinds := {}
+			for k: Dictionary in dem.get("_kinds"):
+				desert_kinds[str(k.id)] = str(k.get("map", "desert")) == "desert" and not (dem.get("_replaced") as Dictionary).has(str(k.id))
+			_check(desert_kinds.get("scorpion", false) and not desert_kinds.get("slime", true) and desert_kinds.get("mummy", false) and not desert_kinds.get("snow_wolf", true), "the desert map has its own enemies")
+			_check(main.get_node("WorldView/WorldViewport/World/Props").find_child("Sandstorm", false, false) != null, "sand blows over the desert map")
+			for kind_id: String in ["scorpion", "jackal", "mummy", "pharaoh_boss"]:
+				_check(load("res://scripts/enemies/enemy_meshes.gd").call("build", kind_id, 0.6) != null, "the %s has a model" % kind_id)
 		if map_id == "snow":
 			var em: Node = main.get("enemies")
 			var snowy := {}
@@ -939,11 +948,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.33")) and not bool(menu.call("is_version_open", "0.32")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.34")) and not bool(menu.call("is_version_open", "0.33")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.32")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.33")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")

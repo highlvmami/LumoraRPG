@@ -41,6 +41,8 @@ func build(terrain: Terrain, cfg: Dictionary, map := {}) -> void:
 			_build_dungeon(terrain, cfg, colliders)
 		"snow":
 			_build_snow(terrain, cfg, map, colliders)
+		"desert":
+			_build_desert(terrain, cfg, map, colliders)
 		_:
 			_build_forest(terrain, cfg, map, colliders)
 
@@ -1075,3 +1077,206 @@ func _part(parent: Node3D, mesh: Mesh, color: Color, pos: Vector3) -> MeshInstan
 	part.position = pos
 	parent.add_child(part)
 	return part
+
+
+## Desert: an oasis with palms, cacti, sandstone rocks, old pillars and two
+## pyramids, nomad tents with campfires, bones, dry shrubs and blowing sand.
+func _build_desert(terrain: Terrain, cfg: Dictionary, map: Dictionary, colliders: StaticBody3D) -> void:
+	var half: float = cfg.playableHalfSize
+	var clear: float = cfg.spawnClearRadius
+	var sand_stone := Color("#b8935a")
+
+	# Two pyramids first (nothing grows inside them).
+	for n in 2:
+		var spot := _pick_spot(half * 0.8, clear + 14.0)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var size := 9.0 + n * 3.0
+		var pyramid := MeshInstance3D.new()
+		var cone := _cylinder(0.0, size, size * 0.85)
+		cone.radial_segments = 4
+		pyramid.mesh = cone
+		pyramid.material_override = Toon.material(Color("#d8b476"))
+		pyramid.position = Vector3(spot.x, ground + size * 0.4, spot.y)
+		pyramid.rotation.y = PI / 4.0 + _rng.randf() * 0.3
+		add_child(pyramid)
+		_ruins.append(Vector3(spot.x, spot.y, size * 1.1))
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), size * 0.62, 8.0)
+
+	# The oasis: turquoise water, reeds and palms around it.
+	var water_mat := Toon.material(Color(0.2, 0.75, 0.75, 0.85))
+	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water_mat.emission_enabled = true
+	water_mat.emission = Color(0.05, 0.3, 0.3)
+	var tries := 0
+	var oases := 0
+	while oases < 2 and tries < 300:
+		tries += 1
+		var spot := _pick_spot(half * 0.8, clear + 8.0)
+		var r := _rng.randf_range(3.5, 5.0)
+		var low := INF
+		var high := -INF
+		for k in 9:
+			var at := spot + (Vector2.from_angle(TAU * k / 8.0) * r if k < 8 else Vector2.ZERO)
+			var h := terrain.height_at(at.x, at.y)
+			low = minf(low, h)
+			high = maxf(high, h)
+		if high - low > 1.0 or _near_pond(spot, r + 12.0) or _in_ruin(spot):
+			continue
+		oases += 1
+		_ponds.append(Vector3(spot.x, spot.y, r))
+		var lake := MeshInstance3D.new()
+		var disc := _cylinder(r, r, 0.06)
+		disc.radial_segments = 14
+		lake.mesh = disc
+		lake.material_override = water_mat
+		lake.position = Vector3(spot.x, low + 0.3, spot.y)
+		lake.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(lake)
+		var grass := _cylinder(r + 1.6, r + 1.8, 0.05)
+		grass.radial_segments = 16
+		var rim := MeshInstance3D.new()
+		rim.mesh = grass
+		rim.material_override = Toon.material(Color("#7aa83a"))
+		rim.position = Vector3(spot.x, low + 0.24, spot.y)
+		add_child(rim)
+		for k in 6:
+			var a := TAU * k / 6.0 + _rng.randf() * 0.4
+			var at := spot + Vector2.from_angle(a) * (r + 0.8)
+			_palm(Vector3(at.x, terrain.height_at(at.x, at.y), at.y), _rng.randf_range(0.9, 1.3), colliders)
+
+	# Cacti: a trunk and one or two arms.
+	var cactus_count := 55
+	var trunks := _multimesh(_cylinder(0.3, 0.38, 2.4), Toon.material(Color("#4a8a3a")), cactus_count, false)
+	var arms := _multimesh(_cylinder(0.2, 0.24, 1.1), Toon.material(Color("#4a8a3a")), cactus_count * 2, false)
+	for i in cactus_count:
+		var spot := _dry_spot(half, clear)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var s := _rng.randf_range(0.7, 1.5)
+		var yaw := _rng.randf() * TAU
+		trunks.multimesh.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), Vector3(spot.x, ground + 1.1 * s, spot.y)))
+		for k in 2:
+			var side := -1.0 if k == 0 else 1.0
+			var b := Basis(Vector3.UP, yaw) * Basis(Vector3.BACK, side * 0.9)
+			var off := Basis(Vector3.UP, yaw) * Vector3(side * 0.5 * s, (0.9 + k * 0.5) * s, 0)
+			arms.multimesh.set_instance_transform(i * 2 + k, Transform3D(b.scaled(Vector3.ONE * s), Vector3(spot.x, ground, spot.y) + off))
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), 0.45 * s, 2.6 * s)
+
+	# Sandstone rocks and a few tall mesas.
+	var rock_count := int(map.get("rocks", cfg.rocks))
+	var rocks := _multimesh(_sphere(1.0), Toon.material(sand_stone), rock_count, false)
+	for i in rock_count:
+		var spot := _dry_spot(half, clear * 0.6)
+		var s := _rng.randf_range(0.5, 1.7)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var basis := Basis.from_euler(Vector3(_rng.randf() * 0.3, _rng.randf() * TAU, _rng.randf() * 0.3))
+		rocks.multimesh.set_instance_transform(i, Transform3D(basis.scaled(Vector3(s * 1.3, s * 0.8, s)), Vector3(spot.x, ground + s * 0.2, spot.y)))
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), s * 0.95, s * 1.5)
+	for n in 8:
+		var spot := _dry_spot(half * 0.95, clear + 6.0)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var w := _rng.randf_range(3.0, 5.0)
+		var h := _rng.randf_range(4.0, 7.0)
+		for tier in 2:
+			var tw := w * (1.0 - tier * 0.35)
+			var th := h * (0.6 if tier == 0 else 0.4)
+			var y := ground + (th * 0.5 if tier == 0 else h * 0.6 + th * 0.5)
+			var mesa := _part(self, _box(Vector3(tw, th, tw * 0.8)), sand_stone.lightened(0.08 * tier), Vector3(spot.x, y, spot.y))
+			mesa.rotation.y = n * 0.7
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), w * 0.6, h)
+
+	# Old pillars, some broken, with fallen drums beside them.
+	var stone := Color("#c9ad7c")
+	for n in 14:
+		var spot := _dry_spot(half, clear + 3.0)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var h := _rng.randf_range(1.5, 4.5)
+		_part(self, _cylinder(0.55, 0.65, h), stone, Vector3(spot.x, ground + h * 0.5, spot.y))
+		_part(self, _box(Vector3(1.5, 0.3, 1.5)), stone.darkened(0.08), Vector3(spot.x, ground + 0.12, spot.y))
+		var drum := _part(self, _cylinder(0.5, 0.5, 0.9), stone.darkened(0.05), Vector3(spot.x + 1.2, ground + 0.42, spot.y + 0.5))
+		drum.rotation.z = PI / 2.0
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), 0.65, h)
+
+	# Nomad tents with a campfire in front.
+	for n in 4:
+		var spot := _dry_spot(half * 0.9, clear + 8.0)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var cloths: Array[Color] = [Color("#c0392b"), Color("#2e7fb8"), Color("#d8a23a"), Color("#7a4ea8")]
+		var cloth: Color = cloths[n]
+		var tent_mesh := _cylinder(0.0, 2.4, 2.6)
+		tent_mesh.radial_segments = 4
+		var tent := _part(self, tent_mesh, cloth, Vector3(spot.x, ground + 1.3, spot.y))
+		tent.rotation.y = _rng.randf() * TAU
+		_part(self, _box(Vector3(0.9, 1.5, 0.1)), Color("#2a1a10"), Vector3(spot.x, ground + 0.7, spot.y)).rotation.y = tent.rotation.y
+		_add_collider(colliders, Vector3(spot.x, ground, spot.y), 1.9, 2.4)
+		var fire_at := spot + Vector2.from_angle(tent.rotation.y + PI / 2.0) * 3.4
+		_add_fire(Vector3(fire_at.x, terrain.height_at(fire_at.x, fire_at.y) + 0.25, fire_at.y), 0.25, 1.4, 7.0)
+
+	# Bones half buried in the sand.
+	var bone_mm := _multimesh(_box(Vector3(0.12, 0.1, 0.9)), Toon.material(Color("#f2ead2")), 70, false)
+	for i in 70:
+		var spot := _dry_spot(half, clear * 0.5)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var b := Basis.from_euler(Vector3(_rng.randf_range(-0.2, 0.2), _rng.randf() * TAU, _rng.randf_range(-0.2, 0.2)))
+		bone_mm.multimesh.set_instance_transform(i, Transform3D(b.scaled(Vector3.ONE * _rng.randf_range(0.6, 1.6)), Vector3(spot.x, ground + 0.08, spot.y)))
+	for n in 5:
+		var spot := _dry_spot(half, clear * 0.7)
+		var ground := terrain.height_at(spot.x, spot.y)
+		_part(self, _sphere(0.35, 8, 4), Color("#f2ead2"), Vector3(spot.x, ground + 0.25, spot.y))
+		_part(self, _box(Vector3(0.28, 0.2, 0.3)), Color("#f2ead2"), Vector3(spot.x, ground + 0.16, spot.y + 0.3))
+
+	# Dry shrubs.
+	var shrub_count := 220
+	var shrubs := _multimesh(_tuft_mesh(), Toon.material(Color.WHITE, true), shrub_count, true)
+	for i in shrub_count:
+		var spot := _dry_spot(half, clear * 0.4)
+		var ground := terrain.height_at(spot.x, spot.y)
+		var s := _rng.randf_range(1.0, 2.2)
+		shrubs.multimesh.set_instance_transform(i, Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * s), Vector3(spot.x, ground, spot.y)))
+		shrubs.multimesh.set_instance_color(i, Color.from_hsv(_rng.randf_range(0.1, 0.14), _rng.randf_range(0.4, 0.6), _rng.randf_range(0.55, 0.75)))
+
+	_build_sandstorm(half)
+
+
+## A palm: a leaning trunk of segments with drooping fronds.
+func _palm(at: Vector3, s: float, colliders: StaticBody3D) -> void:
+	var lean := Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized() * 0.18
+	var top := at
+	for k in 4:
+		var up := (Vector3.UP + lean * (k + 1) * 0.5).normalized()
+		var seg := _part(self, _cylinder(0.2, 0.28, 1.3), Color("#9a7448"), top + up * 0.62 * s)
+		seg.basis = Basis(Vector3.UP.cross(up).normalized() if up != Vector3.UP else Vector3.RIGHT, Vector3.UP.angle_to(up)).scaled(Vector3.ONE * s)
+		top += up * 1.2 * s
+	for f in 6:
+		var frond := _part(self, _box(Vector3(0.7, 0.08, 2.6)), Color.from_hsv(_rng.randf_range(0.25, 0.32), 0.7, _rng.randf_range(0.45, 0.62)), Vector3.ZERO)
+		var b := Basis(Vector3.UP, TAU * f / 6.0 + _rng.randf() * 0.3) * Basis(Vector3.RIGHT, 0.45)
+		frond.basis = b.scaled(Vector3.ONE * s)
+		frond.position = top + b * Vector3(0, 0, 1.1 * s)
+	_add_collider(colliders, at, 0.35 * s, 5.0 * s)
+
+
+## Sand blown sideways over the whole map.
+func _build_sandstorm(half: float) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.95, 0.82, 0.55, 0.55)
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.1, 0.1)
+	quad.material = mat
+	var sand := CPUParticles3D.new()
+	sand.name = "Sandstorm"
+	sand.mesh = quad
+	sand.amount = 900
+	sand.lifetime = 6.0
+	sand.preprocess = 6.0
+	sand.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	sand.emission_box_extents = Vector3(half, 3.0, half)
+	sand.position = Vector3(0, 3.0, 0)
+	sand.direction = Vector3(1, 0.05, 0.3)
+	sand.spread = 12.0
+	sand.gravity = Vector3(2.0, -0.2, 0.6)
+	sand.initial_velocity_min = 2.0
+	sand.initial_velocity_max = 4.0
+	sand.visibility_aabb = AABB(Vector3(-half, -10, -half), Vector3(half * 2.0, 30, half * 2.0))
+	add_child(sand)

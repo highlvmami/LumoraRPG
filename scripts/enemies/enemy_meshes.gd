@@ -26,6 +26,14 @@ static func build(id: String, radius: float) -> ArrayMesh:
 			return _yeti(false)
 		"yeti_boss":
 			return _yeti(true)
+		"scorpion":
+			return _scorpion()
+		"jackal":
+			return _wolf(Color("#c8a468"), Color("#8a6a3a"), Color("#ff8a3a"))
+		"mummy":
+			return _mummy(false)
+		"pharaoh_boss":
+			return _mummy(true)
 		"alpha_wolf":
 			return _wolf(Color("#3a3a46"), Color("#22222c"), Color("#ff4a3a"))
 		"goblin_chief":
@@ -65,6 +73,59 @@ static func _yeti(boss: bool) -> ArrayMesh:
 	if boss:
 		for k in 5:
 			parts.append([_box(Vector3(0.18, 0.5, 0.18)), Vector3(-0.4 + k * 0.2, 1.75, -0.35), Color("#8fe3ff")])
+	return _compound(parts)
+
+
+## A desert scorpion: flat shell, claws and a curled tail with a stinger.
+static func _scorpion() -> ArrayMesh:
+	var shell := Color("#b8782e")
+	var dark := Color("#7a4a1c")
+	var eye := Color("#ff3b3b")
+	var parts := [
+		[_box(Vector3(0.7, 0.28, 0.9)), Vector3(0, 0.35, 0), shell],
+		[_box(Vector3(0.45, 0.22, 0.4)), Vector3(0, 0.34, 0.62), shell],
+		[_box(Vector3(0.07, 0.07, 0.04)), Vector3(-0.1, 0.42, 0.83), eye],
+		[_box(Vector3(0.07, 0.07, 0.04)), Vector3(0.1, 0.42, 0.83), eye],
+		[_box(Vector3(0.45, 0.2, 0.3)), Vector3(0, 0.38, -0.55), dark],
+		[_box(Vector3(0.3, 0.2, 0.3)), Vector3(0, 0.62, -0.78), shell],
+		[_box(Vector3(0.24, 0.2, 0.3)), Vector3(0, 0.88, -0.78), shell],
+		[_box(Vector3(0.2, 0.2, 0.34)), Vector3(0, 1.05, -0.6), shell],
+		[_box(Vector3(0.08, 0.08, 0.2)), Vector3(0, 0.98, -0.4), Color("#ffd23f")],
+	]
+	for side in [-1.0, 1.0]:
+		parts.append([_box(Vector3(0.1, 0.1, 0.5)), Vector3(side * 0.42, 0.4, 0.85), dark])
+		parts.append([_box(Vector3(0.28, 0.12, 0.3)), Vector3(side * 0.42, 0.4, 1.2), shell])
+		for z in [-0.2, 0.1, 0.35]:
+			parts.append([_box(Vector3(0.4, 0.07, 0.07)), Vector3(side * 0.5, 0.2, z), dark])
+	return _compound(parts)
+
+
+## A bandaged mummy; the pharaoh (boss) wears a golden mask and crown.
+static func _mummy(boss: bool) -> ArrayMesh:
+	var wrap := Color("#d8cfae") if not boss else Color("#e8dfbe")
+	var shade := Color("#b0a684")
+	var gold := Color("#ffd23f")
+	var eye := Color("#6aff9a") if not boss else Color("#ff5a3a")
+	var parts := [
+		[_box(Vector3(0.4, 0.7, 0.4)), Vector3(-0.28, 0.35, 0), shade],
+		[_box(Vector3(0.4, 0.7, 0.4)), Vector3(0.28, 0.35, 0), shade],
+		[_box(Vector3(1.0, 1.0, 0.65)), Vector3(0, 1.2, 0), wrap],
+		[_box(Vector3(1.04, 0.1, 0.69)), Vector3(0, 1.0, 0), shade],
+		[_box(Vector3(1.04, 0.1, 0.69)), Vector3(0, 1.4, 0), shade],
+		[_box(Vector3(0.62, 0.62, 0.58)), Vector3(0, 2.0, 0.02), wrap],
+		[_box(Vector3(0.1, 0.08, 0.04)), Vector3(-0.14, 2.06, 0.32), eye],
+		[_box(Vector3(0.1, 0.08, 0.04)), Vector3(0.14, 2.06, 0.32), eye],
+		[_box(Vector3(0.28, 0.9, 0.28)), Transform3D(Basis(Vector3.RIGHT, -0.9), Vector3(-0.65, 1.3, 0.35)), wrap],
+		[_box(Vector3(0.28, 0.9, 0.28)), Transform3D(Basis(Vector3.RIGHT, -0.9), Vector3(0.65, 1.3, 0.35)), wrap],
+	]
+	if boss:
+		parts.append([_box(Vector3(0.5, 0.55, 0.08)), Vector3(0, 2.0, 0.34), gold])
+		parts.append([_box(Vector3(0.7, 0.16, 0.66)), Vector3(0, 2.38, 0.02), gold])
+		for x in [-0.22, 0.0, 0.22]:
+			parts.append([_box(Vector3(0.1, 0.3 if x == 0.0 else 0.2, 0.1)), Vector3(x, 2.58, 0.02), gold])
+		parts.append([_box(Vector3(0.1, 0.1, 0.04)), Vector3(-0.14, 2.06, 0.39), eye])
+		parts.append([_box(Vector3(0.1, 0.1, 0.04)), Vector3(0.14, 2.06, 0.39), eye])
+		parts.append([_box(Vector3(1.1, 0.12, 0.7)), Vector3(0, 1.75, 0), gold])
 	return _compound(parts)
 
 
