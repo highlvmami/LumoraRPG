@@ -1,5 +1,7 @@
 {
 	"versions": [
+		{ "version": "0.53", "date": "2026-10-10", "title": "Gerçek kılıçlar", "notes": [
+			"Etrafında dönen kılıçlar artık kabzası, siperi, bıçağı ve sivri ucuyla gerçek bir kılıç gibi görünür" ] },
 		{ "version": "0.52", "date": "2026-10-10", "title": "Yumuşak başlangıç", "notes": [
 			"Canavarlar başta zayıf ve az gelir; ilk iki buçuk dakika sakin geçer",
 			"Zamanla sayıları çok artar, canları ve hasarları hızla büyür; en kalabalık an 10. dakikaya taşındı" ] },
