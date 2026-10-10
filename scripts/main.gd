@@ -46,6 +46,7 @@ const CheatMenu := preload("res://scripts/ui/cheat_menu.gd")
 const UiTheme := preload("res://scripts/ui/theme.gd")
 const NetClient := preload("res://scripts/net/net_client.gd")
 const Coop := preload("res://scripts/net/coop.gd")
+const Weather := preload("res://scripts/world/weather.gd")
 
 ## How many screen pixels each 3D pixel covers, per graphics quality.
 const PIXEL_SCALES := {"low": 3, "medium": 2, "high": 1}
@@ -84,6 +85,7 @@ var store := ProfileStore.new()
 ## Online server connection (rooms, invites) and the live co-op run.
 var net: NetClient
 var coop: Coop
+var weather: Node
 var _pvp_over := false
 ## The hub tavern (walkable, with everyone online).
 var hub: Hub
@@ -193,6 +195,8 @@ func apply_environment(m: Dictionary) -> void:
 	_env.fog_density = float(m.fogDensity)
 	_sun.light_color = Color(str(m.sun))
 	_sun.light_energy = float(m.sunEnergy)
+	if weather:
+		weather.set_base(m)
 
 
 func map_name(id := "") -> String:
@@ -201,7 +205,12 @@ func map_name(id := "") -> String:
 func _process(delta: float) -> void:
 	if not in_run:
 		_update_menu_camera(delta)
+		if weather:
+			weather.clear()
 		return
+	if weather:
+		weather.update(delta, enemies.run_time)
+		enemies.night = weather.night
 	if not player.dead and not get_tree().paused:
 		var moved := Vector2(player.global_position.x - _last_step_pos.x, player.global_position.z - _last_step_pos.z).length()
 		if moved < 5.0:
@@ -365,6 +374,12 @@ func login(username: String, remember := false) -> void:
 	chest_wheel.setup(inventory.gear)
 	chest_wheel.closed.connect(main_menu.refresh)
 
+	weather = Weather.new()
+	weather.name = "Weather"
+	world.add_child(weather)
+	weather.setup(_env, _sky_mat, _sun, player)
+	if maps.has(map_id):
+		weather.set_base(maps[map_id])
 	coop = Coop.new()
 	coop.name = "Coop"
 	add_child(coop)
