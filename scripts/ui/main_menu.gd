@@ -72,6 +72,7 @@ const LEADERBOARDS := [
 var progression: Progression
 var skill_tree: SkillTree
 var inventory: Inventory
+var food: RefCounted
 ## Achievements (set by the game after setup).
 var achievements: RefCounted
 ## Daily quests and the login reward (scripts/progression/daily.gd).
@@ -1824,6 +1825,43 @@ func _build_hub() -> void:
 	_content.add_child(enter)
 	if not online:
 		_text("Taverna için sunucuya bağlı olmalısın. Bağlanınca bu düğme açılır.", 15, Color("#ff8a8a"))
+	_build_kitchen()
+
+
+## The kitchen: fish caught at the tavern's dock can be cooked into a meal
+## that helps in the next run.
+func _build_kitchen() -> void:
+	_header("Mutfak")
+	_text("Tavernanın iskelesinde (E) olta at, tuttuğun balığı burada pişir. Yemek bir sonraki turda güç verir ve tur bitince biter.", 14, UiTheme.MUTED)
+	var meal: Dictionary = food.meal()
+	if meal.is_empty():
+		_text("Şu an yemeğin yok.", 16, UiTheme.MUTED)
+	else:
+		_text("Sıradaki yemek: %s  ·  %s" % [meal.meal.name, meal.meal.desc], 16, UiTheme.ACCENT)
+	var stock: Array = food.stock()
+	if stock.is_empty():
+		_text("Henüz balığın yok.", 15, UiTheme.MUTED)
+	for entry: Dictionary in stock:
+		var k: Dictionary = entry.kind
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", _card_style(Color("#3a7a9a"), 2))
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 12)
+		card.add_child(line)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_theme_constant_override("separation", 0)
+		info.add_child(UiTheme.label("%s x%d" % [k.name, int(entry.count)], UiTheme.label_settings(18, UiTheme.TEXT, 2)))
+		info.add_child(UiTheme.label("%s: %s" % [k.meal.name, k.meal.desc], UiTheme.label_settings(13, UiTheme.MUTED, 0)))
+		line.add_child(info)
+		var eat := Button.new()
+		eat.text = "Pişir ve ye"
+		eat.pressed.connect(func() -> void:
+			food.eat(str(k.id))
+			progression.store.save_to_disk()
+			open_section("hub"))
+		line.add_child(eat)
+		_content.add_child(card)
 
 
 ## Walks into the hub tavern (the game opens it).
