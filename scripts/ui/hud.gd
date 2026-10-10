@@ -120,7 +120,7 @@ func setup(p_player: CharacterBody3D, p_progression: Progression, p_enemies: Ene
 	_stats = UiTheme.label("", UiTheme.label_settings(20))
 	_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top_right.add_child(_stats)
-	var controls := UiTheme.label("WASD yürü · BOŞLUK zıpla · R ulti · TIKLA + FARE bak · ESC duraklat · F1 hile", UiTheme.label_settings(14, UiTheme.MUTED, 4))
+	var controls := UiTheme.label("WASD yürü · BOŞLUK zıpla · R ulti · TIKLA + FARE bak · ESC duraklat", UiTheme.label_settings(14, UiTheme.MUTED, 4))
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top_right.add_child(controls)
 

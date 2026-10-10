@@ -1,5 +1,9 @@
 {
 	"versions": [
+		{ "version": "0.65", "date": "2026-10-10", "title": "Gizli geliştirici menüsü", "notes": [
+			"Hile (geliştirici) menüsü artık herkese açık değil: F1 ve sağdaki HİLE sekmesi gizli",
+			"Ayarlar > Hesap'taki Kod kutusuna gizli kod girilen hesapta açılır; hesaba kaydedilir, başka hesaplarda kapalı kalır",
+			"Aynı yerden \"Geliştirici menüsünü kapat\" ile tekrar kilitlenebilir" ] },
 		{ "version": "0.64", "date": "2026-10-10", "title": "Tavernada web düzeltmesi", "notes": [
 			"Sitede (web) tarayıcı fareyi bırakınca taverna artık kendiliğinden çıkış sormuyor: ekrana tıklayınca fare geri alınıyor, çıkış için Esc yeterli",
 			"Bu yüzden zar ve kart davetleri gönderilip kabul edilirken oyundan atılma sorunu giderildi" ] },
