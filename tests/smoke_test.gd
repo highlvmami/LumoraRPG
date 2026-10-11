@@ -533,6 +533,8 @@ func _run() -> void:
 	var gem_gear: RefCounted = inv.get("gear")
 	var gem_item: Dictionary = inv.call("add_random_item", 4)
 	_check(int(gem_gear.call("sockets", gem_item)) == 2, "an epic item has two sockets")
+	# Earlier boss and chest drops may already have given a fire gem.
+	(inv.call("gem_stock") as Dictionary).erase("fire")
 	_check(not bool(inv.call("socket_gem", int(gem_item.uid), 0, "fire")), "a socket needs a gem from the backpack")
 	inv.call("add_gem", "fire", 1)
 	var gem_before: float = float(gem_gear.call("gem_total", gem_item, "damage"))
@@ -1267,11 +1269,11 @@ func _run() -> void:
 	menu.call("open_section", "versions")
 	await _frames(2)
 	var version_heads := menu.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).flat and b.get_parent() is VBoxContainer and b.get_child_count() > 0)
-	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.66")) and not bool(menu.call("is_version_open", "0.65")), "the versions page lists versions with only the newest open")
+	_check(version_heads.size() >= 3 and bool(menu.call("is_version_open", "0.67")) and not bool(menu.call("is_version_open", "0.66")), "the versions page lists versions with only the newest open")
 	if version_heads.size() >= 2:
 		(version_heads[1] as Button).pressed.emit()
 		await create_timer(0.5).timeout
-		_check(bool(menu.call("is_version_open", "0.65")), "clicking a version slides its notes open")
+		_check(bool(menu.call("is_version_open", "0.66")), "clicking a version slides its notes open")
 	menu.call("set_setting", "cameraZoom", 11.0)
 	menu.call("set_setting", "damageNumbers", false)
 	_check(is_equal_approx(float(rig.get("zoom")), 11.0) and not bool(hud.get("show_damage_numbers")), "settings change the camera and the damage numbers")
