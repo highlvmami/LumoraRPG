@@ -533,6 +533,8 @@ func _run() -> void:
 	var gem_gear: RefCounted = inv.get("gear")
 	var gem_item: Dictionary = inv.call("add_random_item", 4)
 	_check(int(gem_gear.call("sockets", gem_item)) == 2, "an epic item has two sockets")
+	# Earlier boss and chest drops may already have given a fire gem.
+	(inv.call("gem_stock") as Dictionary).erase("fire")
 	_check(not bool(inv.call("socket_gem", int(gem_item.uid), 0, "fire")), "a socket needs a gem from the backpack")
 	inv.call("add_gem", "fire", 1)
 	var gem_before: float = float(gem_gear.call("gem_total", gem_item, "damage"))
