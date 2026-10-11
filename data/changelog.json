@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.67", "date": "2026-10-11", "title": "Daha hızlı giriş", "notes": [
+			"Çevrimiçi sunucu artık uykuya dalmıyor: her 10 dakikada bir uyandırılıyor, giriş yaparken 1 dakika beklemek gerekmiyor",
+			"Web sürümünde oyun indirilirken sunucu da aynı anda uyandırılıyor" ] },
 		{ "version": "0.66", "date": "2026-10-10", "title": "Kuşatan sürüler, C ile in/bin", "notes": [
 			"Sürü halinde gelen moblar artık tek taraftan değil, oyuncunun çevresinde kapalı bir halka olarak doğuyor; aralarından hasar almadan sıyrılacak boşluk kalmıyor",
 			"Büyük sürülerde halkanın arkasına ikinci bir sıra ekleniyor",
