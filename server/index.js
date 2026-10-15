@@ -689,6 +689,18 @@ const heartbeat = setInterval(() => {
 }, 20000);
 wss.on("close", () => clearInterval(heartbeat));
 
+// Render's free plan puts the server to sleep after 15 minutes without
+// visitors and waking it takes about a minute. GitHub's scheduled pings
+// (keep-awake.yml) only run every few hours, so the server visits its own
+// public address every 10 minutes, which counts as a visitor.
+const SELF_URL = process.env.RENDER_EXTERNAL_URL;
+if (SELF_URL) {
+  const keepAwake = setInterval(() => {
+    fetch(SELF_URL, { cache: "no-store" }).catch(() => {});
+  }, 10 * 60 * 1000);
+  keepAwake.unref();
+}
+
 const ready = accounts
   .init()
   .then(() => guilds.init())
