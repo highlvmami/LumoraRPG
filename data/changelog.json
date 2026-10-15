@@ -1,5 +1,8 @@
 {
 	"versions": [
+		{ "version": "0.68", "date": "2026-10-15", "title": "Web daha hızlı açılır", "notes": [
+			"Çevrimiçi sunucu kendini her 10 dakikada bir uyandırıyor; önceki zamanlayıcı birkaç saatte bir çalışıyordu, bu yüzden girişte sunucu çoğu zaman uyuyordu",
+			"Web sürümü küçültülmüş oyun motoruyla geliyor: oyunun kullanmadığı parçalar çıkarıldı, tarayıcı daha az indiriyor" ] },
 		{ "version": "0.67", "date": "2026-10-11", "title": "Daha hızlı giriş", "notes": [
 			"Çevrimiçi sunucu artık uykuya dalmıyor: her 10 dakikada bir uyandırılıyor, giriş yaparken 1 dakika beklemek gerekmiyor",
 			"Web sürümünde oyun indirilirken sunucu da aynı anda uyandırılıyor" ] },
