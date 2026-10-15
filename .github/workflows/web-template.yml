@@ -1,6 +1,7 @@
 # Builds a smaller Godot web export template without the engine parts this
-# game does not use (other text shaping, video/audio codecs, networking, XR,
-# navigation, glTF/FBX import, CSG, ...). The result is published as the
+# game does not use (other text shaping, video/audio codecs, WebRTC/ENet, XR,
+# navigation, glTF/FBX import, CSG, ...). WebSocket stays: online play needs it.
+# Godot 4.5 needs Emscripten 4.0 or newer. The result is published as the
 # release "web-template-<version>" and CI uses it for the web export instead
 # of the official template, so the browser downloads much less.
 # Run it again (Actions → "Slim web template" → Run workflow) after
@@ -15,7 +16,7 @@ on:
 
 env:
   GODOT_VERSION: 4.5.1-stable
-  EMSCRIPTEN_VERSION: 3.1.64
+  EMSCRIPTEN_VERSION: 4.0.11
 
 jobs:
   build:
@@ -36,10 +37,10 @@ jobs:
       - name: Build template
         working-directory: godot
         run: |
-          scons platform=web target=template_release threads=no production=yes optimize=size lto=full deprecated=no \
+          scons platform=web target=template_release threads=no production=yes optimize=size lto=full \
             module_text_server_adv_enabled=no module_text_server_fb_enabled=yes \
             module_gltf_enabled=no module_fbx_enabled=no module_csg_enabled=no module_gridmap_enabled=no \
-            module_webrtc_enabled=no module_websocket_enabled=no module_multiplayer_enabled=no \
+            module_webrtc_enabled=no \
             module_enet_enabled=no module_upnp_enabled=no module_jsonrpc_enabled=no \
             module_mobile_vr_enabled=no module_webxr_enabled=no module_openxr_enabled=no \
             module_theora_enabled=no module_vorbis_enabled=no module_ogg_enabled=no module_minimp3_enabled=no \
