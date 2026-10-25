@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white" alt="Node.js">
   <img src="https://img.shields.io/badge/WebSocket-010101?logo=socketdotio&logoColor=white" alt="WebSocket">
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/Render-46E3B7?logo=render&logoColor=black" alt="Render">
+  <img src="https://img.shields.io/badge/Northflank-01C38D?logoColor=white" alt="Northflank">
   <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions">
 </p>
 
@@ -22,7 +22,7 @@
 
 You pick a character and drop onto an open map. Monsters come from every side, your weapons hit whatever gets in range, and you keep moving to stay alive. Every level you pick one of three cards to power up for that run, and a boss shows up every five minutes. When the run ends, the EXP, gold, items and chests you earned stay on your account: gear, pets and the skill tree make the next run stronger. The game is made with Godot 4.5 and runs in the browser and on Windows; online accounts and co-op go through a small Node.js server. The game itself is in Turkish.
 
-> The online server runs on Render's free plan. After a while without players it goes to sleep, and the first connection then takes up to a minute. If the server can't be reached, the game opens offline with the account saved on this device.
+> The online server runs on Northflank and does not go to sleep. If the server can't be reached, the game opens offline with the account saved on this device.
 
 ## Screenshots
 
@@ -141,7 +141,7 @@ You pick a character and drop onto an open map. Monsters come from every side, y
 | Game | Godot 4.5 (GDScript) |
 | Server | Node.js, `ws`, `pg` |
 | Database | PostgreSQL (server memory without one) |
-| Hosting | GitHub Pages (web), GitHub Releases (Windows), Render (server) |
+| Hosting | GitHub Pages (web), GitHub Releases (Windows), Northflank (server), Neon (database) |
 | Tests | Godot headless tests, Node server test, headless Chrome |
 
 ## Project layout
