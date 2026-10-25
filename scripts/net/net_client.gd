@@ -1,12 +1,11 @@
 ## Connection to the online server (server/index.js): online accounts
 ## (sign up, sign in, the game saved on the server), who is online, rooms
 ## with a short code, invites and the co-op messages of a room.
-## Keeps trying to reconnect while the game runs; the free server sleeps when
-## nobody plays, so the first connection can take up to a minute.
+## Keeps trying to reconnect while the game runs.
 extends Node
 
-## The live server (Render). `--server=ws://localhost:8080` overrides it.
-const DEFAULT_URL := "wss://lumora-online.onrender.com"
+## The live server (Northflank). `--server=ws://localhost:8080` overrides it.
+const DEFAULT_URL := "wss://site--lumora-online--bnwmr7y8bjlm.code.run"
 const RETRY_TIME := 5.0
 const PING_TIME := 25.0
 const MAX_MEMBERS := 4

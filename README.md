@@ -14,7 +14,7 @@ Türkçe · [English](README.en.md)
   <img src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=nodedotjs&logoColor=white" alt="Node.js">
   <img src="https://img.shields.io/badge/WebSocket-010101?logo=socketdotio&logoColor=white" alt="WebSocket">
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/Render-46E3B7?logo=render&logoColor=black" alt="Render">
+  <img src="https://img.shields.io/badge/Northflank-01C38D?logoColor=white" alt="Northflank">
   <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions">
 </p>
 
@@ -22,7 +22,7 @@ Türkçe · [English](README.en.md)
 
 Bir karakter seçip açık bir haritaya iniyorsun; canavarlar her yönden gelir, silahların menzile gireni kendiliğinden vurur, sen de hareket edip hayatta kalmaya çalışırsın. Her seviyede üç karttan birini seçip o oyunluk güçlenirsin, her beş dakikada bir boss gelir. Oyun bitince kazandığın EXP, altın, eşya ve kasalar hesabında kalır: ekipman, petler ve yetenek ağacıyla bir sonraki oyuna daha güçlü başlarsın. Oyun Godot 4.5 ile yazıldı; tarayıcıda ve Windows'ta çalışır, çevrimiçi hesaplar ve co-op küçük bir Node.js sunucusundan geçer.
 
-> Çevrimiçi sunucu Render'ın ücretsiz planında çalışıyor. Bir süre kimse bağlanmazsa uykuya geçer; sonraki ilk bağlantı bir dakika kadar sürebilir. Sunucuya ulaşılamazsa oyun bu cihazdaki hesapla çevrimdışı açılır.
+> Çevrimiçi sunucu Northflank'te çalışıyor ve uykuya geçmiyor. Sunucuya ulaşılamazsa oyun bu cihazdaki hesapla çevrimdışı açılır.
 
 ## Ekran görüntüleri
 
@@ -141,7 +141,7 @@ Bir karakter seçip açık bir haritaya iniyorsun; canavarlar her yönden gelir,
 | Oyun | Godot 4.5 (GDScript) |
 | Sunucu | Node.js, `ws`, `pg` |
 | Veritabanı | PostgreSQL (yoksa sunucu hafızası) |
-| Yayın | GitHub Pages (web), GitHub Releases (Windows), Render (sunucu) |
+| Yayın | GitHub Pages (web), GitHub Releases (Windows), Northflank (sunucu), Neon (veritabanı) |
 | Testler | Godot headless testleri, Node sunucu testi, headless Chrome |
 
 ## Proje yapısı
